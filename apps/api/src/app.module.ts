@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module.js';
 import { ServicesModule } from './services/services.module.js';
 import { EmployeesModule } from './employees/employees.module.js';
 import { ClientsModule } from './clients/clients.module.js';
+import { AvailabilityModule } from './availability/availability.module.js';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ClientsModule } from './clients/clients.module.js';
     ServicesModule,
     EmployeesModule,
     ClientsModule,
+    AvailabilityModule,
   ],
   controllers: [AppController],
   providers: [AppService],

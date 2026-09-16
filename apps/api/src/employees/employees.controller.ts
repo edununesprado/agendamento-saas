@@ -22,12 +22,15 @@ import { ListEmployeesQueryDto } from './dto/list-employees-query.dto.js';
 import { UpdateEmployeeDto } from './dto/update-employee.dto.js';
 import { EmployeesService } from './employees.service.js';
 import { SetEmployeeServicesDto } from './dto/set-employee-services.dto.js';
+import { AvailabilityService } from '../availability/availability.service.js';
+import { SetAvailabilityDto } from '../availability/dto/set-availability.dto.js';
 
 @Controller('employees')
 @UseGuards(JwtAuthGuard)
 export class EmployeesController {
   constructor(
     private readonly employeesService: EmployeesService,
+    private readonly availabilityService: AvailabilityService,
   ) {}
 
   @Post()
@@ -74,6 +77,32 @@ setServices(
   @Body() data: SetEmployeeServicesDto,
 ) {
   return this.employeesService.setServices(
+    user.tenantId,
+    id,
+    data,
+  );
+}
+
+@Get(':id/availability')
+findAvailability(
+  @CurrentUser() user: JwtPayload,
+  @Param('id') id: string,
+) {
+  return this.availabilityService.findByEmployee(
+    user.tenantId,
+    id,
+  );
+}
+
+@Put(':id/availability')
+@UseGuards(RolesGuard)
+@Roles('OWNER', 'ADMIN')
+setAvailability(
+  @CurrentUser() user: JwtPayload,
+  @Param('id') id: string,
+  @Body() data: SetAvailabilityDto,
+) {
+  return this.availabilityService.setAvailability(
     user.tenantId,
     id,
     data,

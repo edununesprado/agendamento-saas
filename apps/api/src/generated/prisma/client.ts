@@ -76,3 +76,8 @@ export type EmployeeService = Prisma.EmployeeServiceModel
  * 
  */
 export type Client = Prisma.ClientModel
+/**
+ * Model AvailabilityRule
+ * 
+ */
+export type AvailabilityRule = Prisma.AvailabilityRuleModel

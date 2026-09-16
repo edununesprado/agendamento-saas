@@ -7,6 +7,16 @@ datasource db {
   provider = "postgresql"
 }
 
+enum DayOfWeek {
+  SUNDAY
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+}
+
 enum MembershipRole {
   OWNER
   ADMIN
@@ -31,6 +41,7 @@ model Tenant {
   services    Service[]
   employees Employee[]
   clients Client[]
+  availabilityRules AvailabilityRule[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -107,6 +118,7 @@ model Employee {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   employeeServices EmployeeService[]
+  availabilityRules AvailabilityRule[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -153,4 +165,25 @@ model Client {
   @@index([tenantId, active])
   @@index([tenantId, name])
   @@index([tenantId, phone])
+}
+
+model AvailabilityRule {
+  id String @id @default(cuid())
+
+  tenantId   String
+  employeeId String
+
+  dayOfWeek  DayOfWeek
+  startMinute Int
+  endMinute   Int
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeeId, dayOfWeek, startMinute, endMinute])
+  @@index([tenantId, employeeId])
+  @@index([employeeId, dayOfWeek])
 }

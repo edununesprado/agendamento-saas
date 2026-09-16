@@ -226,6 +226,7 @@ export type TenantWhereInput = {
   services?: Prisma.ServiceListRelationFilter
   employees?: Prisma.EmployeeListRelationFilter
   clients?: Prisma.ClientListRelationFilter
+  availabilityRules?: Prisma.AvailabilityRuleListRelationFilter
 }
 
 export type TenantOrderByWithRelationInput = {
@@ -243,6 +244,7 @@ export type TenantOrderByWithRelationInput = {
   services?: Prisma.ServiceOrderByRelationAggregateInput
   employees?: Prisma.EmployeeOrderByRelationAggregateInput
   clients?: Prisma.ClientOrderByRelationAggregateInput
+  availabilityRules?: Prisma.AvailabilityRuleOrderByRelationAggregateInput
 }
 
 export type TenantWhereUniqueInput = Prisma.AtLeast<{
@@ -263,6 +265,7 @@ export type TenantWhereUniqueInput = Prisma.AtLeast<{
   services?: Prisma.ServiceListRelationFilter
   employees?: Prisma.EmployeeListRelationFilter
   clients?: Prisma.ClientListRelationFilter
+  availabilityRules?: Prisma.AvailabilityRuleListRelationFilter
 }, "id" | "slug">
 
 export type TenantOrderByWithAggregationInput = {
@@ -312,6 +315,7 @@ export type TenantCreateInput = {
   services?: Prisma.ServiceCreateNestedManyWithoutTenantInput
   employees?: Prisma.EmployeeCreateNestedManyWithoutTenantInput
   clients?: Prisma.ClientCreateNestedManyWithoutTenantInput
+  availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutTenantInput
 }
 
 export type TenantUncheckedCreateInput = {
@@ -329,6 +333,7 @@ export type TenantUncheckedCreateInput = {
   services?: Prisma.ServiceUncheckedCreateNestedManyWithoutTenantInput
   employees?: Prisma.EmployeeUncheckedCreateNestedManyWithoutTenantInput
   clients?: Prisma.ClientUncheckedCreateNestedManyWithoutTenantInput
+  availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type TenantUpdateInput = {
@@ -346,6 +351,7 @@ export type TenantUpdateInput = {
   services?: Prisma.ServiceUpdateManyWithoutTenantNestedInput
   employees?: Prisma.EmployeeUpdateManyWithoutTenantNestedInput
   clients?: Prisma.ClientUpdateManyWithoutTenantNestedInput
+  availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateInput = {
@@ -363,6 +369,7 @@ export type TenantUncheckedUpdateInput = {
   services?: Prisma.ServiceUncheckedUpdateManyWithoutTenantNestedInput
   employees?: Prisma.EmployeeUncheckedUpdateManyWithoutTenantNestedInput
   clients?: Prisma.ClientUncheckedUpdateManyWithoutTenantNestedInput
+  availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantCreateManyInput = {
@@ -516,6 +523,20 @@ export type TenantUpdateOneRequiredWithoutClientsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.TenantUpdateToOneWithWhereWithoutClientsInput, Prisma.TenantUpdateWithoutClientsInput>, Prisma.TenantUncheckedUpdateWithoutClientsInput>
 }
 
+export type TenantCreateNestedOneWithoutAvailabilityRulesInput = {
+  create?: Prisma.XOR<Prisma.TenantCreateWithoutAvailabilityRulesInput, Prisma.TenantUncheckedCreateWithoutAvailabilityRulesInput>
+  connectOrCreate?: Prisma.TenantCreateOrConnectWithoutAvailabilityRulesInput
+  connect?: Prisma.TenantWhereUniqueInput
+}
+
+export type TenantUpdateOneRequiredWithoutAvailabilityRulesNestedInput = {
+  create?: Prisma.XOR<Prisma.TenantCreateWithoutAvailabilityRulesInput, Prisma.TenantUncheckedCreateWithoutAvailabilityRulesInput>
+  connectOrCreate?: Prisma.TenantCreateOrConnectWithoutAvailabilityRulesInput
+  upsert?: Prisma.TenantUpsertWithoutAvailabilityRulesInput
+  connect?: Prisma.TenantWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.TenantUpdateToOneWithWhereWithoutAvailabilityRulesInput, Prisma.TenantUpdateWithoutAvailabilityRulesInput>, Prisma.TenantUncheckedUpdateWithoutAvailabilityRulesInput>
+}
+
 export type TenantCreateWithoutMembershipsInput = {
   id?: string
   name: string
@@ -530,6 +551,7 @@ export type TenantCreateWithoutMembershipsInput = {
   services?: Prisma.ServiceCreateNestedManyWithoutTenantInput
   employees?: Prisma.EmployeeCreateNestedManyWithoutTenantInput
   clients?: Prisma.ClientCreateNestedManyWithoutTenantInput
+  availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutMembershipsInput = {
@@ -546,6 +568,7 @@ export type TenantUncheckedCreateWithoutMembershipsInput = {
   services?: Prisma.ServiceUncheckedCreateNestedManyWithoutTenantInput
   employees?: Prisma.EmployeeUncheckedCreateNestedManyWithoutTenantInput
   clients?: Prisma.ClientUncheckedCreateNestedManyWithoutTenantInput
+  availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutMembershipsInput = {
@@ -578,6 +601,7 @@ export type TenantUpdateWithoutMembershipsInput = {
   services?: Prisma.ServiceUpdateManyWithoutTenantNestedInput
   employees?: Prisma.EmployeeUpdateManyWithoutTenantNestedInput
   clients?: Prisma.ClientUpdateManyWithoutTenantNestedInput
+  availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutMembershipsInput = {
@@ -594,6 +618,7 @@ export type TenantUncheckedUpdateWithoutMembershipsInput = {
   services?: Prisma.ServiceUncheckedUpdateManyWithoutTenantNestedInput
   employees?: Prisma.EmployeeUncheckedUpdateManyWithoutTenantNestedInput
   clients?: Prisma.ClientUncheckedUpdateManyWithoutTenantNestedInput
+  availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantCreateWithoutServicesInput = {
@@ -610,6 +635,7 @@ export type TenantCreateWithoutServicesInput = {
   memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
   employees?: Prisma.EmployeeCreateNestedManyWithoutTenantInput
   clients?: Prisma.ClientCreateNestedManyWithoutTenantInput
+  availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutServicesInput = {
@@ -626,6 +652,7 @@ export type TenantUncheckedCreateWithoutServicesInput = {
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
   employees?: Prisma.EmployeeUncheckedCreateNestedManyWithoutTenantInput
   clients?: Prisma.ClientUncheckedCreateNestedManyWithoutTenantInput
+  availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutServicesInput = {
@@ -658,6 +685,7 @@ export type TenantUpdateWithoutServicesInput = {
   memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
   employees?: Prisma.EmployeeUpdateManyWithoutTenantNestedInput
   clients?: Prisma.ClientUpdateManyWithoutTenantNestedInput
+  availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutServicesInput = {
@@ -674,6 +702,7 @@ export type TenantUncheckedUpdateWithoutServicesInput = {
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
   employees?: Prisma.EmployeeUncheckedUpdateManyWithoutTenantNestedInput
   clients?: Prisma.ClientUncheckedUpdateManyWithoutTenantNestedInput
+  availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantCreateWithoutEmployeesInput = {
@@ -690,6 +719,7 @@ export type TenantCreateWithoutEmployeesInput = {
   memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
   services?: Prisma.ServiceCreateNestedManyWithoutTenantInput
   clients?: Prisma.ClientCreateNestedManyWithoutTenantInput
+  availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutEmployeesInput = {
@@ -706,6 +736,7 @@ export type TenantUncheckedCreateWithoutEmployeesInput = {
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
   services?: Prisma.ServiceUncheckedCreateNestedManyWithoutTenantInput
   clients?: Prisma.ClientUncheckedCreateNestedManyWithoutTenantInput
+  availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutEmployeesInput = {
@@ -738,6 +769,7 @@ export type TenantUpdateWithoutEmployeesInput = {
   memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
   services?: Prisma.ServiceUpdateManyWithoutTenantNestedInput
   clients?: Prisma.ClientUpdateManyWithoutTenantNestedInput
+  availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutEmployeesInput = {
@@ -754,6 +786,7 @@ export type TenantUncheckedUpdateWithoutEmployeesInput = {
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
   services?: Prisma.ServiceUncheckedUpdateManyWithoutTenantNestedInput
   clients?: Prisma.ClientUncheckedUpdateManyWithoutTenantNestedInput
+  availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantCreateWithoutClientsInput = {
@@ -770,6 +803,7 @@ export type TenantCreateWithoutClientsInput = {
   memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
   services?: Prisma.ServiceCreateNestedManyWithoutTenantInput
   employees?: Prisma.EmployeeCreateNestedManyWithoutTenantInput
+  availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutClientsInput = {
@@ -786,6 +820,7 @@ export type TenantUncheckedCreateWithoutClientsInput = {
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
   services?: Prisma.ServiceUncheckedCreateNestedManyWithoutTenantInput
   employees?: Prisma.EmployeeUncheckedCreateNestedManyWithoutTenantInput
+  availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutClientsInput = {
@@ -818,6 +853,7 @@ export type TenantUpdateWithoutClientsInput = {
   memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
   services?: Prisma.ServiceUpdateManyWithoutTenantNestedInput
   employees?: Prisma.EmployeeUpdateManyWithoutTenantNestedInput
+  availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutClientsInput = {
@@ -834,6 +870,91 @@ export type TenantUncheckedUpdateWithoutClientsInput = {
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
   services?: Prisma.ServiceUncheckedUpdateManyWithoutTenantNestedInput
   employees?: Prisma.EmployeeUncheckedUpdateManyWithoutTenantNestedInput
+  availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type TenantCreateWithoutAvailabilityRulesInput = {
+  id?: string
+  name: string
+  slug: string
+  logoUrl?: string | null
+  primaryColor?: string | null
+  phone?: string | null
+  email?: string | null
+  timezone?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
+  services?: Prisma.ServiceCreateNestedManyWithoutTenantInput
+  employees?: Prisma.EmployeeCreateNestedManyWithoutTenantInput
+  clients?: Prisma.ClientCreateNestedManyWithoutTenantInput
+}
+
+export type TenantUncheckedCreateWithoutAvailabilityRulesInput = {
+  id?: string
+  name: string
+  slug: string
+  logoUrl?: string | null
+  primaryColor?: string | null
+  phone?: string | null
+  email?: string | null
+  timezone?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
+  services?: Prisma.ServiceUncheckedCreateNestedManyWithoutTenantInput
+  employees?: Prisma.EmployeeUncheckedCreateNestedManyWithoutTenantInput
+  clients?: Prisma.ClientUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type TenantCreateOrConnectWithoutAvailabilityRulesInput = {
+  where: Prisma.TenantWhereUniqueInput
+  create: Prisma.XOR<Prisma.TenantCreateWithoutAvailabilityRulesInput, Prisma.TenantUncheckedCreateWithoutAvailabilityRulesInput>
+}
+
+export type TenantUpsertWithoutAvailabilityRulesInput = {
+  update: Prisma.XOR<Prisma.TenantUpdateWithoutAvailabilityRulesInput, Prisma.TenantUncheckedUpdateWithoutAvailabilityRulesInput>
+  create: Prisma.XOR<Prisma.TenantCreateWithoutAvailabilityRulesInput, Prisma.TenantUncheckedCreateWithoutAvailabilityRulesInput>
+  where?: Prisma.TenantWhereInput
+}
+
+export type TenantUpdateToOneWithWhereWithoutAvailabilityRulesInput = {
+  where?: Prisma.TenantWhereInput
+  data: Prisma.XOR<Prisma.TenantUpdateWithoutAvailabilityRulesInput, Prisma.TenantUncheckedUpdateWithoutAvailabilityRulesInput>
+}
+
+export type TenantUpdateWithoutAvailabilityRulesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  logoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  primaryColor?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
+  services?: Prisma.ServiceUpdateManyWithoutTenantNestedInput
+  employees?: Prisma.EmployeeUpdateManyWithoutTenantNestedInput
+  clients?: Prisma.ClientUpdateManyWithoutTenantNestedInput
+}
+
+export type TenantUncheckedUpdateWithoutAvailabilityRulesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  logoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  primaryColor?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
+  services?: Prisma.ServiceUncheckedUpdateManyWithoutTenantNestedInput
+  employees?: Prisma.EmployeeUncheckedUpdateManyWithoutTenantNestedInput
+  clients?: Prisma.ClientUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 
@@ -846,6 +967,7 @@ export type TenantCountOutputType = {
   services: number
   employees: number
   clients: number
+  availabilityRules: number
 }
 
 export type TenantCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -853,6 +975,7 @@ export type TenantCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions
   services?: boolean | TenantCountOutputTypeCountServicesArgs
   employees?: boolean | TenantCountOutputTypeCountEmployeesArgs
   clients?: boolean | TenantCountOutputTypeCountClientsArgs
+  availabilityRules?: boolean | TenantCountOutputTypeCountAvailabilityRulesArgs
 }
 
 /**
@@ -893,6 +1016,13 @@ export type TenantCountOutputTypeCountClientsArgs<ExtArgs extends runtime.Types.
   where?: Prisma.ClientWhereInput
 }
 
+/**
+ * TenantCountOutputType without action
+ */
+export type TenantCountOutputTypeCountAvailabilityRulesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AvailabilityRuleWhereInput
+}
+
 
 export type TenantSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -909,6 +1039,7 @@ export type TenantSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   services?: boolean | Prisma.Tenant$servicesArgs<ExtArgs>
   employees?: boolean | Prisma.Tenant$employeesArgs<ExtArgs>
   clients?: boolean | Prisma.Tenant$clientsArgs<ExtArgs>
+  availabilityRules?: boolean | Prisma.Tenant$availabilityRulesArgs<ExtArgs>
   _count?: boolean | Prisma.TenantCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["tenant"]>
 
@@ -957,6 +1088,7 @@ export type TenantInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   services?: boolean | Prisma.Tenant$servicesArgs<ExtArgs>
   employees?: boolean | Prisma.Tenant$employeesArgs<ExtArgs>
   clients?: boolean | Prisma.Tenant$clientsArgs<ExtArgs>
+  availabilityRules?: boolean | Prisma.Tenant$availabilityRulesArgs<ExtArgs>
   _count?: boolean | Prisma.TenantCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type TenantIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -969,6 +1101,7 @@ export type $TenantPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     services: Prisma.$ServicePayload<ExtArgs>[]
     employees: Prisma.$EmployeePayload<ExtArgs>[]
     clients: Prisma.$ClientPayload<ExtArgs>[]
+    availabilityRules: Prisma.$AvailabilityRulePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1379,6 +1512,7 @@ export interface Prisma__TenantClient<T, Null = never, ExtArgs extends runtime.T
   services<T extends Prisma.Tenant$servicesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Tenant$servicesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ServicePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   employees<T extends Prisma.Tenant$employeesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Tenant$employeesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$EmployeePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   clients<T extends Prisma.Tenant$clientsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Tenant$clientsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ClientPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  availabilityRules<T extends Prisma.Tenant$availabilityRulesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Tenant$availabilityRulesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AvailabilityRulePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1904,6 +2038,30 @@ export type Tenant$clientsArgs<ExtArgs extends runtime.Types.Extensions.Internal
   take?: number
   skip?: number
   distinct?: Prisma.ClientScalarFieldEnum | Prisma.ClientScalarFieldEnum[]
+}
+
+/**
+ * Tenant.availabilityRules
+ */
+export type Tenant$availabilityRulesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AvailabilityRule
+   */
+  select?: Prisma.AvailabilityRuleSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AvailabilityRule
+   */
+  omit?: Prisma.AvailabilityRuleOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AvailabilityRuleInclude<ExtArgs> | null
+  where?: Prisma.AvailabilityRuleWhereInput
+  orderBy?: Prisma.AvailabilityRuleOrderByWithRelationInput | Prisma.AvailabilityRuleOrderByWithRelationInput[]
+  cursor?: Prisma.AvailabilityRuleWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AvailabilityRuleScalarFieldEnum | Prisma.AvailabilityRuleScalarFieldEnum[]
 }
 
 /**
