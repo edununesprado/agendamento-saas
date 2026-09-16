@@ -30,6 +30,7 @@ model Tenant {
   memberships Membership[]
   services    Service[]
   employees Employee[]
+  clients Client[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -128,4 +129,28 @@ model EmployeeService {
   @@unique([employeeId, serviceId])
   @@index([employeeId])
   @@index([serviceId])
+}
+
+model Client {
+  id String @id @default(cuid())
+
+  tenantId String
+
+  name  String
+  email String?
+  phone String?
+
+  birthDate DateTime?
+  notes     String?
+
+  active Boolean @default(true)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, active])
+  @@index([tenantId, name])
+  @@index([tenantId, phone])
 }

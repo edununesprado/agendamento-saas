@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { UsersModule } from './users/users.module.js';
 import { ServicesModule } from './services/services.module.js';
 import { EmployeesModule } from './employees/employees.module.js';
+import { ClientsModule } from './clients/clients.module.js';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { EmployeesModule } from './employees/employees.module.js';
     UsersModule,
     ServicesModule,
     EmployeesModule,
+    ClientsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
