@@ -6,6 +6,8 @@ import { AppService } from './app.service.js';
 import { HealthModule } from './health/health.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { TenantsModule } from './tenants/tenants.module.js';
+import { AuthModule } from './auth/auth.module.js';
+import { UsersModule } from './users/users.module.js';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { TenantsModule } from './tenants/tenants.module.js';
     PrismaModule,
     HealthModule,
     TenantsModule,
+    AuthModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
