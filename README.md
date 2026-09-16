@@ -30,4 +30,6 @@ Sistema SaaS multiempresa para gerenciamento de agendamentos.
 ```text
 apps/
 ├── api/
+|       pnpm start:dev
 └── web/
+|       pnpm dev
