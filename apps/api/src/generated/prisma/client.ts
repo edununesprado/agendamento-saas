@@ -61,3 +61,8 @@ export type Membership = Prisma.MembershipModel
  * 
  */
 export type Service = Prisma.ServiceModel
+/**
+ * Model Employee
+ * 
+ */
+export type Employee = Prisma.EmployeeModel

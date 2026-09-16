@@ -9,6 +9,7 @@ import { TenantsModule } from './tenants/tenants.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { UsersModule } from './users/users.module.js';
 import { ServicesModule } from './services/services.module.js';
+import { EmployeesModule } from './employees/employees.module.js';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ServicesModule } from './services/services.module.js';
     AuthModule,
     UsersModule,
     ServicesModule,
+    EmployeesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
