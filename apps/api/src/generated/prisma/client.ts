@@ -66,3 +66,8 @@ export type Service = Prisma.ServiceModel
  * 
  */
 export type Employee = Prisma.EmployeeModel
+/**
+ * Model EmployeeService
+ * 
+ */
+export type EmployeeService = Prisma.EmployeeServiceModel

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -7,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateEmployeeDto } from './dto/create-employee.dto.js';
 import { ListEmployeesQueryDto } from './dto/list-employees-query.dto.js';
 import { UpdateEmployeeDto } from './dto/update-employee.dto.js';
+import { SetEmployeeServicesDto } from './dto/set-employee-services.dto.js';
 
 @Injectable()
 export class EmployeesService {
@@ -81,6 +83,94 @@ export class EmployeesService {
 
     return employee;
   }
+
+  async findServices(
+  tenantId: string,
+  employeeId: string,
+) {
+  await this.findOne(tenantId, employeeId);
+
+  const employeeServices =
+    await this.prisma.employeeService.findMany({
+      where: {
+        employeeId,
+        employee: {
+          tenantId,
+        },
+      },
+
+      include: {
+        service: true,
+      },
+
+      orderBy: {
+        service: {
+          name: 'asc',
+        },
+      },
+    });
+
+  return employeeServices.map(
+    (employeeService) => employeeService.service,
+  );
+}
+
+async setServices(
+  tenantId: string,
+  employeeId: string,
+  data: SetEmployeeServicesDto,
+) {
+  await this.findOne(tenantId, employeeId);
+
+  const uniqueServiceIds = [
+    ...new Set(data.serviceIds),
+  ];
+
+  if (uniqueServiceIds.length > 0) {
+    const services =
+      await this.prisma.service.findMany({
+        where: {
+          id: {
+            in: uniqueServiceIds,
+          },
+          tenantId,
+          active: true,
+        },
+      });
+
+    if (
+      services.length !== uniqueServiceIds.length
+    ) {
+      throw new BadRequestException(
+        'Um ou mais serviços são inválidos, estão inativos ou não pertencem à empresa',
+      );
+    }
+  }
+
+  await this.prisma.$transaction(async (tx) => {
+    await tx.employeeService.deleteMany({
+      where: {
+        employeeId,
+      },
+    });
+
+    if (uniqueServiceIds.length > 0) {
+      await tx.employeeService.createMany({
+        data: uniqueServiceIds.map(
+          (serviceId) => ({
+            employeeId,
+            serviceId,
+          }),
+        ),
+      });
+    }
+  });
+
+  return this.findServices(
+    tenantId,
+    employeeId,
+  );
+}
 
   async update(
     tenantId: string,

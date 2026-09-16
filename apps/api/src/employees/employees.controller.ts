@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -20,6 +21,7 @@ import { CreateEmployeeDto } from './dto/create-employee.dto.js';
 import { ListEmployeesQueryDto } from './dto/list-employees-query.dto.js';
 import { UpdateEmployeeDto } from './dto/update-employee.dto.js';
 import { EmployeesService } from './employees.service.js';
+import { SetEmployeeServicesDto } from './dto/set-employee-services.dto.js';
 
 @Controller('employees')
 @UseGuards(JwtAuthGuard)
@@ -51,6 +53,32 @@ export class EmployeesController {
       query,
     );
   }
+
+  @Get(':id/services')
+findServices(
+  @CurrentUser() user: JwtPayload,
+  @Param('id') id: string,
+) {
+  return this.employeesService.findServices(
+    user.tenantId,
+    id,
+  );
+}
+
+@Put(':id/services')
+@UseGuards(RolesGuard)
+@Roles('OWNER', 'ADMIN')
+setServices(
+  @CurrentUser() user: JwtPayload,
+  @Param('id') id: string,
+  @Body() data: SetEmployeeServicesDto,
+) {
+  return this.employeesService.setServices(
+    user.tenantId,
+    id,
+    data,
+  );
+}
 
   @Get(':id')
   findOne(

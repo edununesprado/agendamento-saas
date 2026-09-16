@@ -55,7 +55,8 @@ export const ModelName = {
   User: 'User',
   Membership: 'Membership',
   Service: 'Service',
-  Employee: 'Employee'
+  Employee: 'Employee',
+  EmployeeService: 'EmployeeService'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -142,6 +143,16 @@ export const EmployeeScalarFieldEnum = {
 } as const
 
 export type EmployeeScalarFieldEnum = (typeof EmployeeScalarFieldEnum)[keyof typeof EmployeeScalarFieldEnum]
+
+
+export const EmployeeServiceScalarFieldEnum = {
+  id: 'id',
+  employeeId: 'employeeId',
+  serviceId: 'serviceId',
+  createdAt: 'createdAt'
+} as const
+
+export type EmployeeServiceScalarFieldEnum = (typeof EmployeeServiceScalarFieldEnum)[keyof typeof EmployeeServiceScalarFieldEnum]
 
 
 export const SortOrder = {

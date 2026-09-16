@@ -401,7 +401,8 @@ export const ModelName = {
   User: 'User',
   Membership: 'Membership',
   Service: 'Service',
-  Employee: 'Employee'
+  Employee: 'Employee',
+  EmployeeService: 'EmployeeService'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -417,7 +418,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "tenant" | "user" | "membership" | "service" | "employee"
+    modelProps: "tenant" | "user" | "membership" | "service" | "employee" | "employeeService"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -791,6 +792,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    EmployeeService: {
+      payload: Prisma.$EmployeeServicePayload<ExtArgs>
+      fields: Prisma.EmployeeServiceFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.EmployeeServiceFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmployeeServicePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.EmployeeServiceFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmployeeServicePayload>
+        }
+        findFirst: {
+          args: Prisma.EmployeeServiceFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmployeeServicePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.EmployeeServiceFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmployeeServicePayload>
+        }
+        findMany: {
+          args: Prisma.EmployeeServiceFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmployeeServicePayload>[]
+        }
+        create: {
+          args: Prisma.EmployeeServiceCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmployeeServicePayload>
+        }
+        createMany: {
+          args: Prisma.EmployeeServiceCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.EmployeeServiceCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmployeeServicePayload>[]
+        }
+        delete: {
+          args: Prisma.EmployeeServiceDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmployeeServicePayload>
+        }
+        update: {
+          args: Prisma.EmployeeServiceUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmployeeServicePayload>
+        }
+        deleteMany: {
+          args: Prisma.EmployeeServiceDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.EmployeeServiceUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.EmployeeServiceUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmployeeServicePayload>[]
+        }
+        upsert: {
+          args: Prisma.EmployeeServiceUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmployeeServicePayload>
+        }
+        aggregate: {
+          args: Prisma.EmployeeServiceAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateEmployeeService>
+        }
+        groupBy: {
+          args: Prisma.EmployeeServiceGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.EmployeeServiceGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.EmployeeServiceCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.EmployeeServiceCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -898,6 +973,16 @@ export const EmployeeScalarFieldEnum = {
 } as const
 
 export type EmployeeScalarFieldEnum = (typeof EmployeeScalarFieldEnum)[keyof typeof EmployeeScalarFieldEnum]
+
+
+export const EmployeeServiceScalarFieldEnum = {
+  id: 'id',
+  employeeId: 'employeeId',
+  serviceId: 'serviceId',
+  createdAt: 'createdAt'
+} as const
+
+export type EmployeeServiceScalarFieldEnum = (typeof EmployeeServiceScalarFieldEnum)[keyof typeof EmployeeServiceScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1162,6 +1247,7 @@ export type GlobalOmitConfig = {
   membership?: Prisma.MembershipOmit
   service?: Prisma.ServiceOmit
   employee?: Prisma.EmployeeOmit
+  employeeService?: Prisma.EmployeeServiceOmit
 }
 
 /* Types for Logging */
