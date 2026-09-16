@@ -24,6 +24,8 @@ import { EmployeesService } from './employees.service.js';
 import { SetEmployeeServicesDto } from './dto/set-employee-services.dto.js';
 import { AvailabilityService } from '../availability/availability.service.js';
 import { SetAvailabilityDto } from '../availability/dto/set-availability.dto.js';
+import { BlockedTimesService } from '../blocked-times/blocked-times.service.js';
+import { CreateBlockedTimeDto } from '../blocked-times/dto/create-blocked-time.dto.js';
 
 @Controller('employees')
 @UseGuards(JwtAuthGuard)
@@ -31,6 +33,7 @@ export class EmployeesController {
   constructor(
     private readonly employeesService: EmployeesService,
     private readonly availabilityService: AvailabilityService,
+    private readonly blockedTimesService: BlockedTimesService,
   ) {}
 
   @Post()
@@ -106,6 +109,47 @@ setAvailability(
     user.tenantId,
     id,
     data,
+  );
+}
+
+@Post(':id/blocked-times')
+@UseGuards(RolesGuard)
+@Roles('OWNER', 'ADMIN')
+createBlockedTime(
+  @CurrentUser() user: JwtPayload,
+  @Param('id') id: string,
+  @Body() data: CreateBlockedTimeDto,
+) {
+  return this.blockedTimesService.create(
+    user.tenantId,
+    id,
+    data,
+  );
+}
+
+@Get(':id/blocked-times')
+findBlockedTimes(
+  @CurrentUser() user: JwtPayload,
+  @Param('id') id: string,
+) {
+  return this.blockedTimesService.findAll(
+    user.tenantId,
+    id,
+  );
+}
+
+@Delete(':id/blocked-times/:blockedTimeId')
+@UseGuards(RolesGuard)
+@Roles('OWNER', 'ADMIN')
+removeBlockedTime(
+  @CurrentUser() user: JwtPayload,
+  @Param('id') id: string,
+  @Param('blockedTimeId') blockedTimeId: string,
+) {
+  return this.blockedTimesService.remove(
+    user.tenantId,
+    id,
+    blockedTimeId,
   );
 }
 

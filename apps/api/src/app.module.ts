@@ -12,6 +12,7 @@ import { ServicesModule } from './services/services.module.js';
 import { EmployeesModule } from './employees/employees.module.js';
 import { ClientsModule } from './clients/clients.module.js';
 import { AvailabilityModule } from './availability/availability.module.js';
+import { BlockedTimesModule } from './blocked-times/blocked-times.module.js';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AvailabilityModule } from './availability/availability.module.js';
     EmployeesModule,
     ClientsModule,
     AvailabilityModule,
+    BlockedTimesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

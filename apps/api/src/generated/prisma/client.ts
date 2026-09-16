@@ -81,3 +81,8 @@ export type Client = Prisma.ClientModel
  * 
  */
 export type AvailabilityRule = Prisma.AvailabilityRuleModel
+/**
+ * Model BlockedTime
+ * 
+ */
+export type BlockedTime = Prisma.BlockedTimeModel

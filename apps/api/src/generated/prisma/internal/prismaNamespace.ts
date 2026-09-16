@@ -404,7 +404,8 @@ export const ModelName = {
   Employee: 'Employee',
   EmployeeService: 'EmployeeService',
   Client: 'Client',
-  AvailabilityRule: 'AvailabilityRule'
+  AvailabilityRule: 'AvailabilityRule',
+  BlockedTime: 'BlockedTime'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -420,7 +421,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "tenant" | "user" | "membership" | "service" | "employee" | "employeeService" | "client" | "availabilityRule"
+    modelProps: "tenant" | "user" | "membership" | "service" | "employee" | "employeeService" | "client" | "availabilityRule" | "blockedTime"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1016,6 +1017,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    BlockedTime: {
+      payload: Prisma.$BlockedTimePayload<ExtArgs>
+      fields: Prisma.BlockedTimeFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.BlockedTimeFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlockedTimePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.BlockedTimeFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlockedTimePayload>
+        }
+        findFirst: {
+          args: Prisma.BlockedTimeFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlockedTimePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.BlockedTimeFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlockedTimePayload>
+        }
+        findMany: {
+          args: Prisma.BlockedTimeFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlockedTimePayload>[]
+        }
+        create: {
+          args: Prisma.BlockedTimeCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlockedTimePayload>
+        }
+        createMany: {
+          args: Prisma.BlockedTimeCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.BlockedTimeCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlockedTimePayload>[]
+        }
+        delete: {
+          args: Prisma.BlockedTimeDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlockedTimePayload>
+        }
+        update: {
+          args: Prisma.BlockedTimeUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlockedTimePayload>
+        }
+        deleteMany: {
+          args: Prisma.BlockedTimeDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.BlockedTimeUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.BlockedTimeUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlockedTimePayload>[]
+        }
+        upsert: {
+          args: Prisma.BlockedTimeUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlockedTimePayload>
+        }
+        aggregate: {
+          args: Prisma.BlockedTimeAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateBlockedTime>
+        }
+        groupBy: {
+          args: Prisma.BlockedTimeGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BlockedTimeGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.BlockedTimeCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BlockedTimeCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1163,6 +1238,20 @@ export const AvailabilityRuleScalarFieldEnum = {
 } as const
 
 export type AvailabilityRuleScalarFieldEnum = (typeof AvailabilityRuleScalarFieldEnum)[keyof typeof AvailabilityRuleScalarFieldEnum]
+
+
+export const BlockedTimeScalarFieldEnum = {
+  id: 'id',
+  tenantId: 'tenantId',
+  employeeId: 'employeeId',
+  startsAt: 'startsAt',
+  endsAt: 'endsAt',
+  reason: 'reason',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type BlockedTimeScalarFieldEnum = (typeof BlockedTimeScalarFieldEnum)[keyof typeof BlockedTimeScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1444,6 +1533,7 @@ export type GlobalOmitConfig = {
   employeeService?: Prisma.EmployeeServiceOmit
   client?: Prisma.ClientOmit
   availabilityRule?: Prisma.AvailabilityRuleOmit
+  blockedTime?: Prisma.BlockedTimeOmit
 }
 
 /* Types for Logging */

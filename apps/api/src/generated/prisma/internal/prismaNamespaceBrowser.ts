@@ -58,7 +58,8 @@ export const ModelName = {
   Employee: 'Employee',
   EmployeeService: 'EmployeeService',
   Client: 'Client',
-  AvailabilityRule: 'AvailabilityRule'
+  AvailabilityRule: 'AvailabilityRule',
+  BlockedTime: 'BlockedTime'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -185,6 +186,20 @@ export const AvailabilityRuleScalarFieldEnum = {
 } as const
 
 export type AvailabilityRuleScalarFieldEnum = (typeof AvailabilityRuleScalarFieldEnum)[keyof typeof AvailabilityRuleScalarFieldEnum]
+
+
+export const BlockedTimeScalarFieldEnum = {
+  id: 'id',
+  tenantId: 'tenantId',
+  employeeId: 'employeeId',
+  startsAt: 'startsAt',
+  endsAt: 'endsAt',
+  reason: 'reason',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type BlockedTimeScalarFieldEnum = (typeof BlockedTimeScalarFieldEnum)[keyof typeof BlockedTimeScalarFieldEnum]
 
 
 export const SortOrder = {
