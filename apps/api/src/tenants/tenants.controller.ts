@@ -7,7 +7,9 @@ import {
 } from '@nestjs/common';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+import { Roles } from '../auth/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { RolesGuard } from '../auth/guards/roles.guard.js';
 import type { JwtPayload } from '../auth/types/jwt-payload.js';
 
 import { UpdateTenantDto } from './dto/update-tenant.dto.js';
@@ -30,6 +32,8 @@ export class TenantsController {
   }
 
   @Patch('current')
+  @UseGuards(RolesGuard)
+  @Roles('OWNER', 'ADMIN')
   updateCurrent(
     @CurrentUser() user: JwtPayload,
     @Body() data: UpdateTenantDto,
