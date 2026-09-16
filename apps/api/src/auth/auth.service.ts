@@ -84,6 +84,51 @@ export class AuthService {
     });
   }
 
+  async me(
+  userId: string,
+  membershipId: string,
+) {
+  const membership =
+    await this.prisma.membership.findFirst({
+      where: {
+        id: membershipId,
+        userId,
+      },
+
+      include: {
+        user: true,
+        tenant: true,
+      },
+    });
+
+  if (!membership) {
+    throw new UnauthorizedException(
+      'Sessão inválida',
+    );
+  }
+
+  return {
+    user: {
+      id: membership.user.id,
+      name: membership.user.name,
+      email: membership.user.email,
+    },
+
+    tenant: {
+      id: membership.tenant.id,
+      name: membership.tenant.name,
+      slug: membership.tenant.slug,
+      logoUrl: membership.tenant.logoUrl,
+      primaryColor: membership.tenant.primaryColor,
+    },
+
+    membership: {
+      id: membership.id,
+      role: membership.role,
+    },
+  };
+}
+
   async login(data: LoginDto) {
     const email = data.email.trim().toLowerCase();
 
