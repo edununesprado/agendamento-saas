@@ -71,6 +71,11 @@ const menuItems: MenuItem[] = [
   {
     label: 'Funcionários',
     href: '/funcionarios',
+    roles: [
+      'OWNER',
+      'ADMIN',
+      'RECEPTIONIST',
+    ],
   },
   {
     label: 'Serviços',
