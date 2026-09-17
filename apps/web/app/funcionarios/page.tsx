@@ -1067,6 +1067,12 @@ export default function EmployeesPage() {
                             <td className="px-3 py-4">
                               <div className="flex justify-end gap-2">
 
+                                <Link
+                                    href={`/funcionarios/${employee.id}/horarios`}
+                                    className="rounded-lg border border-purple-300 px-3 py-2 text-xs font-medium text-purple-700 hover:bg-purple-50">
+                                    Horários
+                                </Link>
+
                                 <button
                                   onClick={() =>
                                     openServices(
