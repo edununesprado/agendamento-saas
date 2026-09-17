@@ -13,6 +13,12 @@ import {
 
 import { apiFetch } from '@/lib/api';
 
+type Role =
+  | 'OWNER'
+  | 'ADMIN'
+  | 'RECEPTIONIST'
+  | 'STAFF';
+
 type Tenant = {
   id: string;
   name: string;
@@ -26,6 +32,11 @@ type Tenant = {
 
 type StoredUser = {
   tenant: Tenant;
+
+  membership: {
+    id: string;
+    role: Role;
+  };
 };
 
 type PanelShellProps = {
@@ -34,7 +45,13 @@ type PanelShellProps = {
   children: ReactNode;
 };
 
-const menuItems = [
+type MenuItem = {
+  label: string;
+  href: string;
+  roles?: Role[];
+};
+
+const menuItems: MenuItem[] = [
   {
     label: 'Dashboard',
     href: '/dashboard',
@@ -56,8 +73,20 @@ const menuItems = [
     href: '/servicos',
   },
   {
+    label: 'Usuários',
+    href: '/usuarios',
+    roles: [
+      'OWNER',
+      'ADMIN',
+    ],
+  },
+  {
     label: 'Configurações',
     href: '/configuracoes',
+    roles: [
+      'OWNER',
+      'ADMIN',
+    ],
   },
 ];
 
@@ -76,6 +105,14 @@ export function PanelShell({
     setTenant,
   ] =
     useState<Tenant | null>(
+      null,
+    );
+
+  const [
+    role,
+    setRole,
+  ] =
+    useState<Role | null>(
       null,
     );
 
@@ -114,14 +151,27 @@ export function PanelShell({
             storedUser,
           ) as StoredUser;
 
-        // Mostra imediatamente os dados
-        // que já temos no navegador.
+        /*
+         * Salva a função do usuário
+         * para controlar o menu.
+         */
+        setRole(
+          parsed.membership.role,
+        );
+
+        /*
+         * Mostra imediatamente os dados
+         * da empresa que já temos
+         * no navegador.
+         */
         setTenant(
           parsed.tenant,
         );
 
-        // Atualiza com os dados atuais
-        // da empresa no backend.
+        /*
+         * Busca os dados mais recentes
+         * da empresa no backend.
+         */
         const response =
           await apiFetch(
             '/tenants/current',
@@ -143,7 +193,10 @@ export function PanelShell({
             tenantData,
           );
 
-          // Atualiza também o localStorage.
+          /*
+           * Atualiza também os dados
+           * armazenados no navegador.
+           */
           const updatedStoredUser = {
             ...parsed,
             tenant: tenantData,
@@ -199,6 +252,22 @@ export function PanelShell({
     );
   }
 
+  /*
+   * Filtra o menu conforme a
+   * função do usuário.
+   */
+  const visibleMenuItems =
+    menuItems.filter(
+      (item) =>
+        !item.roles ||
+        (
+          role &&
+          item.roles.includes(
+            role,
+          )
+        ),
+    );
+
   const primaryColor =
     tenant?.primaryColor ||
     '#18181b';
@@ -225,6 +294,7 @@ export function PanelShell({
 
             {tenant?.logoUrl ? (
               <div className="mb-4 flex h-16 items-center justify-center overflow-hidden rounded-xl bg-white p-2">
+
                 <img
                   src={
                     tenant.logoUrl
@@ -263,7 +333,7 @@ export function PanelShell({
           {/* MENU */}
           <nav className="flex-1 space-y-2 p-4">
 
-            {menuItems.map(
+            {visibleMenuItems.map(
               (item) => {
                 const active =
                   isActive(
@@ -301,7 +371,7 @@ export function PanelShell({
             )}
           </nav>
 
-          {/* EMPRESA */}
+          {/* DADOS DA EMPRESA */}
           <div className="border-t border-zinc-800 px-5 py-4">
 
             <p className="truncate text-xs text-zinc-500">
@@ -362,7 +432,7 @@ export function PanelShell({
             {/* MENU MOBILE */}
             <nav className="mt-4 flex gap-2 overflow-x-auto pb-1 md:hidden">
 
-              {menuItems.map(
+              {visibleMenuItems.map(
                 (item) => {
                   const active =
                     isActive(
@@ -410,7 +480,7 @@ export function PanelShell({
             }}
           />
 
-          {/* PÁGINA */}
+          {/* CONTEÚDO DA PÁGINA */}
           <div className="p-4 md:p-6">
             {children}
           </div>
