@@ -14,6 +14,7 @@ import { ClientsModule } from './clients/clients.module.js';
 import { AvailabilityModule } from './availability/availability.module.js';
 import { BlockedTimesModule } from './blocked-times/blocked-times.module.js';
 import { AppointmentsModule } from './appointments/appointments.module.js';
+import { DashboardModule } from './dashboard/dashboard.module.js';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { AppointmentsModule } from './appointments/appointments.module.js';
     AvailabilityModule,
     BlockedTimesModule,
     AppointmentsModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],
