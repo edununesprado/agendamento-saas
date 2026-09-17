@@ -15,6 +15,7 @@ import { AvailabilityModule } from './availability/availability.module.js';
 import { BlockedTimesModule } from './blocked-times/blocked-times.module.js';
 import { AppointmentsModule } from './appointments/appointments.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
+import { TeamMembersModule } from './team-members/team-members.module.js';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { DashboardModule } from './dashboard/dashboard.module.js';
     BlockedTimesModule,
     AppointmentsModule,
     DashboardModule,
+    TeamMembersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
