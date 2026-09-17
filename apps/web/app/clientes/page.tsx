@@ -1,14 +1,13 @@
 'use client';
 
-import Link from 'next/link';
 import {
   FormEvent,
-  useCallback,
   useEffect,
   useState,
 } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { PanelShell } from '@/components/panel-shell';
 import { apiFetch } from '@/lib/api';
 
 type Client = {
@@ -19,25 +18,6 @@ type Client = {
   birthDate?: string | null;
   notes?: string | null;
   active: boolean;
-};
-
-type CurrentUser = {
-  user: {
-    id: string;
-    name: string;
-    email: string;
-  };
-
-  tenant: {
-    id: string;
-    name: string;
-    slug: string;
-  };
-
-  membership: {
-    id: string;
-    role: string;
-  };
 };
 
 type ClientForm = {
@@ -94,37 +74,47 @@ export default function ClientsPage() {
   const router = useRouter();
 
   const [
-    currentUser,
-    setCurrentUser,
-  ] =
-    useState<CurrentUser | null>(
-      null,
-    );
-
-  const [
     clients,
     setClients,
   ] =
     useState<Client[]>([]);
 
-  const [search, setSearch] =
+  const [
+    search,
+    setSearch,
+  ] =
     useState('');
 
-  const [status, setStatus] =
+  const [
+    status,
+    setStatus,
+  ] =
     useState<
       'active' | 'inactive' | 'all'
     >('active');
 
-  const [loading, setLoading] =
+  const [
+    loading,
+    setLoading,
+  ] =
     useState(true);
 
-  const [saving, setSaving] =
+  const [
+    saving,
+    setSaving,
+  ] =
     useState(false);
 
-  const [error, setError] =
+  const [
+    error,
+    setError,
+  ] =
     useState('');
 
-  const [success, setSuccess] =
+  const [
+    success,
+    setSuccess,
+  ] =
     useState('');
 
   const [
@@ -137,9 +127,14 @@ export default function ClientsPage() {
     editingClient,
     setEditingClient,
   ] =
-    useState<Client | null>(null);
+    useState<Client | null>(
+      null,
+    );
 
-  const [form, setForm] =
+  const [
+    form,
+    setForm,
+  ] =
     useState<ClientForm>(
       emptyForm,
     );
@@ -156,55 +151,64 @@ export default function ClientsPage() {
     router.replace('/login');
   }
 
-  const loadClients =
-    useCallback(async () => {
-      try {
-        setLoading(true);
-        setError('');
+  async function loadClients(
+    targetStatus:
+      | 'active'
+      | 'inactive'
+      | 'all' = status,
 
-        const params =
-          new URLSearchParams();
+    targetSearch:
+      string = search,
+  ) {
+    try {
+      setLoading(true);
+      setError('');
 
+      const params =
+        new URLSearchParams();
+
+      params.set(
+        'status',
+        targetStatus,
+      );
+
+      if (
+        targetSearch.trim()
+      ) {
         params.set(
-          'status',
-          status,
+          'search',
+          targetSearch.trim(),
         );
-
-        if (search.trim()) {
-          params.set(
-            'search',
-            search.trim(),
-          );
-        }
-
-        const response =
-          await apiFetch(
-            `/clients?${params.toString()}`,
-          );
-
-        if (
-          response.status === 401
-        ) {
-          handleLogout();
-          return;
-        }
-
-        const data =
-          await readResponse<
-            Client[]
-          >(response);
-
-        setClients(data);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Erro ao carregar clientes',
-        );
-      } finally {
-        setLoading(false);
       }
-    }, [search, status]);
+
+      const response =
+        await apiFetch(
+          `/clients?${params.toString()}`,
+        );
+
+      if (
+        response.status === 401
+      ) {
+        handleLogout();
+        return;
+      }
+
+      const data =
+        await readResponse<
+          Client[]
+        >(response);
+
+      setClients(data);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Erro ao carregar clientes',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     const token =
@@ -217,29 +221,28 @@ export default function ClientsPage() {
         'currentUser',
       );
 
-    if (!token || !storedUser) {
+    if (
+      !token ||
+      !storedUser
+    ) {
       router.replace('/login');
       return;
     }
 
-    try {
-      setCurrentUser(
-        JSON.parse(
-          storedUser,
-        ) as CurrentUser,
-      );
-    } catch {
-      handleLogout();
-      return;
-    }
+    loadClients(
+      'active',
+      '',
+    );
 
-    loadClients();
-  }, [loadClients, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function openCreate() {
     setEditingClient(null);
 
-    setForm(emptyForm);
+    setForm(
+      emptyForm,
+    );
 
     setShowForm(true);
 
@@ -250,7 +253,9 @@ export default function ClientsPage() {
   function openEdit(
     client: Client,
   ) {
-    setEditingClient(client);
+    setEditingClient(
+      client,
+    );
 
     setForm({
       name:
@@ -282,8 +287,12 @@ export default function ClientsPage() {
 
   function closeForm() {
     setShowForm(false);
+
     setEditingClient(null);
-    setForm(emptyForm);
+
+    setForm(
+      emptyForm,
+    );
   }
 
   async function handleSubmit(
@@ -291,7 +300,9 @@ export default function ClientsPage() {
   ) {
     event.preventDefault();
 
-    if (!form.name.trim()) {
+    if (
+      !form.name.trim()
+    ) {
       setError(
         'Informe o nome do cliente.',
       );
@@ -301,6 +312,7 @@ export default function ClientsPage() {
 
     try {
       setSaving(true);
+
       setError('');
       setSuccess('');
 
@@ -330,21 +342,25 @@ export default function ClientsPage() {
           ? await apiFetch(
               `/clients/${editingClient.id}`,
               {
-                method: 'PATCH',
+                method:
+                  'PATCH',
 
-                body: JSON.stringify(
-                  payload,
-                ),
+                body:
+                  JSON.stringify(
+                    payload,
+                  ),
               },
             )
           : await apiFetch(
               '/clients',
               {
-                method: 'POST',
+                method:
+                  'POST',
 
-                body: JSON.stringify(
-                  payload,
-                ),
+                body:
+                  JSON.stringify(
+                    payload,
+                  ),
               },
             );
 
@@ -392,7 +408,8 @@ export default function ClientsPage() {
         await apiFetch(
           `/clients/${client.id}`,
           {
-            method: 'DELETE',
+            method:
+              'DELETE',
           },
         );
 
@@ -425,7 +442,8 @@ export default function ClientsPage() {
         await apiFetch(
           `/clients/${client.id}/restore`,
           {
-            method: 'PATCH',
+            method:
+              'PATCH',
           },
         );
 
@@ -448,510 +466,462 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100">
-      <div className="flex min-h-screen">
+    <PanelShell
+      title="Clientes"
+      subtitle="Cadastro e gerenciamento de clientes"
+    >
+      {/* CABEÇALHO DA PÁGINA */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
-        <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-zinc-950 text-white md:flex">
-          <div className="border-b border-zinc-800 p-6">
-            <h1 className="text-xl font-bold">
-              Agendamento
-            </h1>
+        <p className="text-sm text-zinc-500">
+          Gerencie os clientes da empresa.
+        </p>
 
-            <p className="mt-1 text-sm text-zinc-400">
-              SaaS
-            </p>
-          </div>
+        <button
+          onClick={
+            openCreate
+          }
+          className="rounded-lg bg-zinc-900 px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800"
+        >
+          + Novo cliente
+        </button>
+      </div>
 
-          <nav className="flex-1 space-y-2 p-4">
-            <Link
-              href="/dashboard"
-              className="block rounded-lg px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-900">
-              Dashboard
-            </Link>
+      {/* ERRO */}
+      {error && (
+        <div className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
-            <Link
-              href="/agenda"
-              className="block rounded-lg px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-900">
-              Agenda
-            </Link>
+      {/* SUCESSO */}
+      {success && (
+        <div className="mt-5 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
+          {success}
+        </div>
+      )}
 
-            <Link
-                href="/clientes"
-                className="block rounded-lg bg-zinc-800 px-4 py-3 text-sm font-medium text-white">
-                Clientes
-            </Link>
+      {/* FORMULÁRIO */}
+      {showForm && (
+        <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
 
-            <Link
-                href="/funcionarios"
-                className="block rounded-lg bg-zinc-800 px-4 py-3 text-sm font-medium text-white"
-                >
-                Funcionários
-            </Link>
+          <div className="flex items-center justify-between">
 
-            <Link
-              href="/servicos"
-              className="block rounded-lg bg-zinc-800 px-4 py-3 text-sm font-medium text-white"
-            >
-              Serviços
-            </Link>
-          </nav>
-
-          <div className="mt-auto border-t border-zinc-800 p-4">
-            <button
-              onClick={
-                handleLogout
-              }
-              className="w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white hover:bg-red-700"
-            >
-              Sair
-            </button>
-          </div>
-        </aside>
-
-        <main className="min-w-0 flex-1">
-
-          <header className="border-b border-zinc-200 bg-white px-6 py-5">
-            <h2 className="text-xl font-semibold text-zinc-900">
-              {currentUser
-                ?.tenant
-                .name ??
-                'Clientes'}
+            <h2 className="text-lg font-semibold text-zinc-900">
+              {editingClient
+                ? 'Editar cliente'
+                : 'Novo cliente'}
             </h2>
 
-            <p className="text-sm text-zinc-500">
-              Cadastro e gerenciamento
-              de clientes
-            </p>
-          </header>
+            <button
+              onClick={
+                closeForm
+              }
+              className="text-sm text-zinc-500 hover:text-zinc-900"
+            >
+              Fechar
+            </button>
+          </div>
 
-          <div className="p-4 md:p-6">
+          <form
+            onSubmit={
+              handleSubmit
+            }
+            className="mt-6 grid gap-5 md:grid-cols-2"
+          >
 
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-zinc-900">
-                  Clientes
-                </h1>
+            {/* NOME */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-700">
+                Nome *
+              </label>
 
-                <p className="mt-1 text-sm text-zinc-500">
-                  Gerencie os clientes
-                  da empresa.
-                </p>
-              </div>
-
-              <button
-                onClick={
-                  openCreate
+              <input
+                value={
+                  form.name
                 }
-                className="rounded-lg bg-zinc-900 px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800"
-              >
-                + Novo cliente
-              </button>
+                onChange={(
+                  event,
+                ) =>
+                  setForm({
+                    ...form,
+
+                    name:
+                      event
+                        .target
+                        .value,
+                  })
+                }
+                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                placeholder="Nome do cliente"
+              />
             </div>
 
-            {error && (
-              <div className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-              </div>
-            )}
+            {/* TELEFONE */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-700">
+                Telefone
+              </label>
 
-            {success && (
-              <div className="mt-5 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
-                {success}
-              </div>
-            )}
+              <input
+                value={
+                  form.phone
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setForm({
+                    ...form,
 
-            {showForm && (
-              <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
-
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-zinc-900">
-                    {editingClient
-                      ? 'Editar cliente'
-                      : 'Novo cliente'}
-                  </h2>
-
-                  <button
-                    onClick={
-                      closeForm
-                    }
-                    className="text-sm text-zinc-500 hover:text-zinc-900"
-                  >
-                    Fechar
-                  </button>
-                </div>
-
-                <form
-                  onSubmit={
-                    handleSubmit
-                  }
-                  className="mt-6 grid gap-5 md:grid-cols-2"
-                >
-
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-zinc-700">
-                      Nome *
-                    </label>
-
-                    <input
-                      value={
-                        form.name
-                      }
-                      onChange={(
-                        event,
-                      ) =>
-                        setForm({
-                          ...form,
-                          name:
-                            event
-                              .target
-                              .value,
-                        })
-                      }
-                      className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                      placeholder="Nome do cliente"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-zinc-700">
-                      Telefone
-                    </label>
-
-                    <input
-                      value={
-                        form.phone
-                      }
-                      onChange={(
-                        event,
-                      ) =>
-                        setForm({
-                          ...form,
-                          phone:
-                            event
-                              .target
-                              .value,
-                        })
-                      }
-                      className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                      placeholder="(34) 99999-9999"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-zinc-700">
-                      E-mail
-                    </label>
-
-                    <input
-                      type="email"
-                      value={
-                        form.email
-                      }
-                      onChange={(
-                        event,
-                      ) =>
-                        setForm({
-                          ...form,
-                          email:
-                            event
-                              .target
-                              .value,
-                        })
-                      }
-                      className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                      placeholder="cliente@email.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-zinc-700">
-                      Data de nascimento
-                    </label>
-
-                    <input
-                      type="date"
-                      value={
-                        form.birthDate
-                      }
-                      onChange={(
-                        event,
-                      ) =>
-                        setForm({
-                          ...form,
-                          birthDate:
-                            event
-                              .target
-                              .value,
-                        })
-                      }
-                      className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="mb-2 block text-sm font-medium text-zinc-700">
-                      Observações
-                    </label>
-
-                    <textarea
-                      value={
-                        form.notes
-                      }
-                      onChange={(
-                        event,
-                      ) =>
-                        setForm({
-                          ...form,
-                          notes:
-                            event
-                              .target
-                              .value,
-                        })
-                      }
-                      rows={3}
-                      className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                      placeholder="Informações adicionais..."
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <button
-                      type="submit"
-                      disabled={
-                        saving
-                      }
-                      className="rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
-                    >
-                      {saving
-                        ? 'Salvando...'
-                        : editingClient
-                          ? 'Salvar alterações'
-                          : 'Cadastrar cliente'}
-                    </button>
-                  </div>
-                </form>
-              </section>
-            )}
-
-            <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
-
-              <div className="grid gap-4 md:grid-cols-[1fr_200px_auto]">
-
-                <input
-                  value={search}
-                  onChange={(
-                    event,
-                  ) =>
-                    setSearch(
-                      event.target
+                    phone:
+                      event
+                        .target
                         .value,
-                    )
-                  }
-                  onKeyDown={(
-                    event,
-                  ) => {
-                    if (
-                      event.key ===
-                      'Enter'
-                    ) {
-                      loadClients();
-                    }
-                  }}
-                  placeholder="Buscar por nome, telefone ou e-mail..."
-                  className="rounded-lg border border-zinc-300 px-4 py-3"
-                />
+                  })
+                }
+                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                placeholder="(34) 99999-9999"
+              />
+            </div>
 
-                <select
-                  value={status}
-                  onChange={(
-                    event,
-                  ) =>
-                    setStatus(
-                      event.target
-                        .value as
-                        | 'active'
-                        | 'inactive'
-                        | 'all',
-                    )
-                  }
-                  className="rounded-lg border border-zinc-300 bg-white px-4 py-3"
-                >
-                  <option value="active">
-                    Ativos
-                  </option>
+            {/* EMAIL */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-700">
+                E-mail
+              </label>
 
-                  <option value="inactive">
-                    Inativos
-                  </option>
+              <input
+                type="email"
+                value={
+                  form.email
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setForm({
+                    ...form,
 
-                  <option value="all">
-                    Todos
-                  </option>
-                </select>
+                    email:
+                      event
+                        .target
+                        .value,
+                  })
+                }
+                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                placeholder="cliente@email.com"
+              />
+            </div>
 
-                <button
-                  onClick={
-                    loadClients
-                  }
-                  className="rounded-lg bg-zinc-900 px-5 py-3 text-sm font-medium text-white"
-                >
-                  Buscar
-                </button>
-              </div>
-            </section>
+            {/* NASCIMENTO */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-700">
+                Data de nascimento
+              </label>
 
-            <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+              <input
+                type="date"
+                value={
+                  form.birthDate
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setForm({
+                    ...form,
 
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-zinc-900">
-                  Lista de clientes
-                </h2>
+                    birthDate:
+                      event
+                        .target
+                        .value,
+                  })
+                }
+                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+              />
+            </div>
 
-                <span className="text-sm text-zinc-500">
-                  {clients.length}{' '}
-                  cliente(s)
-                </span>
-              </div>
+            {/* OBSERVAÇÕES */}
+            <div className="md:col-span-2">
 
-              {loading ? (
-                <p className="mt-6 text-sm text-zinc-500">
-                  Carregando...
-                </p>
-              ) : clients.length ===
-                0 ? (
-                <div className="mt-6 rounded-xl bg-zinc-50 p-8 text-center">
-                  <p className="text-zinc-500">
-                    Nenhum cliente
-                    encontrado.
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-5 overflow-x-auto">
-                  <table className="w-full min-w-[750px] text-left">
+              <label className="mb-2 block text-sm font-medium text-zinc-700">
+                Observações
+              </label>
 
-                    <thead>
-                      <tr className="border-b border-zinc-200 text-sm text-zinc-500">
-                        <th className="px-3 py-3">
-                          Nome
-                        </th>
+              <textarea
+                value={
+                  form.notes
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setForm({
+                    ...form,
 
-                        <th className="px-3 py-3">
-                          Telefone
-                        </th>
+                    notes:
+                      event
+                        .target
+                        .value,
+                  })
+                }
+                rows={3}
+                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                placeholder="Informações adicionais..."
+              />
+            </div>
 
-                        <th className="px-3 py-3">
-                          E-mail
-                        </th>
+            <div className="md:col-span-2">
 
-                        <th className="px-3 py-3">
-                          Nascimento
-                        </th>
+              <button
+                type="submit"
+                disabled={
+                  saving
+                }
+                className="rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+              >
+                {saving
+                  ? 'Salvando...'
+                  : editingClient
+                    ? 'Salvar alterações'
+                    : 'Cadastrar cliente'}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
 
-                        <th className="px-3 py-3">
-                          Status
-                        </th>
+      {/* FILTROS */}
+      <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
 
-                        <th className="px-3 py-3 text-right">
-                          Ações
-                        </th>
-                      </tr>
-                    </thead>
+        <div className="grid gap-4 md:grid-cols-[1fr_200px_auto]">
 
-                    <tbody>
-                      {clients.map(
-                        (client) => (
-                          <tr
-                            key={
-                              client.id
-                            }
-                            className="border-b border-zinc-100"
-                          >
-                            <td className="px-3 py-4 font-medium text-zinc-900">
-                              {
-                                client.name
-                              }
-                            </td>
+          <input
+            value={
+              search
+            }
+            onChange={(
+              event,
+            ) =>
+              setSearch(
+                event.target.value,
+              )
+            }
+            onKeyDown={(
+              event,
+            ) => {
+              if (
+                event.key ===
+                'Enter'
+              ) {
+                loadClients();
+              }
+            }}
+            placeholder="Buscar por nome, telefone ou e-mail..."
+            className="rounded-lg border border-zinc-300 px-4 py-3"
+          />
 
-                            <td className="px-3 py-4 text-sm text-zinc-600">
-                              {client.phone ||
-                                '-'}
-                            </td>
+          <select
+            value={
+              status
+            }
+            onChange={async (
+              event,
+            ) => {
+              const nextStatus =
+                event.target
+                  .value as
+                  | 'active'
+                  | 'inactive'
+                  | 'all';
 
-                            <td className="px-3 py-4 text-sm text-zinc-600">
-                              {client.email ||
-                                '-'}
-                            </td>
+              setStatus(
+                nextStatus,
+              );
 
-                            <td className="px-3 py-4 text-sm text-zinc-600">
-                              {formatBirthDate(
-                                client.birthDate,
-                              )}
-                            </td>
+              await loadClients(
+                nextStatus,
+                search,
+              );
+            }}
+            className="rounded-lg border border-zinc-300 bg-white px-4 py-3"
+          >
+            <option value="active">
+              Ativos
+            </option>
 
-                            <td className="px-3 py-4">
-                              <span
-                                className={
-                                  client.active
-                                    ? 'rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700'
-                                    : 'rounded-full bg-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600'
-                                }
-                              >
-                                {client.active
-                                  ? 'Ativo'
-                                  : 'Inativo'}
-                              </span>
-                            </td>
+            <option value="inactive">
+              Inativos
+            </option>
 
-                            <td className="px-3 py-4">
-                              <div className="flex justify-end gap-2">
+            <option value="all">
+              Todos
+            </option>
+          </select>
 
-                                <button
-                                  onClick={() =>
-                                    openEdit(
-                                      client,
-                                    )
-                                  }
-                                  className="rounded-lg border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-                                >
-                                  Editar
-                                </button>
+          <button
+            onClick={() =>
+              loadClients()
+            }
+            className="rounded-lg bg-zinc-900 px-5 py-3 text-sm font-medium text-white"
+          >
+            Buscar
+          </button>
+        </div>
+      </section>
 
-                                {client.active ? (
-                                  <button
-                                    onClick={() =>
-                                      deactivateClient(
-                                        client,
-                                      )
-                                    }
-                                    className="rounded-lg border border-red-300 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50"
-                                  >
-                                    Desativar
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() =>
-                                      restoreClient(
-                                        client,
-                                      )
-                                    }
-                                    className="rounded-lg border border-green-300 px-3 py-2 text-xs font-medium text-green-700 hover:bg-green-50"
-                                  >
-                                    Reativar
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ),
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </section>
+      {/* LISTA */}
+      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+
+        <div className="flex items-center justify-between">
+
+          <h2 className="text-lg font-semibold text-zinc-900">
+            Lista de clientes
+          </h2>
+
+          <span className="text-sm text-zinc-500">
+            {clients.length}{' '}
+            cliente(s)
+          </span>
+        </div>
+
+        {loading ? (
+          <p className="mt-6 text-sm text-zinc-500">
+            Carregando...
+          </p>
+        ) : clients.length ===
+          0 ? (
+          <div className="mt-6 rounded-xl bg-zinc-50 p-8 text-center">
+
+            <p className="text-zinc-500">
+              Nenhum cliente encontrado.
+            </p>
           </div>
-        </main>
-      </div>
-    </div>
+        ) : (
+          <div className="mt-5 overflow-x-auto">
+
+            <table className="w-full min-w-[750px] text-left">
+
+              <thead>
+                <tr className="border-b border-zinc-200 text-sm text-zinc-500">
+
+                  <th className="px-3 py-3">
+                    Nome
+                  </th>
+
+                  <th className="px-3 py-3">
+                    Telefone
+                  </th>
+
+                  <th className="px-3 py-3">
+                    E-mail
+                  </th>
+
+                  <th className="px-3 py-3">
+                    Nascimento
+                  </th>
+
+                  <th className="px-3 py-3">
+                    Status
+                  </th>
+
+                  <th className="px-3 py-3 text-right">
+                    Ações
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {clients.map(
+                  (client) => (
+                    <tr
+                      key={
+                        client.id
+                      }
+                      className="border-b border-zinc-100"
+                    >
+
+                      <td className="px-3 py-4 font-medium text-zinc-900">
+                        {
+                          client.name
+                        }
+                      </td>
+
+                      <td className="px-3 py-4 text-sm text-zinc-600">
+                        {client.phone ||
+                          '-'}
+                      </td>
+
+                      <td className="px-3 py-4 text-sm text-zinc-600">
+                        {client.email ||
+                          '-'}
+                      </td>
+
+                      <td className="px-3 py-4 text-sm text-zinc-600">
+                        {formatBirthDate(
+                          client.birthDate,
+                        )}
+                      </td>
+
+                      <td className="px-3 py-4">
+                        <span
+                          className={
+                            client.active
+                              ? 'rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700'
+                              : 'rounded-full bg-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600'
+                          }
+                        >
+                          {client.active
+                            ? 'Ativo'
+                            : 'Inativo'}
+                        </span>
+                      </td>
+
+                      <td className="px-3 py-4">
+
+                        <div className="flex justify-end gap-2">
+
+                          <button
+                            onClick={() =>
+                              openEdit(
+                                client,
+                              )
+                            }
+                            className="rounded-lg border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                          >
+                            Editar
+                          </button>
+
+                          {client.active ? (
+                            <button
+                              onClick={() =>
+                                deactivateClient(
+                                  client,
+                                )
+                              }
+                              className="rounded-lg border border-red-300 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50"
+                            >
+                              Desativar
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() =>
+                                restoreClient(
+                                  client,
+                                )
+                              }
+                              className="rounded-lg border border-green-300 px-3 py-2 text-xs font-medium text-green-700 hover:bg-green-50"
+                            >
+                              Reativar
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </PanelShell>
   );
 }
