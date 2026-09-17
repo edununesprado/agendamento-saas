@@ -22,15 +22,29 @@ import { ListClientsQueryDto } from './dto/list-clients-query.dto.js';
 import { UpdateClientDto } from './dto/update-client.dto.js';
 
 @Controller('clients')
-@UseGuards(JwtAuthGuard)
+@UseGuards(
+  JwtAuthGuard,
+  RolesGuard,
+)
 export class ClientsController {
   constructor(
     private readonly clientsService: ClientsService,
   ) {}
 
+  /**
+   * Criar cliente
+   *
+   * OWNER ✅
+   * ADMIN ✅
+   * RECEPTIONIST ✅
+   * STAFF ❌
+   */
   @Post()
-  @UseGuards(RolesGuard)
-  @Roles('OWNER', 'ADMIN', 'RECEPTIONIST')
+  @Roles(
+    'OWNER',
+    'ADMIN',
+    'RECEPTIONIST',
+  )
   create(
     @CurrentUser() user: JwtPayload,
     @Body() data: CreateClientDto,
@@ -41,7 +55,18 @@ export class ClientsController {
     );
   }
 
+  /**
+   * Listar clientes
+   *
+   * Todos podem visualizar.
+   */
   @Get()
+  @Roles(
+    'OWNER',
+    'ADMIN',
+    'RECEPTIONIST',
+    'STAFF',
+  )
   findAll(
     @CurrentUser() user: JwtPayload,
     @Query() query: ListClientsQueryDto,
@@ -52,7 +77,18 @@ export class ClientsController {
     );
   }
 
+  /**
+   * Visualizar um cliente
+   *
+   * Todos podem visualizar.
+   */
   @Get(':id')
+  @Roles(
+    'OWNER',
+    'ADMIN',
+    'RECEPTIONIST',
+    'STAFF',
+  )
   findOne(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -63,9 +99,20 @@ export class ClientsController {
     );
   }
 
+  /**
+   * Reativar cliente
+   *
+   * OWNER ✅
+   * ADMIN ✅
+   * RECEPTIONIST ✅
+   * STAFF ❌
+   */
   @Patch(':id/restore')
-  @UseGuards(RolesGuard)
-  @Roles('OWNER', 'ADMIN', 'RECEPTIONIST')
+  @Roles(
+    'OWNER',
+    'ADMIN',
+    'RECEPTIONIST',
+  )
   restore(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -76,9 +123,20 @@ export class ClientsController {
     );
   }
 
+  /**
+   * Editar cliente
+   *
+   * OWNER ✅
+   * ADMIN ✅
+   * RECEPTIONIST ✅
+   * STAFF ❌
+   */
   @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles('OWNER', 'ADMIN', 'RECEPTIONIST')
+  @Roles(
+    'OWNER',
+    'ADMIN',
+    'RECEPTIONIST',
+  )
   update(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -91,9 +149,20 @@ export class ClientsController {
     );
   }
 
+  /**
+   * Desativar cliente
+   *
+   * OWNER ✅
+   * ADMIN ✅
+   * RECEPTIONIST ✅
+   * STAFF ❌
+   */
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles('OWNER', 'ADMIN')
+  @Roles(
+    'OWNER',
+    'ADMIN',
+    'RECEPTIONIST',
+  )
   remove(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,

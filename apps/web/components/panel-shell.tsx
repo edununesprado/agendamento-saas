@@ -55,6 +55,10 @@ const menuItems: MenuItem[] = [
   {
     label: 'Dashboard',
     href: '/dashboard',
+    roles: [
+      'OWNER',
+      'ADMIN',
+    ],
   },
   {
     label: 'Agenda',

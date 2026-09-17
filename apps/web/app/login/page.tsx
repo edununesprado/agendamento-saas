@@ -77,7 +77,16 @@ export default function LoginPage() {
         }),
       );
 
-      router.push('/dashboard');
+      const role = data.membership.role;
+
+      if (
+        role === 'OWNER' ||
+        role === 'ADMIN'
+      ) {
+        router.push('/dashboard');
+      } else {
+        router.push('/agenda');
+      }
     } catch {
       setError(
         'Não foi possível conectar à API',
