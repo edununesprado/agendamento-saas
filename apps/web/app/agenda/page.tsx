@@ -10,6 +10,12 @@ import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { PanelShell } from '@/components/panel-shell';
 
+type Role =
+  | 'OWNER'
+  | 'ADMIN'
+  | 'RECEPTIONIST'
+  | 'STAFF';
+
 type Employee = {
   id: string;
   name: string;
@@ -71,7 +77,7 @@ type CurrentUser = {
 
   membership: {
     id: string;
-    role: string;
+    role: Role;
   };
 };
 
@@ -121,22 +127,11 @@ function formatTime(
       minute: '2-digit',
       timeZone: timezone,
     },
-  ).format(new Date(value));
+  ).format(
+    new Date(value),
+  );
 }
 
-/**
- * Recebe:
- * 2026-09-21
- * 08:00
- * America/Sao_Paulo
- *
- * E transforma no instante UTC correto.
- *
- * Exemplo:
- * 08:00 em São Paulo
- * vira aproximadamente:
- * 11:00:00.000Z
- */
 function zonedLocalToIso(
   date: string,
   time: string,
@@ -254,7 +249,9 @@ async function readResponse<T>(
         : data?.message ??
           'Erro na requisição';
 
-    throw new Error(message);
+    throw new Error(
+      message,
+    );
   }
 
   return data as T;
@@ -306,17 +303,26 @@ export default function AgendaPage() {
   const router =
     useRouter();
 
-  const [currentUser, setCurrentUser] =
+  const [
+    currentUser,
+    setCurrentUser,
+  ] =
     useState<CurrentUser | null>(
       null,
     );
 
-  const [timezone, setTimezone] =
+  const [
+    timezone,
+    setTimezone,
+  ] =
     useState(
       'America/Sao_Paulo',
     );
 
-  const [date, setDate] =
+  const [
+    date,
+    setDate,
+  ] =
     useState(() =>
       formatDateInput(
         new Date(),
@@ -355,7 +361,10 @@ export default function AgendaPage() {
   ] =
     useState<string[]>([]);
 
-  const [loading, setLoading] =
+  const [
+    loading,
+    setLoading,
+  ] =
     useState(true);
 
   const [
@@ -364,7 +373,10 @@ export default function AgendaPage() {
   ] =
     useState(false);
 
-  const [error, setError] =
+  const [
+    error,
+    setError,
+  ] =
     useState('');
 
   const [
@@ -441,6 +453,20 @@ export default function AgendaPage() {
     setRescheduleSlot,
   ] =
     useState('');
+
+  /**
+   * OWNER, ADMIN e RECEPTIONIST
+   * podem gerenciar a agenda.
+   *
+   * STAFF fica somente com leitura.
+   */
+  const canManageAppointments =
+    currentUser?.membership.role ===
+      'OWNER' ||
+    currentUser?.membership.role ===
+      'ADMIN' ||
+    currentUser?.membership.role ===
+      'RECEPTIONIST';
 
   useEffect(() => {
     async function initialize() {
@@ -542,12 +568,15 @@ export default function AgendaPage() {
     }
 
     initialize();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!loading) {
-      loadAgenda(date);
+      loadAgenda(
+        date,
+      );
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -558,6 +587,7 @@ export default function AgendaPage() {
       setServices([]);
       setServiceId('');
       setSlots([]);
+
       return;
     }
 
@@ -598,14 +628,19 @@ export default function AgendaPage() {
       'currentUser',
     );
 
-    router.replace('/login');
+    router.replace(
+      '/login',
+    );
   }
 
   async function loadAgenda(
     targetDate: string,
   ) {
     try {
-      setAgendaLoading(true);
+      setAgendaLoading(
+        true,
+      );
+
       setError('');
 
       const response =
@@ -614,7 +649,8 @@ export default function AgendaPage() {
         );
 
       if (
-        response.status === 401
+        response.status ===
+        401
       ) {
         handleLogout();
         return;
@@ -665,15 +701,18 @@ export default function AgendaPage() {
         >(response);
 
       const normalized =
-        data.map((item) => {
-          if (
-            'service' in item
-          ) {
-            return item.service;
-          }
+        data.map(
+          (item) => {
+            if (
+              'service' in
+              item
+            ) {
+              return item.service;
+            }
 
-          return item;
-        });
+            return item;
+          },
+        );
 
       setServices(
         normalized,
@@ -704,7 +743,8 @@ export default function AgendaPage() {
           serviceId:
             selectedServiceId,
 
-          date: targetDate,
+          date:
+            targetDate,
         });
 
       const response =
@@ -733,6 +773,16 @@ export default function AgendaPage() {
     event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
+
+    if (
+      !canManageAppointments
+    ) {
+      setError(
+        'Você não possui permissão para criar agendamentos.',
+      );
+
+      return;
+    }
 
     setError('');
     setSuccess('');
@@ -764,18 +814,20 @@ export default function AgendaPage() {
         await apiFetch(
           '/appointments',
           {
-            method: 'POST',
+            method:
+              'POST',
 
-            body: JSON.stringify({
-              employeeId,
-              serviceId,
-              clientId,
-              startsAt,
+            body:
+              JSON.stringify({
+                employeeId,
+                serviceId,
+                clientId,
+                startsAt,
 
-              notes:
-                notes.trim() ||
-                undefined,
-            }),
+                notes:
+                  notes.trim() ||
+                  undefined,
+              }),
           },
         );
 
@@ -814,6 +866,16 @@ export default function AgendaPage() {
   async function handleCancel(
     appointment: Appointment,
   ) {
+    if (
+      !canManageAppointments
+    ) {
+      setError(
+        'Você não possui permissão para cancelar agendamentos.',
+      );
+
+      return;
+    }
+
     const confirmed =
       window.confirm(
         `Deseja cancelar o agendamento de ${appointment.client.name}?`,
@@ -836,13 +898,15 @@ export default function AgendaPage() {
         await apiFetch(
           `/appointments/${appointment.id}/cancel`,
           {
-            method: 'PATCH',
+            method:
+              'PATCH',
 
-            body: JSON.stringify({
-              reason:
-                reason?.trim() ||
-                undefined,
-            }),
+            body:
+              JSON.stringify({
+                reason:
+                  reason?.trim() ||
+                  undefined,
+              }),
           },
         );
 
@@ -880,6 +944,16 @@ export default function AgendaPage() {
   async function openReschedule(
     appointment: Appointment,
   ) {
+    if (
+      !canManageAppointments
+    ) {
+      setError(
+        'Você não possui permissão para reagendar atendimentos.',
+      );
+
+      return;
+    }
+
     setError('');
     setSuccess('');
 
@@ -948,6 +1022,16 @@ export default function AgendaPage() {
 
   async function handleReschedule() {
     if (
+      !canManageAppointments
+    ) {
+      setError(
+        'Você não possui permissão para reagendar atendimentos.',
+      );
+
+      return;
+    }
+
+    if (
       !rescheduleAppointment ||
       !rescheduleDate ||
       !rescheduleSlot
@@ -975,11 +1059,13 @@ export default function AgendaPage() {
         await apiFetch(
           `/appointments/${rescheduleAppointment.id}/reschedule`,
           {
-            method: 'PATCH',
+            method:
+              'PATCH',
 
-            body: JSON.stringify({
-              startsAt,
-            }),
+            body:
+              JSON.stringify({
+                startsAt,
+              }),
           },
         );
 
@@ -1018,6 +1104,7 @@ export default function AgendaPage() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-100">
+
         <p className="text-zinc-500">
           Carregando agenda...
         </p>
@@ -1026,477 +1113,625 @@ export default function AgendaPage() {
   }
 
   return (
-  <PanelShell
-    title="Agenda"
-    subtitle="Gerenciamento de horários e atendimentos"
-  >
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-      <p className="text-sm text-zinc-500">
-        Consulte, crie, cancele e reagende os atendimentos.
-      </p>
+    <PanelShell
+      title="Agenda"
+      subtitle="Gerenciamento de horários e atendimentos"
+    >
+      {/* CABEÇALHO */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
-      <button
-        onClick={() => {
-          setShowCreate(
-            (value) => !value,
-          );
+        <div>
+          <p className="text-sm text-zinc-500">
+            {canManageAppointments
+              ? 'Consulte, crie, cancele e reagende os atendimentos.'
+              : 'Consulte os atendimentos da agenda.'}
+          </p>
 
-          setError('');
-          setSuccess('');
-        }}
-        className="rounded-lg bg-zinc-900 px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800"
-      >
-        {showCreate
-          ? 'Fechar'
-          : '+ Novo agendamento'}
-      </button>
-    </div>
-
-    {/* MENSAGENS */}
-    {error && (
-      <div className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-        {error}
-      </div>
-    )}
-
-    {success && (
-      <div className="mt-5 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
-        {success}
-      </div>
-    )}
-
-    {/* NOVO AGENDAMENTO */}
-    {showCreate && (
-      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-900">
-          Novo agendamento
-        </h2>
-
-        <p className="mt-1 text-sm text-zinc-500">
-          Data selecionada: {date}
-        </p>
-
-        <form
-          onSubmit={handleCreate}
-          className="mt-6 grid gap-5 md:grid-cols-2"
-        >
-          <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-700">
-              Funcionário
-            </label>
-
-            <select
-              value={employeeId}
-              onChange={(event) =>
-                setEmployeeId(
-                  event.target.value,
-                )
-              }
-              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3"
-            >
-              <option value="">
-                Selecione
-              </option>
-
-              {employees.map(
-                (employee) => (
-                  <option
-                    key={employee.id}
-                    value={employee.id}
-                  >
-                    {employee.name}
-                  </option>
-                ),
-              )}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-700">
-              Serviço
-            </label>
-
-            <select
-              value={serviceId}
-              onChange={(event) =>
-                setServiceId(
-                  event.target.value,
-                )
-              }
-              disabled={!employeeId}
-              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 disabled:bg-zinc-100"
-            >
-              <option value="">
-                Selecione
-              </option>
-
-              {services.map(
-                (service) => (
-                  <option
-                    key={service.id}
-                    value={service.id}
-                  >
-                    {service.name} -{' '}
-                    {formatCurrency(
-                      service.priceCents,
-                    )}
-                  </option>
-                ),
-              )}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-700">
-              Cliente
-            </label>
-
-            <select
-              value={clientId}
-              onChange={(event) =>
-                setClientId(
-                  event.target.value,
-                )
-              }
-              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3"
-            >
-              <option value="">
-                Selecione
-              </option>
-
-              {clients.map(
-                (client) => (
-                  <option
-                    key={client.id}
-                    value={client.id}
-                  >
-                    {client.name}
-                  </option>
-                ),
-              )}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-700">
-              Horário
-            </label>
-
-            <select
-              value={selectedSlot}
-              onChange={(event) =>
-                setSelectedSlot(
-                  event.target.value,
-                )
-              }
-              disabled={!serviceId}
-              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 disabled:bg-zinc-100"
-            >
-              <option value="">
-                Selecione
-              </option>
-
-              {slots.map(
-                (slot) => (
-                  <option
-                    key={slot}
-                    value={slot}
-                  >
-                    {slot}
-                  </option>
-                ),
-              )}
-            </select>
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-zinc-700">
-              Observações
-            </label>
-
-            <textarea
-              value={notes}
-              onChange={(event) =>
-                setNotes(
-                  event.target.value,
-                )
-              }
-              rows={3}
-              className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-              placeholder="Observações opcionais..."
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
-            >
-              {saving
-                ? 'Salvando...'
-                : 'Criar agendamento'}
-            </button>
-          </div>
-        </form>
-      </section>
-    )}
-
-    {/* REAGENDAMENTO */}
-    {rescheduleAppointment && (
-      <section className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-900">
-              Reagendar
-            </h2>
-
-            <p className="mt-1 text-sm text-zinc-600">
-              {rescheduleAppointment.client.name}
-              {' — '}
-              {rescheduleAppointment.service.name}
+          {!canManageAppointments && (
+            <p className="mt-1 text-xs text-zinc-400">
+              Seu perfil possui acesso somente para visualização.
             </p>
-          </div>
-
-          <button
-            onClick={() =>
-              setRescheduleAppointment(
-                null,
-              )
-            }
-            className="text-sm text-zinc-500"
-          >
-            Fechar
-          </button>
+          )}
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        {canManageAppointments && (
+          <button
+            onClick={() => {
+              setShowCreate(
+                (value) =>
+                  !value,
+              );
+
+              setError('');
+              setSuccess('');
+            }}
+            className="rounded-lg bg-zinc-900 px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800"
+          >
+            {showCreate
+              ? 'Fechar'
+              : '+ Novo agendamento'}
+          </button>
+        )}
+      </div>
+
+      {/* MENSAGENS */}
+      {error && (
+        <div className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="mt-5 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
+          {success}
+        </div>
+      )}
+
+      {/* NOVO AGENDAMENTO */}
+      {showCreate &&
+        canManageAppointments && (
+          <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+
+            <h2 className="text-lg font-semibold text-zinc-900">
+              Novo agendamento
+            </h2>
+
+            <p className="mt-1 text-sm text-zinc-500">
+              Data selecionada:{' '}
+              {date}
+            </p>
+
+            <form
+              onSubmit={
+                handleCreate
+              }
+              className="mt-6 grid gap-5 md:grid-cols-2"
+            >
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Funcionário
+                </label>
+
+                <select
+                  value={
+                    employeeId
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setEmployeeId(
+                      event.target
+                        .value,
+                    )
+                  }
+                  className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3"
+                >
+                  <option value="">
+                    Selecione
+                  </option>
+
+                  {employees.map(
+                    (employee) => (
+                      <option
+                        key={
+                          employee.id
+                        }
+                        value={
+                          employee.id
+                        }
+                      >
+                        {
+                          employee.name
+                        }
+                      </option>
+                    ),
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Serviço
+                </label>
+
+                <select
+                  value={
+                    serviceId
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setServiceId(
+                      event.target
+                        .value,
+                    )
+                  }
+                  disabled={
+                    !employeeId
+                  }
+                  className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 disabled:bg-zinc-100"
+                >
+                  <option value="">
+                    Selecione
+                  </option>
+
+                  {services.map(
+                    (service) => (
+                      <option
+                        key={
+                          service.id
+                        }
+                        value={
+                          service.id
+                        }
+                      >
+                        {
+                          service.name
+                        }{' '}
+                        -{' '}
+                        {formatCurrency(
+                          service.priceCents,
+                        )}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Cliente
+                </label>
+
+                <select
+                  value={
+                    clientId
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setClientId(
+                      event.target
+                        .value,
+                    )
+                  }
+                  className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3"
+                >
+                  <option value="">
+                    Selecione
+                  </option>
+
+                  {clients.map(
+                    (client) => (
+                      <option
+                        key={
+                          client.id
+                        }
+                        value={
+                          client.id
+                        }
+                      >
+                        {
+                          client.name
+                        }
+                      </option>
+                    ),
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Horário
+                </label>
+
+                <select
+                  value={
+                    selectedSlot
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setSelectedSlot(
+                      event.target
+                        .value,
+                    )
+                  }
+                  disabled={
+                    !serviceId
+                  }
+                  className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 disabled:bg-zinc-100"
+                >
+                  <option value="">
+                    Selecione
+                  </option>
+
+                  {slots.map(
+                    (slot) => (
+                      <option
+                        key={
+                          slot
+                        }
+                        value={
+                          slot
+                        }
+                      >
+                        {slot}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Observações
+                </label>
+
+                <textarea
+                  value={
+                    notes
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setNotes(
+                      event.target
+                        .value,
+                    )
+                  }
+                  rows={3}
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                  placeholder="Observações opcionais..."
+                />
+              </div>
+
+              <div className="md:col-span-2">
+
+                <button
+                  type="submit"
+                  disabled={
+                    saving
+                  }
+                  className="rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                >
+                  {saving
+                    ? 'Salvando...'
+                    : 'Criar agendamento'}
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
+
+      {/* REAGENDAMENTO */}
+      {rescheduleAppointment &&
+        canManageAppointments && (
+          <section className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-6">
+
+            <div className="flex items-start justify-between gap-4">
+
+              <div>
+                <h2 className="text-lg font-semibold text-zinc-900">
+                  Reagendar
+                </h2>
+
+                <p className="mt-1 text-sm text-zinc-600">
+                  {
+                    rescheduleAppointment
+                      .client.name
+                  }
+
+                  {' — '}
+
+                  {
+                    rescheduleAppointment
+                      .service.name
+                  }
+                </p>
+              </div>
+
+              <button
+                onClick={() =>
+                  setRescheduleAppointment(
+                    null,
+                  )
+                }
+                className="text-sm text-zinc-500"
+              >
+                Fechar
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Nova data
+                </label>
+
+                <input
+                  type="date"
+                  value={
+                    rescheduleDate
+                  }
+                  onChange={async (
+                    event,
+                  ) => {
+                    const value =
+                      event.target
+                        .value;
+
+                    setRescheduleDate(
+                      value,
+                    );
+
+                    if (
+                      rescheduleAppointment
+                    ) {
+                      await loadRescheduleSlots(
+                        rescheduleAppointment,
+                        value,
+                      );
+                    }
+                  }}
+                  className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Novo horário
+                </label>
+
+                <select
+                  value={
+                    rescheduleSlot
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setRescheduleSlot(
+                      event.target
+                        .value,
+                    )
+                  }
+                  className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3"
+                >
+                  <option value="">
+                    Selecione
+                  </option>
+
+                  {rescheduleSlots.map(
+                    (slot) => (
+                      <option
+                        key={
+                          slot
+                        }
+                        value={
+                          slot
+                        }
+                      >
+                        {slot}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </div>
+            </div>
+
+            <button
+              onClick={
+                handleReschedule
+              }
+              disabled={
+                saving
+              }
+              className="mt-5 rounded-lg bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+            >
+              Confirmar reagendamento
+            </button>
+          </section>
+        )}
+
+      {/* DATA */}
+      <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+
           <div>
             <label className="mb-2 block text-sm font-medium text-zinc-700">
-              Nova data
+              Data da agenda
             </label>
 
             <input
               type="date"
-              value={rescheduleDate}
-              onChange={async (
+              value={
+                date
+              }
+              onChange={(
                 event,
-              ) => {
-                const value =
-                  event.target.value;
-
-                setRescheduleDate(
-                  value,
-                );
-
-                if (
-                  rescheduleAppointment
-                ) {
-                  await loadRescheduleSlots(
-                    rescheduleAppointment,
-                    value,
-                  );
-                }
-              }}
-              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3"
+              ) =>
+                setDate(
+                  event.target
+                    .value,
+                )
+              }
+              className="rounded-lg border border-zinc-300 bg-white px-4 py-3"
             />
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-700">
-              Novo horário
-            </label>
-
-            <select
-              value={rescheduleSlot}
-              onChange={(event) =>
-                setRescheduleSlot(
-                  event.target.value,
-                )
-              }
-              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3"
-            >
-              <option value="">
-                Selecione
-              </option>
-
-              {rescheduleSlots.map(
-                (slot) => (
-                  <option
-                    key={slot}
-                    value={slot}
-                  >
-                    {slot}
-                  </option>
-                ),
-              )}
-            </select>
-          </div>
-        </div>
-
-        <button
-          onClick={handleReschedule}
-          disabled={saving}
-          className="mt-5 rounded-lg bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
-        >
-          Confirmar reagendamento
-        </button>
-      </section>
-    )}
-
-    {/* DATA */}
-    <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <div>
-          <label className="mb-2 block text-sm font-medium text-zinc-700">
-            Data da agenda
-          </label>
-
-          <input
-            type="date"
-            value={date}
-            onChange={(event) =>
-              setDate(
-                event.target.value,
+          <button
+            onClick={() =>
+              loadAgenda(
+                date,
               )
             }
-            className="rounded-lg border border-zinc-300 bg-white px-4 py-3"
-          />
+            className="rounded-lg border border-zinc-300 px-5 py-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          >
+            Atualizar
+          </button>
+        </div>
+      </section>
+
+      {/* AGENDAMENTOS */}
+      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+
+        <div className="flex items-center justify-between">
+
+          <h2 className="text-lg font-semibold text-zinc-900">
+            Atendimentos
+          </h2>
+
+          <span className="text-sm text-zinc-500">
+            {appointments.length}{' '}
+            agendamento(s)
+          </span>
         </div>
 
-        <button
-          onClick={() =>
-            loadAgenda(date)
-          }
-          className="rounded-lg border border-zinc-300 px-5 py-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-        >
-          Atualizar
-        </button>
-      </div>
-    </section>
-
-    {/* AGENDAMENTOS */}
-    <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-zinc-900">
-          Atendimentos
-        </h2>
-
-        <span className="text-sm text-zinc-500">
-          {appointments.length}{' '}
-          agendamento(s)
-        </span>
-      </div>
-
-      {agendaLoading ? (
-        <p className="mt-6 text-sm text-zinc-500">
-          Carregando...
-        </p>
-      ) : appointments.length === 0 ? (
-        <div className="mt-6 rounded-xl bg-zinc-50 p-8 text-center">
-          <p className="text-zinc-500">
-            Nenhum agendamento para esta data.
+        {agendaLoading ? (
+          <p className="mt-6 text-sm text-zinc-500">
+            Carregando...
           </p>
-        </div>
-      ) : (
-        <div className="mt-5 space-y-3">
-          {appointments.map(
-            (appointment) => (
-              <article
-                key={appointment.id}
-                className="rounded-xl border border-zinc-200 p-4"
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex gap-4">
-                    <div className="min-w-16 rounded-lg bg-zinc-100 px-3 py-2 text-center">
-                      <p className="text-lg font-bold text-zinc-900">
-                        {formatTime(
-                          appointment.startsAt,
-                          timezone,
-                        )}
-                      </p>
+        ) : appointments.length ===
+          0 ? (
+          <div className="mt-6 rounded-xl bg-zinc-50 p-8 text-center">
 
-                      <p className="text-xs text-zinc-500">
-                        até{' '}
-                        {formatTime(
-                          appointment.endsAt,
-                          timezone,
-                        )}
-                      </p>
-                    </div>
+            <p className="text-zinc-500">
+              Nenhum agendamento para esta data.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-5 space-y-3">
 
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-semibold text-zinc-900">
-                          {appointment.client.name}
-                        </h3>
+            {appointments.map(
+              (appointment) => (
+                <article
+                  key={
+                    appointment.id
+                  }
+                  className="rounded-xl border border-zinc-200 p-4"
+                >
 
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClass(
-                            appointment.status,
-                          )}`}
-                        >
-                          {getStatusLabel(
-                            appointment.status,
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+
+                    <div className="flex gap-4">
+
+                      <div className="min-w-16 rounded-lg bg-zinc-100 px-3 py-2 text-center">
+
+                        <p className="text-lg font-bold text-zinc-900">
+                          {formatTime(
+                            appointment.startsAt,
+                            timezone,
                           )}
-                        </span>
+                        </p>
+
+                        <p className="text-xs text-zinc-500">
+                          até{' '}
+
+                          {formatTime(
+                            appointment.endsAt,
+                            timezone,
+                          )}
+                        </p>
                       </div>
 
-                      <p className="mt-1 text-sm text-zinc-600">
-                        {appointment.service.name}
-                        {' • '}
-                        {appointment.employee.name}
-                      </p>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
 
-                      <p className="mt-1 text-sm font-medium text-zinc-800">
-                        {formatCurrency(
-                          appointment.priceCents,
-                        )}
-                      </p>
+                          <h3 className="font-semibold text-zinc-900">
+                            {
+                              appointment
+                                .client
+                                .name
+                            }
+                          </h3>
 
-                      {appointment.notes && (
-                        <p className="mt-2 text-xs text-zinc-500">
-                          {appointment.notes}
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClass(
+                              appointment.status,
+                            )}`}
+                          >
+                            {getStatusLabel(
+                              appointment.status,
+                            )}
+                          </span>
+                        </div>
+
+                        <p className="mt-1 text-sm text-zinc-600">
+                          {
+                            appointment
+                              .service
+                              .name
+                          }
+
+                          {' • '}
+
+                          {
+                            appointment
+                              .employee
+                              .name
+                          }
                         </p>
+
+                        <p className="mt-1 text-sm font-medium text-zinc-800">
+                          {formatCurrency(
+                            appointment.priceCents,
+                          )}
+                        </p>
+
+                        {appointment.notes && (
+                          <p className="mt-2 text-xs text-zinc-500">
+                            {
+                              appointment.notes
+                            }
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* AÇÕES SOMENTE PARA QUEM PODE GERENCIAR */}
+                    {canManageAppointments &&
+                      (
+                        appointment.status ===
+                          'CONFIRMED' ||
+                        appointment.status ===
+                          'PENDING'
+                      ) && (
+                        <div className="flex flex-wrap gap-2">
+
+                          <button
+                            onClick={() =>
+                              openReschedule(
+                                appointment,
+                              )
+                            }
+                            className="rounded-lg border border-blue-300 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
+                          >
+                            Reagendar
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              handleCancel(
+                                appointment,
+                              )
+                            }
+                            className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
                       )}
-                    </div>
                   </div>
-
-                  {(appointment.status ===
-                    'CONFIRMED' ||
-                    appointment.status ===
-                      'PENDING') && (
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() =>
-                          openReschedule(
-                            appointment,
-                          )
-                        }
-                        className="rounded-lg border border-blue-300 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
-                      >
-                        Reagendar
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          handleCancel(
-                            appointment,
-                          )
-                        }
-                        className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </article>
-            ),
-          )}
-        </div>
-      )}
-    </section>
-  </PanelShell>
-);
+                </article>
+              ),
+            )}
+          </div>
+        )}
+      </section>
+    </PanelShell>
+  );
 }
