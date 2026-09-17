@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { apiFetch } from '@/lib/api';
+import { PanelShell } from '@/components/panel-shell';
 
 type Service = {
   id: string;
