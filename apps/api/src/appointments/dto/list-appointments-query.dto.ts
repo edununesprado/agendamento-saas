@@ -6,8 +6,17 @@ import {
 } from 'class-validator';
 
 export class ListAppointmentsQueryDto {
+  @IsOptional()
   @IsDateString()
-  date!: string;
+  date?: string;
+
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
 
   @IsOptional()
   @IsString()

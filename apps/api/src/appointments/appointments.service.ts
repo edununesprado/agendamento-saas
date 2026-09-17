@@ -200,26 +200,40 @@ export class AppointmentsService {
   }
 
   async findAll(
-    tenantId: string,
-    query: ListAppointmentsQueryDto,
+  tenantId: string,
+  query: ListAppointmentsQueryDto,
+) {
+  const tenant =
+    await this.prisma.tenant.findUnique({
+      where: {
+        id: tenantId,
+      },
+
+      select: {
+        timezone: true,
+      },
+    });
+
+  if (!tenant) {
+    throw new NotFoundException(
+      'Empresa não encontrada',
+    );
+  }
+
+  if (
+    query.date &&
+    (query.startDate || query.endDate)
   ) {
-    const tenant =
-      await this.prisma.tenant.findUnique({
-        where: {
-          id: tenantId,
-        },
+    throw new BadRequestException(
+      'Informe date ou startDate/endDate, não os dois formatos juntos',
+    );
+  }
 
-        select: {
-          timezone: true,
-        },
-      });
+  let startDate: DateTime;
+  let endDate: DateTime;
 
-    if (!tenant) {
-      throw new NotFoundException(
-        'Empresa não encontrada',
-      );
-    }
-
+  // Consulta de um único dia
+  if (query.date) {
     const selectedDate =
       DateTime.fromISO(
         query.date,
@@ -234,53 +248,115 @@ export class AppointmentsService {
       );
     }
 
-    const startsAt =
+    startDate =
+      selectedDate.startOf('day');
+
+    endDate =
       selectedDate
-        .startOf('day')
-        .toUTC()
-        .toJSDate();
-
-    const endsAt =
-      selectedDate
-        .endOf('day')
-        .toUTC()
-        .toJSDate();
-
-    return this.prisma.appointment.findMany({
-      where: {
-        tenantId,
-
-        startsAt: {
-          gte: startsAt,
-          lte: endsAt,
-        },
-
-        ...(query.employeeId
-          ? {
-              employeeId:
-                query.employeeId,
-            }
-          : {}),
-
-        ...(query.status
-          ? {
-              status:
-                query.status,
-            }
-          : {}),
-      },
-
-      include: {
-        employee: true,
-        service: true,
-        client: true,
-      },
-
-      orderBy: {
-        startsAt: 'asc',
-      },
-    });
+        .plus({
+          days: 1,
+        })
+        .startOf('day');
   }
+
+  // Consulta por período
+  else {
+    if (
+      !query.startDate ||
+      !query.endDate
+    ) {
+      throw new BadRequestException(
+        'Informe date ou startDate e endDate',
+      );
+    }
+
+    const selectedStart =
+      DateTime.fromISO(
+        query.startDate,
+        {
+          zone: tenant.timezone,
+        },
+      );
+
+    const selectedEnd =
+      DateTime.fromISO(
+        query.endDate,
+        {
+          zone: tenant.timezone,
+        },
+      );
+
+    if (
+      !selectedStart.isValid ||
+      !selectedEnd.isValid
+    ) {
+      throw new BadRequestException(
+        'Período inválido',
+      );
+    }
+
+    if (
+      selectedEnd.startOf('day') <
+      selectedStart.startOf('day')
+    ) {
+      throw new BadRequestException(
+        'endDate não pode ser anterior a startDate',
+      );
+    }
+
+    startDate =
+      selectedStart.startOf('day');
+
+    endDate =
+      selectedEnd
+        .plus({
+          days: 1,
+        })
+        .startOf('day');
+  }
+
+  return this.prisma.appointment.findMany({
+    where: {
+      tenantId,
+
+      startsAt: {
+        gte:
+          startDate
+            .toUTC()
+            .toJSDate(),
+
+        lt:
+          endDate
+            .toUTC()
+            .toJSDate(),
+      },
+
+      ...(query.employeeId
+        ? {
+            employeeId:
+              query.employeeId,
+          }
+        : {}),
+
+      ...(query.status
+        ? {
+            status:
+              query.status,
+          }
+        : {}),
+    },
+
+    include: {
+      employee: true,
+      service: true,
+      client: true,
+    },
+
+    orderBy: {
+      startsAt: 'asc',
+    },
+  });
+}
 
   async findOne(
     tenantId: string,
