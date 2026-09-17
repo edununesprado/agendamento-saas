@@ -16,6 +16,7 @@ import { RolesGuard } from '../auth/guards/roles.guard.js';
 import type { JwtPayload } from '../auth/types/jwt-payload.js';
 
 import { AppointmentsService } from './appointments.service.js';
+
 import { CancelAppointmentDto } from './dto/cancel-appointment.dto.js';
 import { CreateAppointmentDto } from './dto/create-appointment.dto.js';
 import { ListAppointmentsQueryDto } from './dto/list-appointments-query.dto.js';
@@ -32,14 +33,6 @@ export class AppointmentsController {
     private readonly appointmentsService: AppointmentsService,
   ) {}
 
-  /**
-   * Criar agendamento
-   *
-   * OWNER ✅
-   * ADMIN ✅
-   * RECEPTIONIST ✅
-   * STAFF ❌
-   */
   @Post()
   @Roles(
     'OWNER',
@@ -47,8 +40,11 @@ export class AppointmentsController {
     'RECEPTIONIST',
   )
   create(
-    @CurrentUser() user: JwtPayload,
-    @Body() data: CreateAppointmentDto,
+    @CurrentUser()
+    user: JwtPayload,
+
+    @Body()
+    data: CreateAppointmentDto,
   ) {
     return this.appointmentsService.create(
       user.tenantId,
@@ -56,11 +52,6 @@ export class AppointmentsController {
     );
   }
 
-  /**
-   * Listar agendamentos
-   *
-   * Todos podem visualizar.
-   */
   @Get()
   @Roles(
     'OWNER',
@@ -69,20 +60,20 @@ export class AppointmentsController {
     'STAFF',
   )
   findAll(
-    @CurrentUser() user: JwtPayload,
-    @Query() query: ListAppointmentsQueryDto,
+    @CurrentUser()
+    user: JwtPayload,
+
+    @Query()
+    query: ListAppointmentsQueryDto,
   ) {
     return this.appointmentsService.findAll(
       user.tenantId,
       query,
+      user.membershipId,
+      user.role,
     );
   }
 
-  /**
-   * Visualizar um agendamento
-   *
-   * Todos podem visualizar.
-   */
   @Get(':id')
   @Roles(
     'OWNER',
@@ -91,23 +82,20 @@ export class AppointmentsController {
     'STAFF',
   )
   findOne(
-    @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
+    @CurrentUser()
+    user: JwtPayload,
+
+    @Param('id')
+    id: string,
   ) {
     return this.appointmentsService.findOne(
       user.tenantId,
       id,
+      user.membershipId,
+      user.role,
     );
   }
 
-  /**
-   * Alterar status do agendamento
-   *
-   * OWNER ✅
-   * ADMIN ✅
-   * RECEPTIONIST ✅
-   * STAFF ❌
-   */
   @Patch(':id/status')
   @Roles(
     'OWNER',
@@ -115,9 +103,14 @@ export class AppointmentsController {
     'RECEPTIONIST',
   )
   updateStatus(
-    @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
-    @Body() data: UpdateAppointmentStatusDto,
+    @CurrentUser()
+    user: JwtPayload,
+
+    @Param('id')
+    id: string,
+
+    @Body()
+    data: UpdateAppointmentStatusDto,
   ) {
     return this.appointmentsService.updateStatus(
       user.tenantId,
@@ -126,14 +119,6 @@ export class AppointmentsController {
     );
   }
 
-  /**
-   * Cancelar agendamento
-   *
-   * OWNER ✅
-   * ADMIN ✅
-   * RECEPTIONIST ✅
-   * STAFF ❌
-   */
   @Patch(':id/cancel')
   @Roles(
     'OWNER',
@@ -141,9 +126,14 @@ export class AppointmentsController {
     'RECEPTIONIST',
   )
   cancel(
-    @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
-    @Body() data: CancelAppointmentDto,
+    @CurrentUser()
+    user: JwtPayload,
+
+    @Param('id')
+    id: string,
+
+    @Body()
+    data: CancelAppointmentDto,
   ) {
     return this.appointmentsService.cancel(
       user.tenantId,
@@ -152,14 +142,6 @@ export class AppointmentsController {
     );
   }
 
-  /**
-   * Remarcar agendamento
-   *
-   * OWNER ✅
-   * ADMIN ✅
-   * RECEPTIONIST ✅
-   * STAFF ❌
-   */
   @Patch(':id/reschedule')
   @Roles(
     'OWNER',
@@ -167,9 +149,14 @@ export class AppointmentsController {
     'RECEPTIONIST',
   )
   reschedule(
-    @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
-    @Body() data: RescheduleAppointmentDto,
+    @CurrentUser()
+    user: JwtPayload,
+
+    @Param('id')
+    id: string,
+
+    @Body()
+    data: RescheduleAppointmentDto,
   ) {
     return this.appointmentsService.reschedule(
       user.tenantId,

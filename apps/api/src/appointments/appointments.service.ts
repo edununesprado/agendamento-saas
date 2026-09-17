@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -8,11 +9,12 @@ import { DateTime } from 'luxon';
 
 import { AvailabilityService } from '../availability/availability.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+
 import { CancelAppointmentDto } from './dto/cancel-appointment.dto.js';
 import { CreateAppointmentDto } from './dto/create-appointment.dto.js';
 import { ListAppointmentsQueryDto } from './dto/list-appointments-query.dto.js';
-import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto.js';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto.js';
+import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto.js';
 
 @Injectable()
 export class AppointmentsService {
@@ -20,6 +22,70 @@ export class AppointmentsService {
     private readonly prisma: PrismaService,
     private readonly availabilityService: AvailabilityService,
   ) {}
+
+  /**
+   * Descobre qual Employee está vinculado
+   * à membership de um usuário STAFF.
+   */
+  private async getStaffEmployeeId(
+    tenantId: string,
+    membershipId: string,
+  ) {
+    const employee =
+      await this.prisma.employee.findFirst({
+        where: {
+          tenantId,
+          membershipId,
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+    if (!employee) {
+      throw new ForbiddenException(
+        'Seu usuário STAFF não está vinculado a um funcionário',
+      );
+    }
+
+    return employee.id;
+  }
+
+  /**
+   * Busca um agendamento da empresa sem
+   * aplicar regras específicas de STAFF.
+   *
+   * Usado internamente pelas operações de
+   * alteração que já são protegidas pelo
+   * RolesGuard no controller.
+   */
+  private async findOneForTenant(
+    tenantId: string,
+    id: string,
+  ) {
+    const appointment =
+      await this.prisma.appointment.findFirst({
+        where: {
+          id,
+          tenantId,
+        },
+
+        include: {
+          employee: true,
+          service: true,
+          client: true,
+        },
+      });
+
+    if (!appointment) {
+      throw new NotFoundException(
+        'Agendamento não encontrado',
+      );
+    }
+
+    return appointment;
+  }
 
   async create(
     tenantId: string,
@@ -86,7 +152,9 @@ export class AppointmentsService {
     }
 
     const requestedTime =
-      localDateTime.toFormat('HH:mm');
+      localDateTime.toFormat(
+        'HH:mm',
+      );
 
     const availability =
       await this.availabilityService.getAvailableSlots(
@@ -122,20 +190,28 @@ export class AppointmentsService {
 
     return this.prisma.$transaction(
       async (tx) => {
-        // Impede duas requisições simultâneas de
-        // criarem horários sobrepostos para o mesmo profissional.
-        await tx.$queryRaw<Array<{ lock_value: number }>>`
-            SELECT 1::int AS lock_value
-            FROM pg_advisory_xact_lock(
+        /**
+         * Impede duas requisições simultâneas
+         * de criarem horários sobrepostos para
+         * o mesmo profissional.
+         */
+        await tx.$queryRaw<
+          Array<{
+            lock_value: number;
+          }>
+        >`
+          SELECT 1::int AS lock_value
+          FROM pg_advisory_xact_lock(
             hashtext(${tenantId}),
             hashtext(${data.employeeId})
-            )
+          )
         `;
 
         const conflictingAppointment =
           await tx.appointment.findFirst({
             where: {
               tenantId,
+
               employeeId:
                 data.employeeId,
 
@@ -153,7 +229,9 @@ export class AppointmentsService {
             },
           });
 
-        if (conflictingAppointment) {
+        if (
+          conflictingAppointment
+        ) {
           throw new ConflictException(
             'Este horário acabou de ser ocupado',
           );
@@ -181,8 +259,8 @@ export class AppointmentsService {
             priceCents:
               availability.service.priceCents,
 
-            // Agendamento criado pelo painel interno
-            // já começa confirmado.
+            // Agendamento criado pelo painel
+            // interno já começa confirmado.
             status: 'CONFIRMED',
 
             notes:
@@ -200,173 +278,251 @@ export class AppointmentsService {
   }
 
   async findAll(
-  tenantId: string,
-  query: ListAppointmentsQueryDto,
-) {
-  const tenant =
-    await this.prisma.tenant.findUnique({
+    tenantId: string,
+    query: ListAppointmentsQueryDto,
+    membershipId: string,
+    role: string,
+  ) {
+    const tenant =
+      await this.prisma.tenant.findUnique({
+        where: {
+          id: tenantId,
+        },
+
+        select: {
+          timezone: true,
+        },
+      });
+
+    if (!tenant) {
+      throw new NotFoundException(
+        'Empresa não encontrada',
+      );
+    }
+
+    if (
+      query.date &&
+      (
+        query.startDate ||
+        query.endDate
+      )
+    ) {
+      throw new BadRequestException(
+        'Informe date ou startDate/endDate, não os dois formatos juntos',
+      );
+    }
+
+    let startDate: DateTime;
+    let endDate: DateTime;
+
+    /**
+     * Consulta de um único dia.
+     */
+    if (query.date) {
+      const selectedDate =
+        DateTime.fromISO(
+          query.date,
+          {
+            zone:
+              tenant.timezone,
+          },
+        );
+
+      if (
+        !selectedDate.isValid
+      ) {
+        throw new BadRequestException(
+          'Data inválida',
+        );
+      }
+
+      startDate =
+        selectedDate.startOf(
+          'day',
+        );
+
+      endDate =
+        selectedDate
+          .plus({
+            days: 1,
+          })
+          .startOf(
+            'day',
+          );
+    } else {
+      /**
+       * Consulta por período.
+       */
+      if (
+        !query.startDate ||
+        !query.endDate
+      ) {
+        throw new BadRequestException(
+          'Informe date ou startDate e endDate',
+        );
+      }
+
+      const selectedStart =
+        DateTime.fromISO(
+          query.startDate,
+          {
+            zone:
+              tenant.timezone,
+          },
+        );
+
+      const selectedEnd =
+        DateTime.fromISO(
+          query.endDate,
+          {
+            zone:
+              tenant.timezone,
+          },
+        );
+
+      if (
+        !selectedStart.isValid ||
+        !selectedEnd.isValid
+      ) {
+        throw new BadRequestException(
+          'Período inválido',
+        );
+      }
+
+      if (
+        selectedEnd.startOf(
+          'day',
+        ) <
+        selectedStart.startOf(
+          'day',
+        )
+      ) {
+        throw new BadRequestException(
+          'endDate não pode ser anterior a startDate',
+        );
+      }
+
+      startDate =
+        selectedStart.startOf(
+          'day',
+        );
+
+      endDate =
+        selectedEnd
+          .plus({
+            days: 1,
+          })
+          .startOf(
+            'day',
+          );
+    }
+
+    /**
+     * OWNER / ADMIN / RECEPTIONIST
+     * podem usar normalmente o employeeId
+     * enviado na query.
+     *
+     * STAFF ignora qualquer employeeId
+     * enviado pelo navegador/Postman e
+     * obrigatoriamente usa o Employee
+     * vinculado à própria membership.
+     */
+    let effectiveEmployeeId =
+      query.employeeId;
+
+    if (
+      role === 'STAFF'
+    ) {
+      effectiveEmployeeId =
+        await this.getStaffEmployeeId(
+          tenantId,
+          membershipId,
+        );
+    }
+
+    return this.prisma.appointment.findMany({
       where: {
-        id: tenantId,
+        tenantId,
+
+        startsAt: {
+          gte:
+            startDate
+              .toUTC()
+              .toJSDate(),
+
+          lt:
+            endDate
+              .toUTC()
+              .toJSDate(),
+        },
+
+        ...(effectiveEmployeeId
+          ? {
+              employeeId:
+                effectiveEmployeeId,
+            }
+          : {}),
+
+        ...(query.status
+          ? {
+              status:
+                query.status,
+            }
+          : {}),
       },
 
-      select: {
-        timezone: true,
+      include: {
+        employee: true,
+        service: true,
+        client: true,
+      },
+
+      orderBy: {
+        startsAt:
+          'asc',
       },
     });
-
-  if (!tenant) {
-    throw new NotFoundException(
-      'Empresa não encontrada',
-    );
   }
 
-  if (
-    query.date &&
-    (query.startDate || query.endDate)
-  ) {
-    throw new BadRequestException(
-      'Informe date ou startDate/endDate, não os dois formatos juntos',
-    );
-  }
-
-  let startDate: DateTime;
-  let endDate: DateTime;
-
-  // Consulta de um único dia
-  if (query.date) {
-    const selectedDate =
-      DateTime.fromISO(
-        query.date,
-        {
-          zone: tenant.timezone,
-        },
-      );
-
-    if (!selectedDate.isValid) {
-      throw new BadRequestException(
-        'Data inválida',
-      );
-    }
-
-    startDate =
-      selectedDate.startOf('day');
-
-    endDate =
-      selectedDate
-        .plus({
-          days: 1,
-        })
-        .startOf('day');
-  }
-
-  // Consulta por período
-  else {
-    if (
-      !query.startDate ||
-      !query.endDate
-    ) {
-      throw new BadRequestException(
-        'Informe date ou startDate e endDate',
-      );
-    }
-
-    const selectedStart =
-      DateTime.fromISO(
-        query.startDate,
-        {
-          zone: tenant.timezone,
-        },
-      );
-
-    const selectedEnd =
-      DateTime.fromISO(
-        query.endDate,
-        {
-          zone: tenant.timezone,
-        },
-      );
-
-    if (
-      !selectedStart.isValid ||
-      !selectedEnd.isValid
-    ) {
-      throw new BadRequestException(
-        'Período inválido',
-      );
-    }
-
-    if (
-      selectedEnd.startOf('day') <
-      selectedStart.startOf('day')
-    ) {
-      throw new BadRequestException(
-        'endDate não pode ser anterior a startDate',
-      );
-    }
-
-    startDate =
-      selectedStart.startOf('day');
-
-    endDate =
-      selectedEnd
-        .plus({
-          days: 1,
-        })
-        .startOf('day');
-  }
-
-  return this.prisma.appointment.findMany({
-    where: {
-      tenantId,
-
-      startsAt: {
-        gte:
-          startDate
-            .toUTC()
-            .toJSDate(),
-
-        lt:
-          endDate
-            .toUTC()
-            .toJSDate(),
-      },
-
-      ...(query.employeeId
-        ? {
-            employeeId:
-              query.employeeId,
-          }
-        : {}),
-
-      ...(query.status
-        ? {
-            status:
-              query.status,
-          }
-        : {}),
-    },
-
-    include: {
-      employee: true,
-      service: true,
-      client: true,
-    },
-
-    orderBy: {
-      startsAt: 'asc',
-    },
-  });
-}
-
+  /**
+   * Consulta individual usada pela API.
+   *
+   * Para STAFF, acrescentamos employeeId
+   * ao WHERE. Assim, um STAFF tentando
+   * acessar o agendamento de outro
+   * profissional receberá 404.
+   */
   async findOne(
     tenantId: string,
     id: string,
+    membershipId: string,
+    role: string,
   ) {
+    let employeeId:
+      | string
+      | undefined;
+
+    if (
+      role === 'STAFF'
+    ) {
+      employeeId =
+        await this.getStaffEmployeeId(
+          tenantId,
+          membershipId,
+        );
+    }
+
     const appointment =
       await this.prisma.appointment.findFirst({
         where: {
           id,
           tenantId,
+
+          ...(employeeId
+            ? {
+                employeeId,
+              }
+            : {}),
         },
 
         include: {
@@ -391,7 +547,7 @@ export class AppointmentsService {
     data: UpdateAppointmentStatusDto,
   ) {
     const appointment =
-      await this.findOne(
+      await this.findOneForTenant(
         tenantId,
         id,
       );
@@ -435,7 +591,8 @@ export class AppointmentsService {
       },
 
       data: {
-        status: data.status,
+        status:
+          data.status,
       },
 
       include: {
@@ -452,7 +609,7 @@ export class AppointmentsService {
     data: CancelAppointmentDto,
   ) {
     const appointment =
-      await this.findOne(
+      await this.findOneForTenant(
         tenantId,
         id,
       );
@@ -481,8 +638,12 @@ export class AppointmentsService {
       },
 
       data: {
-        status: 'CANCELED',
-        canceledAt: new Date(),
+        status:
+          'CANCELED',
+
+        canceledAt:
+          new Date(),
+
         cancelReason:
           data.reason?.trim(),
       },
@@ -499,167 +660,188 @@ export class AppointmentsService {
     tenantId: string,
     id: string,
     data: RescheduleAppointmentDto,
-    ) {
+  ) {
     const appointment =
-        await this.findOne(
+      await this.findOneForTenant(
         tenantId,
         id,
-    );
+      );
 
     if (
-        appointment.status === 'CANCELED' ||
-        appointment.status === 'COMPLETED' ||
-        appointment.status === 'NO_SHOW'
+      appointment.status ===
+        'CANCELED' ||
+      appointment.status ===
+        'COMPLETED' ||
+      appointment.status ===
+        'NO_SHOW'
     ) {
-        throw new BadRequestException(
+      throw new BadRequestException(
         `Agendamento com status ${appointment.status} não pode ser reagendado`,
-        );
+      );
     }
 
     const tenant =
-        await this.prisma.tenant.findUnique({
+      await this.prisma.tenant.findUnique({
         where: {
-            id: tenantId,
+          id:
+            tenantId,
         },
 
         select: {
-            timezone: true,
+          timezone:
+            true,
         },
-    });
+      });
 
     if (!tenant) {
-        throw new NotFoundException(
+      throw new NotFoundException(
         'Empresa não encontrada',
-        );
+      );
     }
 
     const requestedDateTime =
-        DateTime.fromISO(
+      DateTime.fromISO(
         data.startsAt,
         {
-            setZone: true,
+          setZone: true,
         },
-    );
+      );
 
-    if (!requestedDateTime.isValid) {
-        throw new BadRequestException(
+    if (
+      !requestedDateTime.isValid
+    ) {
+      throw new BadRequestException(
         'Data ou horário inválido',
-        );
+      );
     }
 
     const localDateTime =
-        requestedDateTime.setZone(
+      requestedDateTime.setZone(
         tenant.timezone,
-    );
+      );
 
     const date =
-        localDateTime.toISODate();
+      localDateTime.toISODate();
 
     if (!date) {
-        throw new BadRequestException(
+      throw new BadRequestException(
         'Data inválida',
-        );
+      );
     }
 
     const requestedTime =
-        localDateTime.toFormat(
+      localDateTime.toFormat(
         'HH:mm',
-    );
+      );
 
     const availability =
-        await this.availabilityService.getAvailableSlots(
+      await this.availabilityService.getAvailableSlots(
         tenantId,
         appointment.employeeId,
         appointment.serviceId,
         date,
         appointment.id,
-        );
+      );
 
     if (
-        !availability.slots.includes(
+      !availability.slots.includes(
         requestedTime,
-        )
+      )
     ) {
-        throw new BadRequestException(
+      throw new BadRequestException(
         'O novo horário informado não está disponível',
-        );
+      );
     }
 
     const startsAt =
-        requestedDateTime
+      requestedDateTime
         .toUTC()
         .toJSDate();
 
     const endsAt =
-        requestedDateTime
+      requestedDateTime
         .plus({
-            minutes:
+          minutes:
             appointment.durationMin,
         })
         .toUTC()
         .toJSDate();
 
     return this.prisma.$transaction(
-        async (tx) => {
-            await tx.$queryRaw<
-                Array<{ lock_value: number }>
-            >`
-                SELECT 1::int AS lock_value
-                FROM pg_advisory_xact_lock(
-                hashtext(${tenantId}),
-                hashtext(${appointment.employeeId})
-                )
-            `;
+      async (tx) => {
+        await tx.$queryRaw<
+          Array<{
+            lock_value: number;
+          }>
+        >`
+          SELECT 1::int AS lock_value
+          FROM pg_advisory_xact_lock(
+            hashtext(${tenantId}),
+            hashtext(${appointment.employeeId})
+          )
+        `;
 
         const conflictingAppointment =
-            await tx.appointment.findFirst({
+          await tx.appointment.findFirst({
             where: {
-                id: {
-                not: appointment.id,
-                },
+              id: {
+                not:
+                  appointment.id,
+              },
 
-                tenantId,
+              tenantId,
 
-                employeeId:
+              employeeId:
                 appointment.employeeId,
 
-                status: {
-                not: 'CANCELED',
-                },
+              status: {
+                not:
+                  'CANCELED',
+              },
 
-                startsAt: {
-                lt: endsAt,
-                },
+              startsAt: {
+                lt:
+                  endsAt,
+              },
 
-                endsAt: {
-                gt: startsAt,
-                },
+              endsAt: {
+                gt:
+                  startsAt,
+              },
             },
-        });
+          });
 
-        if (conflictingAppointment) {
-            throw new ConflictException(
+        if (
+          conflictingAppointment
+        ) {
+          throw new ConflictException(
             'O novo horário acabou de ser ocupado',
-            );
+          );
         }
 
         return tx.appointment.update({
-            where: {
-            id: appointment.id,
-            },
+          where: {
+            id:
+              appointment.id,
+          },
 
-            data: {
+          data: {
             startsAt,
             endsAt,
-            },
+          },
 
-            include: {
-            employee: true,
-            service: true,
-            client: true,
-            },
+          include: {
+            employee:
+              true,
+
+            service:
+              true,
+
+            client:
+              true,
+          },
         });
-    },
-  );
-}
+      },
+    );
+  }
 }
