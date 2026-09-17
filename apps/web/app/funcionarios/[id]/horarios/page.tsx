@@ -55,7 +55,7 @@ type BlockedTime = {
   reason?: string | null;
 };
 
-type CurrentUser = {
+type StoredUser = {
   tenant: {
     id: string;
     name: string;
@@ -91,9 +91,9 @@ function createEmptySchedule(): DaySchedule[] {
   return dayOrder.map(
     (dayOfWeek) => ({
       dayOfWeek,
-      label:
-        dayLabels[dayOfWeek],
+      label: dayLabels[dayOfWeek],
       enabled: false,
+
       intervals: [
         {
           start: '08:00',
@@ -112,12 +112,8 @@ async function readResponse<T>(
 
   if (!response.ok) {
     const message =
-      Array.isArray(
-        data?.message,
-      )
-        ? data.message.join(
-            ', ',
-          )
+      Array.isArray(data?.message)
+        ? data.message.join(', ')
         : data?.message ??
           'Erro na requisição';
 
@@ -168,12 +164,15 @@ function zonedLocalToIso(
       'en-US',
       {
         timeZone: timezone,
+
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
+
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
+
         hourCycle: 'h23',
       },
     );
@@ -234,12 +233,13 @@ function formatBlockedDate(
       timeStyle: 'short',
       timeZone: timezone,
     },
-  ).format(new Date(value));
+  ).format(
+    new Date(value),
+  );
 }
 
 export default function EmployeeSchedulePage() {
-  const router =
-    useRouter();
+  const router = useRouter();
 
   const params =
     useParams<{
@@ -250,19 +250,19 @@ export default function EmployeeSchedulePage() {
     params.id;
 
   const [
-    currentUser,
-    setCurrentUser,
-  ] =
-    useState<CurrentUser | null>(
-      null,
-    );
-
-  const [
     employee,
     setEmployee,
   ] =
     useState<Employee | null>(
       null,
+    );
+
+  const [
+    timezone,
+    setTimezone,
+  ] =
+    useState(
+      'America/Sao_Paulo',
     );
 
   const [
@@ -299,22 +299,29 @@ export default function EmployeeSchedulePage() {
   ] =
     useState('');
 
-  const [loading, setLoading] =
+  const [
+    loading,
+    setLoading,
+  ] =
     useState(true);
 
-  const [saving, setSaving] =
+  const [
+    saving,
+    setSaving,
+  ] =
     useState(false);
 
-  const [error, setError] =
+  const [
+    error,
+    setError,
+  ] =
     useState('');
 
-  const [success, setSuccess] =
+  const [
+    success,
+    setSuccess,
+  ] =
     useState('');
-
-  const timezone =
-    currentUser?.tenant
-      .timezone ??
-    'America/Sao_Paulo';
 
   function handleLogout() {
     localStorage.removeItem(
@@ -344,10 +351,7 @@ export default function EmployeeSchedulePage() {
         !token ||
         !storedUser
       ) {
-        router.replace(
-          '/login',
-        );
-
+        router.replace('/login');
         return;
       }
 
@@ -355,9 +359,12 @@ export default function EmployeeSchedulePage() {
         const parsed =
           JSON.parse(
             storedUser,
-          ) as CurrentUser;
+          ) as StoredUser;
 
-        setCurrentUser(parsed);
+        setTimezone(
+          parsed.tenant.timezone ??
+            'America/Sao_Paulo',
+        );
 
         const [
           employeeResponse,
@@ -434,7 +441,9 @@ export default function EmployeeSchedulePage() {
 
           if (!day.enabled) {
             day.enabled = true;
-            day.intervals = [];
+
+            day.intervals =
+              [];
           }
 
           day.intervals.push({
@@ -443,7 +452,9 @@ export default function EmployeeSchedulePage() {
           });
         }
 
-        setSchedule(grouped);
+        setSchedule(
+          grouped,
+        );
       } catch (err) {
         setError(
           err instanceof Error
@@ -456,35 +467,44 @@ export default function EmployeeSchedulePage() {
     }
 
     initialize();
-  }, [employeeId, router]);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employeeId]);
 
   function toggleDay(
     dayOfWeek: DayOfWeek,
   ) {
     setSchedule(
       (current) =>
-        current.map((day) =>
-          day.dayOfWeek ===
-          dayOfWeek
-            ? {
-                ...day,
-                enabled:
-                  !day.enabled,
+        current.map(
+          (day) => {
+            if (
+              day.dayOfWeek !==
+              dayOfWeek
+            ) {
+              return day;
+            }
 
-                intervals:
-                  day.intervals
-                    .length >
-                  0
-                    ? day.intervals
-                    : [
-                        {
-                          start:
-                            '08:00',
-                          end: '18:00',
-                        },
-                      ],
-              }
-            : day,
+            return {
+              ...day,
+
+              enabled:
+                !day.enabled,
+
+              intervals:
+                day.intervals.length >
+                0
+                  ? day.intervals
+                  : [
+                      {
+                        start:
+                          '08:00',
+                        end:
+                          '18:00',
+                      },
+                    ],
+            };
+          },
         ),
     );
   }
@@ -499,34 +519,36 @@ export default function EmployeeSchedulePage() {
   ) {
     setSchedule(
       (current) =>
-        current.map((day) => {
-          if (
-            day.dayOfWeek !==
-            dayOfWeek
-          ) {
-            return day;
-          }
+        current.map(
+          (day) => {
+            if (
+              day.dayOfWeek !==
+              dayOfWeek
+            ) {
+              return day;
+            }
 
-          return {
-            ...day,
+            return {
+              ...day,
 
-            intervals:
-              day.intervals.map(
-                (
-                  interval,
-                  intervalIndex,
-                ) =>
-                  intervalIndex ===
-                  index
-                    ? {
-                        ...interval,
-                        [field]:
-                          value,
-                      }
-                    : interval,
-              ),
-          };
-        }),
+              intervals:
+                day.intervals.map(
+                  (
+                    interval,
+                    intervalIndex,
+                  ) =>
+                    intervalIndex ===
+                    index
+                      ? {
+                          ...interval,
+                          [field]:
+                            value,
+                        }
+                      : interval,
+                ),
+            };
+          },
+        ),
     );
   }
 
@@ -535,22 +557,26 @@ export default function EmployeeSchedulePage() {
   ) {
     setSchedule(
       (current) =>
-        current.map((day) =>
-          day.dayOfWeek ===
-          dayOfWeek
-            ? {
-                ...day,
+        current.map(
+          (day) =>
+            day.dayOfWeek ===
+            dayOfWeek
+              ? {
+                  ...day,
 
-                intervals: [
-                  ...day.intervals,
-                  {
-                    start:
-                      '13:00',
-                    end: '18:00',
-                  },
-                ],
-              }
-            : day,
+                  intervals: [
+                    ...day.intervals,
+
+                    {
+                      start:
+                        '13:00',
+
+                      end:
+                        '18:00',
+                    },
+                  ],
+                }
+              : day,
         ),
     );
   }
@@ -561,34 +587,37 @@ export default function EmployeeSchedulePage() {
   ) {
     setSchedule(
       (current) =>
-        current.map((day) => {
-          if (
-            day.dayOfWeek !==
-            dayOfWeek
-          ) {
-            return day;
-          }
+        current.map(
+          (day) => {
+            if (
+              day.dayOfWeek !==
+              dayOfWeek
+            ) {
+              return day;
+            }
 
-          return {
-            ...day,
+            return {
+              ...day,
 
-            intervals:
-              day.intervals.filter(
-                (
-                  _,
-                  intervalIndex,
-                ) =>
-                  intervalIndex !==
-                  index,
-              ),
-          };
-        }),
+              intervals:
+                day.intervals.filter(
+                  (
+                    _,
+                    intervalIndex,
+                  ) =>
+                    intervalIndex !==
+                    index,
+                ),
+            };
+          },
+        ),
     );
   }
 
   async function saveSchedule() {
     try {
       setSaving(true);
+
       setError('');
       setSuccess('');
 
@@ -596,24 +625,34 @@ export default function EmployeeSchedulePage() {
         await apiFetch(
           `/employees/${employeeId}/availability`,
           {
-            method: 'PUT',
+            method:
+              'PUT',
 
-            body: JSON.stringify({
-              days:
-                schedule.map(
-                  (day) => ({
-                    dayOfWeek:
-                      day.dayOfWeek,
+            body:
+              JSON.stringify({
+                days:
+                  schedule.map(
+                    (day) => ({
+                      dayOfWeek:
+                        day.dayOfWeek,
 
-                    intervals:
-                      day.enabled
-                        ? day.intervals
-                        : [],
-                  }),
-                ),
-            }),
+                      intervals:
+                        day.enabled
+                          ? day.intervals
+                          : [],
+                    }),
+                  ),
+              }),
           },
         );
+
+      if (
+        response.status ===
+        401
+      ) {
+        handleLogout();
+        return;
+      }
 
       await readResponse(
         response,
@@ -639,12 +678,22 @@ export default function EmployeeSchedulePage() {
         `/employees/${employeeId}/blocked-times`,
       );
 
+    if (
+      response.status ===
+      401
+    ) {
+      handleLogout();
+      return;
+    }
+
     const data =
       await readResponse<
         BlockedTime[]
       >(response);
 
-    setBlockedTimes(data);
+    setBlockedTimes(
+      data,
+    );
   }
 
   async function createBlockedTime(
@@ -665,6 +714,7 @@ export default function EmployeeSchedulePage() {
 
     try {
       setSaving(true);
+
       setError('');
       setSuccess('');
 
@@ -684,19 +734,29 @@ export default function EmployeeSchedulePage() {
         await apiFetch(
           `/employees/${employeeId}/blocked-times`,
           {
-            method: 'POST',
+            method:
+              'POST',
 
-            body: JSON.stringify({
-              startsAt,
-              endsAt,
+            body:
+              JSON.stringify({
+                startsAt,
+                endsAt,
 
-              reason:
-                blockedReason
-                  .trim() ||
-                undefined,
-            }),
+                reason:
+                  blockedReason
+                    .trim() ||
+                  undefined,
+              }),
           },
         );
+
+      if (
+        response.status ===
+        401
+      ) {
+        handleLogout();
+        return;
+      }
 
       await readResponse(
         response,
@@ -742,9 +802,18 @@ export default function EmployeeSchedulePage() {
         await apiFetch(
           `/employees/${employeeId}/blocked-times/${blockedTime.id}`,
           {
-            method: 'DELETE',
+            method:
+              'DELETE',
           },
         );
+
+      if (
+        response.status ===
+        401
+      ) {
+        handleLogout();
+        return;
+      }
 
       await readResponse(
         response,
@@ -767,7 +836,8 @@ export default function EmployeeSchedulePage() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-100">
-        <p className="text-zinc-500">
+
+        <p className="text-sm text-zinc-500">
           Carregando horários...
         </p>
       </main>
@@ -775,427 +845,368 @@ export default function EmployeeSchedulePage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100">
-      <div className="flex min-h-screen">
+    <PanelShell
+      title={
+        employee?.name ??
+        'Horários'
+      }
+      subtitle="Horários do profissional"
+    >
+      {/* VOLTAR */}
+      <div className="mb-6">
 
-        <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-zinc-950 text-white md:flex">
+        <Link
+          href="/funcionarios"
+          className="text-sm font-medium text-blue-600 hover:underline"
+        >
+          ← Voltar para funcionários
+        </Link>
 
-          <div className="border-b border-zinc-800 p-6">
-            <h1 className="text-xl font-bold">
-              Agendamento
-            </h1>
+        <p className="mt-4 text-sm text-zinc-500">
+          Configure a jornada semanal
+          e períodos indisponíveis.
+        </p>
+      </div>
 
-            <p className="mt-1 text-sm text-zinc-400">
-              SaaS
-            </p>
-          </div>
+      {/* ERRO */}
+      {error && (
+        <div className="mb-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
-          <nav className="flex-1 space-y-2 p-4">
-            <Link
-              href="/dashboard"
-              className="block rounded-lg px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-900"
-            >
-              Dashboard
-            </Link>
+      {/* SUCESSO */}
+      {success && (
+        <div className="mb-5 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
+          {success}
+        </div>
+      )}
 
-            <Link
-              href="/agenda"
-              className="block rounded-lg px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-900"
-            >
-              Agenda
-            </Link>
+      {/* JORNADA */}
+      <section className="rounded-2xl bg-white p-6 shadow-sm">
 
-            <Link
-              href="/clientes"
-              className="block rounded-lg px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-900"
-            >
-              Clientes
-            </Link>
+        <div>
+          <h2 className="text-lg font-semibold text-zinc-900">
+            Jornada semanal
+          </h2>
 
-            <Link
-              href="/funcionarios"
-              className="block rounded-lg bg-zinc-800 px-4 py-3 text-sm font-medium text-white"
-            >
-              Funcionários
-            </Link>
+          <p className="mt-1 text-sm text-zinc-500">
+            Defina os horários em que o
+            profissional atende.
+          </p>
+        </div>
 
-            <Link
-              href="/servicos"
-              className="block rounded-lg px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-900"
-            >
-              Serviços
-            </Link>
-          </nav>
+        <div className="mt-6 space-y-4">
 
-          <div className="mt-auto border-t border-zinc-800 p-4">
-            <button
-              onClick={
-                handleLogout
-              }
-              className="w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white hover:bg-red-700"
-            >
-              Sair
-            </button>
-          </div>
-        </aside>
-
-        <main className="min-w-0 flex-1">
-
-          <header className="border-b border-zinc-200 bg-white px-6 py-5">
-
-            <h2 className="text-xl font-semibold text-zinc-900">
-              {currentUser
-                ?.tenant.name}
-            </h2>
-
-            <p className="text-sm text-zinc-500">
-              Horários do profissional
-            </p>
-          </header>
-
-          <div className="p-4 md:p-6">
-
-            <div className="mb-6">
-
-              <Link
-                href="/funcionarios"
-                className="text-sm font-medium text-blue-600 hover:underline"
+          {schedule.map(
+            (day) => (
+              <div
+                key={
+                  day.dayOfWeek
+                }
+                className="rounded-xl border border-zinc-200 p-4"
               >
-                ← Voltar para funcionários
-              </Link>
 
-              <h1 className="mt-4 text-2xl font-bold text-zinc-900">
-                {employee?.name}
-              </h1>
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
 
-              <p className="mt-1 text-sm text-zinc-500">
-                Configure a jornada semanal e períodos indisponíveis.
-              </p>
-            </div>
+                  <label className="flex min-w-44 items-center gap-3">
 
-            {error && (
-              <div className="mb-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="mb-5 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
-                {success}
-              </div>
-            )}
-
-            {/* JORNADA */}
-            <section className="rounded-2xl bg-white p-6 shadow-sm">
-
-              <div>
-                <h2 className="text-lg font-semibold text-zinc-900">
-                  Jornada semanal
-                </h2>
-
-                <p className="mt-1 text-sm text-zinc-500">
-                  Defina os horários em que o profissional atende.
-                </p>
-              </div>
-
-              <div className="mt-6 space-y-4">
-                {schedule.map(
-                  (day) => (
-                    <div
-                      key={
-                        day.dayOfWeek
+                    <input
+                      type="checkbox"
+                      checked={
+                        day.enabled
                       }
-                      className="rounded-xl border border-zinc-200 p-4"
-                    >
+                      onChange={() =>
+                        toggleDay(
+                          day.dayOfWeek,
+                        )
+                      }
+                      className="h-4 w-4"
+                    />
 
-                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+                    <span className="font-medium text-zinc-900">
+                      {day.label}
+                    </span>
+                  </label>
 
-                        <label className="flex min-w-44 items-center gap-3">
+                  {day.enabled ? (
+                    <div className="flex-1 space-y-3">
 
-                          <input
-                            type="checkbox"
-                            checked={
-                              day.enabled
+                      {day.intervals.map(
+                        (
+                          interval,
+                          index,
+                        ) => (
+                          <div
+                            key={
+                              index
                             }
-                            onChange={() =>
-                              toggleDay(
-                                day.dayOfWeek,
-                              )
-                            }
-                            className="h-4 w-4"
-                          />
+                            className="flex flex-wrap items-center gap-3"
+                          >
 
-                          <span className="font-medium text-zinc-900">
-                            {day.label}
-                          </span>
-                        </label>
-
-                        {day.enabled ? (
-                          <div className="flex-1 space-y-3">
-
-                            {day.intervals.map(
-                              (
-                                interval,
-                                index,
-                              ) => (
-                                <div
-                                  key={
-                                    index
-                                  }
-                                  className="flex flex-wrap items-center gap-3"
-                                >
-
-                                  <input
-                                    type="time"
-                                    value={
-                                      interval.start
-                                    }
-                                    onChange={(
-                                      event,
-                                    ) =>
-                                      updateInterval(
-                                        day.dayOfWeek,
-                                        index,
-                                        'start',
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="rounded-lg border border-zinc-300 px-3 py-2"
-                                  />
-
-                                  <span className="text-sm text-zinc-500">
-                                    até
-                                  </span>
-
-                                  <input
-                                    type="time"
-                                    value={
-                                      interval.end
-                                    }
-                                    onChange={(
-                                      event,
-                                    ) =>
-                                      updateInterval(
-                                        day.dayOfWeek,
-                                        index,
-                                        'end',
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="rounded-lg border border-zinc-300 px-3 py-2"
-                                  />
-
-                                  {day.intervals.length >
-                                    1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        removeInterval(
-                                          day.dayOfWeek,
-                                          index,
-                                        )
-                                      }
-                                      className="rounded-lg border border-red-300 px-3 py-2 text-xs font-medium text-red-700"
-                                    >
-                                      Remover
-                                    </button>
-                                  )}
-                                </div>
-                              ),
-                            )}
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                addInterval(
+                            <input
+                              type="time"
+                              value={
+                                interval.start
+                              }
+                              onChange={(
+                                event,
+                              ) =>
+                                updateInterval(
                                   day.dayOfWeek,
+                                  index,
+                                  'start',
+                                  event.target.value,
                                 )
                               }
-                              className="text-sm font-medium text-blue-600 hover:underline"
-                            >
-                              + Adicionar intervalo
-                            </button>
+                              className="rounded-lg border border-zinc-300 px-3 py-2"
+                            />
+
+                            <span className="text-sm text-zinc-500">
+                              até
+                            </span>
+
+                            <input
+                              type="time"
+                              value={
+                                interval.end
+                              }
+                              onChange={(
+                                event,
+                              ) =>
+                                updateInterval(
+                                  day.dayOfWeek,
+                                  index,
+                                  'end',
+                                  event.target.value,
+                                )
+                              }
+                              className="rounded-lg border border-zinc-300 px-3 py-2"
+                            />
+
+                            {day.intervals
+                              .length >
+                              1 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  removeInterval(
+                                    day.dayOfWeek,
+                                    index,
+                                  )
+                                }
+                                className="rounded-lg border border-red-300 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50"
+                              >
+                                Remover
+                              </button>
+                            )}
                           </div>
-                        ) : (
-                          <p className="text-sm text-zinc-400">
-                            Não trabalha neste dia
-                          </p>
-                        )}
-                      </div>
+                        ),
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          addInterval(
+                            day.dayOfWeek,
+                          )
+                        }
+                        className="text-sm font-medium text-blue-600 hover:underline"
+                      >
+                        + Adicionar intervalo
+                      </button>
                     </div>
-                  ),
-                )}
+                  ) : (
+                    <p className="text-sm text-zinc-400">
+                      Não trabalha neste dia
+                    </p>
+                  )}
+                </div>
               </div>
+            ),
+          )}
+        </div>
 
-              <button
-                onClick={
-                  saveSchedule
-                }
-                disabled={saving}
-                className="mt-6 rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
-              >
-                {saving
-                  ? 'Salvando...'
-                  : 'Salvar jornada'}
-              </button>
-            </section>
+        <button
+          onClick={
+            saveSchedule
+          }
+          disabled={
+            saving
+          }
+          className="mt-6 rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+        >
+          {saving
+            ? 'Salvando...'
+            : 'Salvar jornada'}
+        </button>
+      </section>
 
-            {/* BLOQUEIOS */}
-            <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      {/* BLOQUEIOS */}
+      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
 
-              <h2 className="text-lg font-semibold text-zinc-900">
-                Bloqueios de agenda
-              </h2>
+        <h2 className="text-lg font-semibold text-zinc-900">
+          Bloqueios de agenda
+        </h2>
 
-              <p className="mt-1 text-sm text-zinc-500">
-                Use para folgas, consultas, almoço especial ou outros períodos indisponíveis.
-              </p>
+        <p className="mt-1 text-sm text-zinc-500">
+          Use para folgas, consultas,
+          compromissos ou outros períodos
+          indisponíveis.
+        </p>
 
-              <form
-                onSubmit={
-                  createBlockedTime
-                }
-                className="mt-6 grid gap-4 lg:grid-cols-2"
-              >
+        <form
+          onSubmit={
+            createBlockedTime
+          }
+          className="mt-6 grid gap-4 lg:grid-cols-2"
+        >
 
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-zinc-700">
-                    Início
-                  </label>
+          {/* INÍCIO */}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-zinc-700">
+              Início
+            </label>
 
-                  <input
-                    type="datetime-local"
-                    value={
-                      blockedStart
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      setBlockedStart(
-                        event.target.value,
-                      )
-                    }
-                    className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-zinc-700">
-                    Fim
-                  </label>
-
-                  <input
-                    type="datetime-local"
-                    value={
-                      blockedEnd
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      setBlockedEnd(
-                        event.target.value,
-                      )
-                    }
-                    className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                  />
-                </div>
-
-                <div className="lg:col-span-2">
-                  <label className="mb-2 block text-sm font-medium text-zinc-700">
-                    Motivo
-                  </label>
-
-                  <input
-                    value={
-                      blockedReason
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      setBlockedReason(
-                        event.target.value,
-                      )
-                    }
-                    placeholder="Ex: Consulta médica"
-                    className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                  />
-                </div>
-
-                <div className="lg:col-span-2">
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="rounded-lg bg-zinc-900 px-6 py-3 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
-                  >
-                    Criar bloqueio
-                  </button>
-                </div>
-              </form>
-
-              <div className="mt-8">
-
-                <h3 className="font-semibold text-zinc-900">
-                  Bloqueios cadastrados
-                </h3>
-
-                {blockedTimes.length ===
-                0 ? (
-                  <div className="mt-4 rounded-xl bg-zinc-50 p-6 text-center text-sm text-zinc-500">
-                    Nenhum bloqueio cadastrado.
-                  </div>
-                ) : (
-                  <div className="mt-4 space-y-3">
-
-                    {blockedTimes.map(
-                      (
-                        blockedTime,
-                      ) => (
-                        <div
-                          key={
-                            blockedTime.id
-                          }
-                          className="flex flex-col gap-3 rounded-xl border border-zinc-200 p-4 sm:flex-row sm:items-center sm:justify-between"
-                        >
-
-                          <div>
-                            <p className="font-medium text-zinc-900">
-                              {formatBlockedDate(
-                                blockedTime.startsAt,
-                                timezone,
-                              )}
-                              {' → '}
-                              {formatBlockedDate(
-                                blockedTime.endsAt,
-                                timezone,
-                              )}
-                            </p>
-
-                            <p className="mt-1 text-sm text-zinc-500">
-                              {blockedTime.reason ||
-                                'Sem motivo informado'}
-                            </p>
-                          </div>
-
-                          <button
-                            onClick={() =>
-                              deleteBlockedTime(
-                                blockedTime,
-                              )
-                            }
-                            className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
-                          >
-                            Remover
-                          </button>
-                        </div>
-                      ),
-                    )}
-                  </div>
-                )}
-              </div>
-            </section>
+            <input
+              type="datetime-local"
+              value={
+                blockedStart
+              }
+              onChange={(
+                event,
+              ) =>
+                setBlockedStart(
+                  event.target.value,
+                )
+              }
+              className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+            />
           </div>
-        </main>
-      </div>
-    </div>
+
+          {/* FIM */}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-zinc-700">
+              Fim
+            </label>
+
+            <input
+              type="datetime-local"
+              value={
+                blockedEnd
+              }
+              onChange={(
+                event,
+              ) =>
+                setBlockedEnd(
+                  event.target.value,
+                )
+              }
+              className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+            />
+          </div>
+
+          {/* MOTIVO */}
+          <div className="lg:col-span-2">
+
+            <label className="mb-2 block text-sm font-medium text-zinc-700">
+              Motivo
+            </label>
+
+            <input
+              value={
+                blockedReason
+              }
+              onChange={(
+                event,
+              ) =>
+                setBlockedReason(
+                  event.target.value,
+                )
+              }
+              placeholder="Ex: Consulta médica"
+              className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+            />
+          </div>
+
+          <div className="lg:col-span-2">
+
+            <button
+              type="submit"
+              disabled={
+                saving
+              }
+              className="rounded-lg bg-zinc-900 px-6 py-3 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+            >
+              {saving
+                ? 'Salvando...'
+                : 'Criar bloqueio'}
+            </button>
+          </div>
+        </form>
+
+        {/* BLOQUEIOS CADASTRADOS */}
+        <div className="mt-8">
+
+          <h3 className="font-semibold text-zinc-900">
+            Bloqueios cadastrados
+          </h3>
+
+          {blockedTimes.length ===
+          0 ? (
+            <div className="mt-4 rounded-xl bg-zinc-50 p-6 text-center text-sm text-zinc-500">
+              Nenhum bloqueio cadastrado.
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+
+              {blockedTimes.map(
+                (blockedTime) => (
+                  <div
+                    key={
+                      blockedTime.id
+                    }
+                    className="flex flex-col gap-3 rounded-xl border border-zinc-200 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+
+                    <div>
+                      <p className="font-medium text-zinc-900">
+                        {formatBlockedDate(
+                          blockedTime.startsAt,
+                          timezone,
+                        )}
+
+                        {' → '}
+
+                        {formatBlockedDate(
+                          blockedTime.endsAt,
+                          timezone,
+                        )}
+                      </p>
+
+                      <p className="mt-1 text-sm text-zinc-500">
+                        {blockedTime.reason ||
+                          'Sem motivo informado'}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() =>
+                        deleteBlockedTime(
+                          blockedTime,
+                        )
+                      }
+                      className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+                    >
+                      Remover
+                    </button>
+                  </div>
+                ),
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+    </PanelShell>
   );
 }
