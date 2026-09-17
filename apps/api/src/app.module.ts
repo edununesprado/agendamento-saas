@@ -13,6 +13,7 @@ import { EmployeesModule } from './employees/employees.module.js';
 import { ClientsModule } from './clients/clients.module.js';
 import { AvailabilityModule } from './availability/availability.module.js';
 import { BlockedTimesModule } from './blocked-times/blocked-times.module.js';
+import { AppointmentsModule } from './appointments/appointments.module.js';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { BlockedTimesModule } from './blocked-times/blocked-times.module.js';
     ClientsModule,
     AvailabilityModule,
     BlockedTimesModule,
+    AppointmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

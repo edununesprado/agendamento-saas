@@ -30,3 +30,14 @@ export const MembershipRole = {
 } as const
 
 export type MembershipRole = (typeof MembershipRole)[keyof typeof MembershipRole]
+
+
+export const AppointmentStatus = {
+  PENDING: 'PENDING',
+  CONFIRMED: 'CONFIRMED',
+  COMPLETED: 'COMPLETED',
+  CANCELED: 'CANCELED',
+  NO_SHOW: 'NO_SHOW'
+} as const
+
+export type AppointmentStatus = (typeof AppointmentStatus)[keyof typeof AppointmentStatus]

@@ -20,8 +20,7 @@ export class AvailabilityService {
     serviceId: string,
     date: string,
   ) {
-    // 1. Verifica se o funcionário existe,
-    // pertence à empresa e está ativo
+    // 1. Funcionário
     const employee =
       await this.prisma.employee.findFirst({
         where: {
@@ -37,8 +36,7 @@ export class AvailabilityService {
       );
     }
 
-    // 2. Verifica se o serviço existe,
-    // pertence à empresa e está ativo
+    // 2. Serviço
     const service =
       await this.prisma.service.findFirst({
         where: {
@@ -54,15 +52,17 @@ export class AvailabilityService {
       );
     }
 
-    // 3. Verifica se o funcionário realiza esse serviço
+    // 3. Verifica se o funcionário realiza o serviço
     const employeeService =
       await this.prisma.employeeService.findFirst({
         where: {
           employeeId,
           serviceId,
+
           employee: {
             tenantId,
           },
+
           service: {
             tenantId,
           },
@@ -75,12 +75,13 @@ export class AvailabilityService {
       );
     }
 
-    // 4. Busca timezone da empresa
+    // 4. Empresa / timezone
     const tenant =
       await this.prisma.tenant.findUnique({
         where: {
           id: tenantId,
         },
+
         select: {
           timezone: true,
         },
@@ -92,13 +93,11 @@ export class AvailabilityService {
       );
     }
 
-    // 5. Converte a data usando timezone da empresa
-    const selectedDate = DateTime.fromISO(
-      date,
-      {
+    // 5. Data no timezone da empresa
+    const selectedDate =
+      DateTime.fromISO(date, {
         zone: tenant.timezone,
-      },
-    );
+      });
 
     if (!selectedDate.isValid) {
       throw new BadRequestException(
@@ -106,13 +105,13 @@ export class AvailabilityService {
       );
     }
 
-    // 6. Descobre o dia da semana
+    // 6. Dia da semana
     const dayOfWeek =
       this.getPrismaDayOfWeek(
         selectedDate.weekday,
       );
 
-    // 7. Busca jornada do funcionário naquele dia
+    // 7. Jornada do funcionário
     const availabilityRules =
       await this.prisma.availabilityRule.findMany({
         where: {
@@ -126,7 +125,60 @@ export class AvailabilityService {
         },
       });
 
-    // Se não trabalha nesse dia
+    // Limites do dia
+    const dayStart =
+      selectedDate.startOf('day');
+
+    const dayEnd =
+      selectedDate.endOf('day');
+
+    // 8. Bloqueios
+    const blockedTimes =
+      await this.prisma.blockedTime.findMany({
+        where: {
+          tenantId,
+          employeeId,
+
+          startsAt: {
+            lt: dayEnd.toJSDate(),
+          },
+
+          endsAt: {
+            gt: dayStart.toJSDate(),
+          },
+        },
+
+        orderBy: {
+          startsAt: 'asc',
+        },
+      });
+
+    // 9. Agendamentos já existentes
+    const appointments =
+      await this.prisma.appointment.findMany({
+        where: {
+          tenantId,
+          employeeId,
+
+          status: {
+            not: 'CANCELED',
+          },
+
+          startsAt: {
+            lt: dayEnd.toJSDate(),
+          },
+
+          endsAt: {
+            gt: dayStart.toJSDate(),
+          },
+        },
+
+        orderBy: {
+          startsAt: 'asc',
+        },
+      });
+
+    // Se o funcionário não trabalha nesse dia
     if (availabilityRules.length === 0) {
       return {
         date,
@@ -151,40 +203,12 @@ export class AvailabilityService {
       };
     }
 
-    // 8. Limites do dia
-    const dayStart =
-      selectedDate.startOf('day');
-
-    const dayEnd =
-      selectedDate.endOf('day');
-
-    // 9. Busca bloqueios que encostam nesse dia
-    const blockedTimes =
-      await this.prisma.blockedTime.findMany({
-        where: {
-          tenantId,
-          employeeId,
-
-          startsAt: {
-            lt: dayEnd.toJSDate(),
-          },
-
-          endsAt: {
-            gt: dayStart.toJSDate(),
-          },
-        },
-
-        orderBy: {
-          startsAt: 'asc',
-        },
-      });
-
-    // Intervalo entre possíveis horários
+    // Intervalo entre horários oferecidos
     const slotIntervalMin = 30;
 
     const slots: string[] = [];
 
-    // 10. Percorre cada período de trabalho
+    // 10. Percorre os períodos de trabalho
     for (const rule of availabilityRules) {
       let currentStart =
         rule.startMinute;
@@ -212,7 +236,7 @@ export class AvailabilityService {
               minutes: currentEnd,
             });
 
-        // 11. Verifica se o horário bate com algum bloqueio
+        // 11. Verifica bloqueios
         const hasBlockedTime =
           blockedTimes.some(
             (blockedTime) => {
@@ -241,13 +265,48 @@ export class AvailabilityService {
             },
           );
 
-        // 12. Se não está bloqueado, adiciona
-        if (!hasBlockedTime) {
+        // 12. Verifica agendamentos
+        const hasAppointment =
+          appointments.some(
+            (appointment) => {
+              const appointmentStart =
+                DateTime.fromJSDate(
+                  appointment.startsAt,
+                  {
+                    zone: tenant.timezone,
+                  },
+                );
+
+              const appointmentEnd =
+                DateTime.fromJSDate(
+                  appointment.endsAt,
+                  {
+                    zone: tenant.timezone,
+                  },
+                );
+
+              return (
+                slotStart.toMillis() <
+                  appointmentEnd.toMillis() &&
+                slotEnd.toMillis() >
+                  appointmentStart.toMillis()
+              );
+            },
+          );
+
+        // 13. Adiciona somente se estiver livre
+        if (
+          !hasBlockedTime &&
+          !hasAppointment
+        ) {
           slots.push(
             slotStart.toFormat('HH:mm'),
           );
         }
 
+        // IMPORTANTE:
+        // sempre avança o horário,
+        // mesmo quando existe bloqueio ou agendamento.
         currentStart +=
           slotIntervalMin;
       }
@@ -308,9 +367,11 @@ export class AvailabilityService {
     return rules.map((rule) => ({
       id: rule.id,
       dayOfWeek: rule.dayOfWeek,
+
       start: this.minuteToTime(
         rule.startMinute,
       ),
+
       end: this.minuteToTime(
         rule.endMinute,
       ),
@@ -335,12 +396,15 @@ export class AvailabilityService {
           (interval) => ({
             tenantId,
             employeeId,
+
             dayOfWeek:
               day.dayOfWeek,
+
             startMinute:
               this.timeToMinute(
                 interval.start,
               ),
+
             endMinute:
               this.timeToMinute(
                 interval.end,
@@ -351,21 +415,17 @@ export class AvailabilityService {
 
     await this.prisma.$transaction(
       async (tx) => {
-        await tx.availabilityRule.deleteMany(
-          {
-            where: {
-              tenantId,
-              employeeId,
-            },
+        await tx.availabilityRule.deleteMany({
+          where: {
+            tenantId,
+            employeeId,
           },
-        );
+        });
 
         if (rows.length > 0) {
-          await tx.availabilityRule.createMany(
-            {
-              data: rows,
-            },
-          );
+          await tx.availabilityRule.createMany({
+            data: rows,
+          });
         }
       },
     );
@@ -404,6 +464,7 @@ export class AvailabilityService {
               this.timeToMinute(
                 interval.start,
               ),
+
             end:
               this.timeToMinute(
                 interval.end,
@@ -414,7 +475,9 @@ export class AvailabilityService {
               a.start - b.start,
           );
 
-      for (const interval of intervals) {
+      for (
+        const interval of intervals
+      ) {
         if (
           interval.start >=
           interval.end
@@ -512,18 +575,32 @@ export class AvailabilityService {
     | 'FRIDAY'
     | 'SATURDAY'
     | 'SUNDAY' {
-    const days = {
-      1: 'MONDAY',
-      2: 'TUESDAY',
-      3: 'WEDNESDAY',
-      4: 'THURSDAY',
-      5: 'FRIDAY',
-      6: 'SATURDAY',
-      7: 'SUNDAY',
-    } as const;
+    switch (weekday) {
+      case 1:
+        return 'MONDAY';
 
-    return days[
-      weekday as keyof typeof days
-    ];
+      case 2:
+        return 'TUESDAY';
+
+      case 3:
+        return 'WEDNESDAY';
+
+      case 4:
+        return 'THURSDAY';
+
+      case 5:
+        return 'FRIDAY';
+
+      case 6:
+        return 'SATURDAY';
+
+      case 7:
+        return 'SUNDAY';
+
+      default:
+        throw new BadRequestException(
+          'Dia da semana inválido',
+        );
+    }
   }
 }

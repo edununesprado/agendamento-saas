@@ -228,6 +228,7 @@ export type TenantWhereInput = {
   clients?: Prisma.ClientListRelationFilter
   availabilityRules?: Prisma.AvailabilityRuleListRelationFilter
   blockedTimes?: Prisma.BlockedTimeListRelationFilter
+  appointments?: Prisma.AppointmentListRelationFilter
 }
 
 export type TenantOrderByWithRelationInput = {
@@ -247,6 +248,7 @@ export type TenantOrderByWithRelationInput = {
   clients?: Prisma.ClientOrderByRelationAggregateInput
   availabilityRules?: Prisma.AvailabilityRuleOrderByRelationAggregateInput
   blockedTimes?: Prisma.BlockedTimeOrderByRelationAggregateInput
+  appointments?: Prisma.AppointmentOrderByRelationAggregateInput
 }
 
 export type TenantWhereUniqueInput = Prisma.AtLeast<{
@@ -269,6 +271,7 @@ export type TenantWhereUniqueInput = Prisma.AtLeast<{
   clients?: Prisma.ClientListRelationFilter
   availabilityRules?: Prisma.AvailabilityRuleListRelationFilter
   blockedTimes?: Prisma.BlockedTimeListRelationFilter
+  appointments?: Prisma.AppointmentListRelationFilter
 }, "id" | "slug">
 
 export type TenantOrderByWithAggregationInput = {
@@ -320,6 +323,7 @@ export type TenantCreateInput = {
   clients?: Prisma.ClientCreateNestedManyWithoutTenantInput
   availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutTenantInput
   blockedTimes?: Prisma.BlockedTimeCreateNestedManyWithoutTenantInput
+  appointments?: Prisma.AppointmentCreateNestedManyWithoutTenantInput
 }
 
 export type TenantUncheckedCreateInput = {
@@ -339,6 +343,7 @@ export type TenantUncheckedCreateInput = {
   clients?: Prisma.ClientUncheckedCreateNestedManyWithoutTenantInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutTenantInput
   blockedTimes?: Prisma.BlockedTimeUncheckedCreateNestedManyWithoutTenantInput
+  appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type TenantUpdateInput = {
@@ -358,6 +363,7 @@ export type TenantUpdateInput = {
   clients?: Prisma.ClientUpdateManyWithoutTenantNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutTenantNestedInput
   blockedTimes?: Prisma.BlockedTimeUpdateManyWithoutTenantNestedInput
+  appointments?: Prisma.AppointmentUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateInput = {
@@ -377,6 +383,7 @@ export type TenantUncheckedUpdateInput = {
   clients?: Prisma.ClientUncheckedUpdateManyWithoutTenantNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutTenantNestedInput
   blockedTimes?: Prisma.BlockedTimeUncheckedUpdateManyWithoutTenantNestedInput
+  appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantCreateManyInput = {
@@ -558,6 +565,20 @@ export type TenantUpdateOneRequiredWithoutBlockedTimesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.TenantUpdateToOneWithWhereWithoutBlockedTimesInput, Prisma.TenantUpdateWithoutBlockedTimesInput>, Prisma.TenantUncheckedUpdateWithoutBlockedTimesInput>
 }
 
+export type TenantCreateNestedOneWithoutAppointmentsInput = {
+  create?: Prisma.XOR<Prisma.TenantCreateWithoutAppointmentsInput, Prisma.TenantUncheckedCreateWithoutAppointmentsInput>
+  connectOrCreate?: Prisma.TenantCreateOrConnectWithoutAppointmentsInput
+  connect?: Prisma.TenantWhereUniqueInput
+}
+
+export type TenantUpdateOneRequiredWithoutAppointmentsNestedInput = {
+  create?: Prisma.XOR<Prisma.TenantCreateWithoutAppointmentsInput, Prisma.TenantUncheckedCreateWithoutAppointmentsInput>
+  connectOrCreate?: Prisma.TenantCreateOrConnectWithoutAppointmentsInput
+  upsert?: Prisma.TenantUpsertWithoutAppointmentsInput
+  connect?: Prisma.TenantWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.TenantUpdateToOneWithWhereWithoutAppointmentsInput, Prisma.TenantUpdateWithoutAppointmentsInput>, Prisma.TenantUncheckedUpdateWithoutAppointmentsInput>
+}
+
 export type TenantCreateWithoutMembershipsInput = {
   id?: string
   name: string
@@ -574,6 +595,7 @@ export type TenantCreateWithoutMembershipsInput = {
   clients?: Prisma.ClientCreateNestedManyWithoutTenantInput
   availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutTenantInput
   blockedTimes?: Prisma.BlockedTimeCreateNestedManyWithoutTenantInput
+  appointments?: Prisma.AppointmentCreateNestedManyWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutMembershipsInput = {
@@ -592,6 +614,7 @@ export type TenantUncheckedCreateWithoutMembershipsInput = {
   clients?: Prisma.ClientUncheckedCreateNestedManyWithoutTenantInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutTenantInput
   blockedTimes?: Prisma.BlockedTimeUncheckedCreateNestedManyWithoutTenantInput
+  appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutMembershipsInput = {
@@ -626,6 +649,7 @@ export type TenantUpdateWithoutMembershipsInput = {
   clients?: Prisma.ClientUpdateManyWithoutTenantNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutTenantNestedInput
   blockedTimes?: Prisma.BlockedTimeUpdateManyWithoutTenantNestedInput
+  appointments?: Prisma.AppointmentUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutMembershipsInput = {
@@ -644,6 +668,7 @@ export type TenantUncheckedUpdateWithoutMembershipsInput = {
   clients?: Prisma.ClientUncheckedUpdateManyWithoutTenantNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutTenantNestedInput
   blockedTimes?: Prisma.BlockedTimeUncheckedUpdateManyWithoutTenantNestedInput
+  appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantCreateWithoutServicesInput = {
@@ -662,6 +687,7 @@ export type TenantCreateWithoutServicesInput = {
   clients?: Prisma.ClientCreateNestedManyWithoutTenantInput
   availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutTenantInput
   blockedTimes?: Prisma.BlockedTimeCreateNestedManyWithoutTenantInput
+  appointments?: Prisma.AppointmentCreateNestedManyWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutServicesInput = {
@@ -680,6 +706,7 @@ export type TenantUncheckedCreateWithoutServicesInput = {
   clients?: Prisma.ClientUncheckedCreateNestedManyWithoutTenantInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutTenantInput
   blockedTimes?: Prisma.BlockedTimeUncheckedCreateNestedManyWithoutTenantInput
+  appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutServicesInput = {
@@ -714,6 +741,7 @@ export type TenantUpdateWithoutServicesInput = {
   clients?: Prisma.ClientUpdateManyWithoutTenantNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutTenantNestedInput
   blockedTimes?: Prisma.BlockedTimeUpdateManyWithoutTenantNestedInput
+  appointments?: Prisma.AppointmentUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutServicesInput = {
@@ -732,6 +760,7 @@ export type TenantUncheckedUpdateWithoutServicesInput = {
   clients?: Prisma.ClientUncheckedUpdateManyWithoutTenantNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutTenantNestedInput
   blockedTimes?: Prisma.BlockedTimeUncheckedUpdateManyWithoutTenantNestedInput
+  appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantCreateWithoutEmployeesInput = {
@@ -750,6 +779,7 @@ export type TenantCreateWithoutEmployeesInput = {
   clients?: Prisma.ClientCreateNestedManyWithoutTenantInput
   availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutTenantInput
   blockedTimes?: Prisma.BlockedTimeCreateNestedManyWithoutTenantInput
+  appointments?: Prisma.AppointmentCreateNestedManyWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutEmployeesInput = {
@@ -768,6 +798,7 @@ export type TenantUncheckedCreateWithoutEmployeesInput = {
   clients?: Prisma.ClientUncheckedCreateNestedManyWithoutTenantInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutTenantInput
   blockedTimes?: Prisma.BlockedTimeUncheckedCreateNestedManyWithoutTenantInput
+  appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutEmployeesInput = {
@@ -802,6 +833,7 @@ export type TenantUpdateWithoutEmployeesInput = {
   clients?: Prisma.ClientUpdateManyWithoutTenantNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutTenantNestedInput
   blockedTimes?: Prisma.BlockedTimeUpdateManyWithoutTenantNestedInput
+  appointments?: Prisma.AppointmentUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutEmployeesInput = {
@@ -820,6 +852,7 @@ export type TenantUncheckedUpdateWithoutEmployeesInput = {
   clients?: Prisma.ClientUncheckedUpdateManyWithoutTenantNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutTenantNestedInput
   blockedTimes?: Prisma.BlockedTimeUncheckedUpdateManyWithoutTenantNestedInput
+  appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantCreateWithoutClientsInput = {
@@ -838,6 +871,7 @@ export type TenantCreateWithoutClientsInput = {
   employees?: Prisma.EmployeeCreateNestedManyWithoutTenantInput
   availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutTenantInput
   blockedTimes?: Prisma.BlockedTimeCreateNestedManyWithoutTenantInput
+  appointments?: Prisma.AppointmentCreateNestedManyWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutClientsInput = {
@@ -856,6 +890,7 @@ export type TenantUncheckedCreateWithoutClientsInput = {
   employees?: Prisma.EmployeeUncheckedCreateNestedManyWithoutTenantInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutTenantInput
   blockedTimes?: Prisma.BlockedTimeUncheckedCreateNestedManyWithoutTenantInput
+  appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutClientsInput = {
@@ -890,6 +925,7 @@ export type TenantUpdateWithoutClientsInput = {
   employees?: Prisma.EmployeeUpdateManyWithoutTenantNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutTenantNestedInput
   blockedTimes?: Prisma.BlockedTimeUpdateManyWithoutTenantNestedInput
+  appointments?: Prisma.AppointmentUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutClientsInput = {
@@ -908,6 +944,7 @@ export type TenantUncheckedUpdateWithoutClientsInput = {
   employees?: Prisma.EmployeeUncheckedUpdateManyWithoutTenantNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutTenantNestedInput
   blockedTimes?: Prisma.BlockedTimeUncheckedUpdateManyWithoutTenantNestedInput
+  appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantCreateWithoutAvailabilityRulesInput = {
@@ -926,6 +963,7 @@ export type TenantCreateWithoutAvailabilityRulesInput = {
   employees?: Prisma.EmployeeCreateNestedManyWithoutTenantInput
   clients?: Prisma.ClientCreateNestedManyWithoutTenantInput
   blockedTimes?: Prisma.BlockedTimeCreateNestedManyWithoutTenantInput
+  appointments?: Prisma.AppointmentCreateNestedManyWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutAvailabilityRulesInput = {
@@ -944,6 +982,7 @@ export type TenantUncheckedCreateWithoutAvailabilityRulesInput = {
   employees?: Prisma.EmployeeUncheckedCreateNestedManyWithoutTenantInput
   clients?: Prisma.ClientUncheckedCreateNestedManyWithoutTenantInput
   blockedTimes?: Prisma.BlockedTimeUncheckedCreateNestedManyWithoutTenantInput
+  appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutAvailabilityRulesInput = {
@@ -978,6 +1017,7 @@ export type TenantUpdateWithoutAvailabilityRulesInput = {
   employees?: Prisma.EmployeeUpdateManyWithoutTenantNestedInput
   clients?: Prisma.ClientUpdateManyWithoutTenantNestedInput
   blockedTimes?: Prisma.BlockedTimeUpdateManyWithoutTenantNestedInput
+  appointments?: Prisma.AppointmentUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutAvailabilityRulesInput = {
@@ -996,6 +1036,7 @@ export type TenantUncheckedUpdateWithoutAvailabilityRulesInput = {
   employees?: Prisma.EmployeeUncheckedUpdateManyWithoutTenantNestedInput
   clients?: Prisma.ClientUncheckedUpdateManyWithoutTenantNestedInput
   blockedTimes?: Prisma.BlockedTimeUncheckedUpdateManyWithoutTenantNestedInput
+  appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantCreateWithoutBlockedTimesInput = {
@@ -1014,6 +1055,7 @@ export type TenantCreateWithoutBlockedTimesInput = {
   employees?: Prisma.EmployeeCreateNestedManyWithoutTenantInput
   clients?: Prisma.ClientCreateNestedManyWithoutTenantInput
   availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutTenantInput
+  appointments?: Prisma.AppointmentCreateNestedManyWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutBlockedTimesInput = {
@@ -1032,6 +1074,7 @@ export type TenantUncheckedCreateWithoutBlockedTimesInput = {
   employees?: Prisma.EmployeeUncheckedCreateNestedManyWithoutTenantInput
   clients?: Prisma.ClientUncheckedCreateNestedManyWithoutTenantInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutTenantInput
+  appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutBlockedTimesInput = {
@@ -1066,6 +1109,7 @@ export type TenantUpdateWithoutBlockedTimesInput = {
   employees?: Prisma.EmployeeUpdateManyWithoutTenantNestedInput
   clients?: Prisma.ClientUpdateManyWithoutTenantNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutTenantNestedInput
+  appointments?: Prisma.AppointmentUpdateManyWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutBlockedTimesInput = {
@@ -1084,6 +1128,99 @@ export type TenantUncheckedUpdateWithoutBlockedTimesInput = {
   employees?: Prisma.EmployeeUncheckedUpdateManyWithoutTenantNestedInput
   clients?: Prisma.ClientUncheckedUpdateManyWithoutTenantNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutTenantNestedInput
+  appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type TenantCreateWithoutAppointmentsInput = {
+  id?: string
+  name: string
+  slug: string
+  logoUrl?: string | null
+  primaryColor?: string | null
+  phone?: string | null
+  email?: string | null
+  timezone?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
+  services?: Prisma.ServiceCreateNestedManyWithoutTenantInput
+  employees?: Prisma.EmployeeCreateNestedManyWithoutTenantInput
+  clients?: Prisma.ClientCreateNestedManyWithoutTenantInput
+  availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutTenantInput
+  blockedTimes?: Prisma.BlockedTimeCreateNestedManyWithoutTenantInput
+}
+
+export type TenantUncheckedCreateWithoutAppointmentsInput = {
+  id?: string
+  name: string
+  slug: string
+  logoUrl?: string | null
+  primaryColor?: string | null
+  phone?: string | null
+  email?: string | null
+  timezone?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
+  services?: Prisma.ServiceUncheckedCreateNestedManyWithoutTenantInput
+  employees?: Prisma.EmployeeUncheckedCreateNestedManyWithoutTenantInput
+  clients?: Prisma.ClientUncheckedCreateNestedManyWithoutTenantInput
+  availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutTenantInput
+  blockedTimes?: Prisma.BlockedTimeUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type TenantCreateOrConnectWithoutAppointmentsInput = {
+  where: Prisma.TenantWhereUniqueInput
+  create: Prisma.XOR<Prisma.TenantCreateWithoutAppointmentsInput, Prisma.TenantUncheckedCreateWithoutAppointmentsInput>
+}
+
+export type TenantUpsertWithoutAppointmentsInput = {
+  update: Prisma.XOR<Prisma.TenantUpdateWithoutAppointmentsInput, Prisma.TenantUncheckedUpdateWithoutAppointmentsInput>
+  create: Prisma.XOR<Prisma.TenantCreateWithoutAppointmentsInput, Prisma.TenantUncheckedCreateWithoutAppointmentsInput>
+  where?: Prisma.TenantWhereInput
+}
+
+export type TenantUpdateToOneWithWhereWithoutAppointmentsInput = {
+  where?: Prisma.TenantWhereInput
+  data: Prisma.XOR<Prisma.TenantUpdateWithoutAppointmentsInput, Prisma.TenantUncheckedUpdateWithoutAppointmentsInput>
+}
+
+export type TenantUpdateWithoutAppointmentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  logoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  primaryColor?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
+  services?: Prisma.ServiceUpdateManyWithoutTenantNestedInput
+  employees?: Prisma.EmployeeUpdateManyWithoutTenantNestedInput
+  clients?: Prisma.ClientUpdateManyWithoutTenantNestedInput
+  availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutTenantNestedInput
+  blockedTimes?: Prisma.BlockedTimeUpdateManyWithoutTenantNestedInput
+}
+
+export type TenantUncheckedUpdateWithoutAppointmentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  logoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  primaryColor?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
+  services?: Prisma.ServiceUncheckedUpdateManyWithoutTenantNestedInput
+  employees?: Prisma.EmployeeUncheckedUpdateManyWithoutTenantNestedInput
+  clients?: Prisma.ClientUncheckedUpdateManyWithoutTenantNestedInput
+  availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutTenantNestedInput
+  blockedTimes?: Prisma.BlockedTimeUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 
@@ -1098,6 +1235,7 @@ export type TenantCountOutputType = {
   clients: number
   availabilityRules: number
   blockedTimes: number
+  appointments: number
 }
 
 export type TenantCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1107,6 +1245,7 @@ export type TenantCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions
   clients?: boolean | TenantCountOutputTypeCountClientsArgs
   availabilityRules?: boolean | TenantCountOutputTypeCountAvailabilityRulesArgs
   blockedTimes?: boolean | TenantCountOutputTypeCountBlockedTimesArgs
+  appointments?: boolean | TenantCountOutputTypeCountAppointmentsArgs
 }
 
 /**
@@ -1161,6 +1300,13 @@ export type TenantCountOutputTypeCountBlockedTimesArgs<ExtArgs extends runtime.T
   where?: Prisma.BlockedTimeWhereInput
 }
 
+/**
+ * TenantCountOutputType without action
+ */
+export type TenantCountOutputTypeCountAppointmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AppointmentWhereInput
+}
+
 
 export type TenantSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1179,6 +1325,7 @@ export type TenantSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   clients?: boolean | Prisma.Tenant$clientsArgs<ExtArgs>
   availabilityRules?: boolean | Prisma.Tenant$availabilityRulesArgs<ExtArgs>
   blockedTimes?: boolean | Prisma.Tenant$blockedTimesArgs<ExtArgs>
+  appointments?: boolean | Prisma.Tenant$appointmentsArgs<ExtArgs>
   _count?: boolean | Prisma.TenantCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["tenant"]>
 
@@ -1229,6 +1376,7 @@ export type TenantInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   clients?: boolean | Prisma.Tenant$clientsArgs<ExtArgs>
   availabilityRules?: boolean | Prisma.Tenant$availabilityRulesArgs<ExtArgs>
   blockedTimes?: boolean | Prisma.Tenant$blockedTimesArgs<ExtArgs>
+  appointments?: boolean | Prisma.Tenant$appointmentsArgs<ExtArgs>
   _count?: boolean | Prisma.TenantCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type TenantIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -1243,6 +1391,7 @@ export type $TenantPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     clients: Prisma.$ClientPayload<ExtArgs>[]
     availabilityRules: Prisma.$AvailabilityRulePayload<ExtArgs>[]
     blockedTimes: Prisma.$BlockedTimePayload<ExtArgs>[]
+    appointments: Prisma.$AppointmentPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1655,6 +1804,7 @@ export interface Prisma__TenantClient<T, Null = never, ExtArgs extends runtime.T
   clients<T extends Prisma.Tenant$clientsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Tenant$clientsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ClientPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   availabilityRules<T extends Prisma.Tenant$availabilityRulesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Tenant$availabilityRulesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AvailabilityRulePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   blockedTimes<T extends Prisma.Tenant$blockedTimesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Tenant$blockedTimesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BlockedTimePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  appointments<T extends Prisma.Tenant$appointmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Tenant$appointmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AppointmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2228,6 +2378,30 @@ export type Tenant$blockedTimesArgs<ExtArgs extends runtime.Types.Extensions.Int
   take?: number
   skip?: number
   distinct?: Prisma.BlockedTimeScalarFieldEnum | Prisma.BlockedTimeScalarFieldEnum[]
+}
+
+/**
+ * Tenant.appointments
+ */
+export type Tenant$appointmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Appointment
+   */
+  select?: Prisma.AppointmentSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Appointment
+   */
+  omit?: Prisma.AppointmentOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AppointmentInclude<ExtArgs> | null
+  where?: Prisma.AppointmentWhereInput
+  orderBy?: Prisma.AppointmentOrderByWithRelationInput | Prisma.AppointmentOrderByWithRelationInput[]
+  cursor?: Prisma.AppointmentWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AppointmentScalarFieldEnum | Prisma.AppointmentScalarFieldEnum[]
 }
 
 /**

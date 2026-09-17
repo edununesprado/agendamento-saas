@@ -218,6 +218,7 @@ export type EmployeeWhereInput = {
   employeeServices?: Prisma.EmployeeServiceListRelationFilter
   availabilityRules?: Prisma.AvailabilityRuleListRelationFilter
   blockedTimes?: Prisma.BlockedTimeListRelationFilter
+  appointments?: Prisma.AppointmentListRelationFilter
 }
 
 export type EmployeeOrderByWithRelationInput = {
@@ -234,6 +235,7 @@ export type EmployeeOrderByWithRelationInput = {
   employeeServices?: Prisma.EmployeeServiceOrderByRelationAggregateInput
   availabilityRules?: Prisma.AvailabilityRuleOrderByRelationAggregateInput
   blockedTimes?: Prisma.BlockedTimeOrderByRelationAggregateInput
+  appointments?: Prisma.AppointmentOrderByRelationAggregateInput
 }
 
 export type EmployeeWhereUniqueInput = Prisma.AtLeast<{
@@ -253,6 +255,7 @@ export type EmployeeWhereUniqueInput = Prisma.AtLeast<{
   employeeServices?: Prisma.EmployeeServiceListRelationFilter
   availabilityRules?: Prisma.AvailabilityRuleListRelationFilter
   blockedTimes?: Prisma.BlockedTimeListRelationFilter
+  appointments?: Prisma.AppointmentListRelationFilter
 }, "id">
 
 export type EmployeeOrderByWithAggregationInput = {
@@ -298,6 +301,7 @@ export type EmployeeCreateInput = {
   employeeServices?: Prisma.EmployeeServiceCreateNestedManyWithoutEmployeeInput
   availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutEmployeeInput
   blockedTimes?: Prisma.BlockedTimeCreateNestedManyWithoutEmployeeInput
+  appointments?: Prisma.AppointmentCreateNestedManyWithoutEmployeeInput
 }
 
 export type EmployeeUncheckedCreateInput = {
@@ -313,6 +317,7 @@ export type EmployeeUncheckedCreateInput = {
   employeeServices?: Prisma.EmployeeServiceUncheckedCreateNestedManyWithoutEmployeeInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutEmployeeInput
   blockedTimes?: Prisma.BlockedTimeUncheckedCreateNestedManyWithoutEmployeeInput
+  appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutEmployeeInput
 }
 
 export type EmployeeUpdateInput = {
@@ -328,6 +333,7 @@ export type EmployeeUpdateInput = {
   employeeServices?: Prisma.EmployeeServiceUpdateManyWithoutEmployeeNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutEmployeeNestedInput
   blockedTimes?: Prisma.BlockedTimeUpdateManyWithoutEmployeeNestedInput
+  appointments?: Prisma.AppointmentUpdateManyWithoutEmployeeNestedInput
 }
 
 export type EmployeeUncheckedUpdateInput = {
@@ -343,6 +349,7 @@ export type EmployeeUncheckedUpdateInput = {
   employeeServices?: Prisma.EmployeeServiceUncheckedUpdateManyWithoutEmployeeNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutEmployeeNestedInput
   blockedTimes?: Prisma.BlockedTimeUncheckedUpdateManyWithoutEmployeeNestedInput
+  appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutEmployeeNestedInput
 }
 
 export type EmployeeCreateManyInput = {
@@ -515,6 +522,20 @@ export type EmployeeUpdateOneRequiredWithoutBlockedTimesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.EmployeeUpdateToOneWithWhereWithoutBlockedTimesInput, Prisma.EmployeeUpdateWithoutBlockedTimesInput>, Prisma.EmployeeUncheckedUpdateWithoutBlockedTimesInput>
 }
 
+export type EmployeeCreateNestedOneWithoutAppointmentsInput = {
+  create?: Prisma.XOR<Prisma.EmployeeCreateWithoutAppointmentsInput, Prisma.EmployeeUncheckedCreateWithoutAppointmentsInput>
+  connectOrCreate?: Prisma.EmployeeCreateOrConnectWithoutAppointmentsInput
+  connect?: Prisma.EmployeeWhereUniqueInput
+}
+
+export type EmployeeUpdateOneRequiredWithoutAppointmentsNestedInput = {
+  create?: Prisma.XOR<Prisma.EmployeeCreateWithoutAppointmentsInput, Prisma.EmployeeUncheckedCreateWithoutAppointmentsInput>
+  connectOrCreate?: Prisma.EmployeeCreateOrConnectWithoutAppointmentsInput
+  upsert?: Prisma.EmployeeUpsertWithoutAppointmentsInput
+  connect?: Prisma.EmployeeWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.EmployeeUpdateToOneWithWhereWithoutAppointmentsInput, Prisma.EmployeeUpdateWithoutAppointmentsInput>, Prisma.EmployeeUncheckedUpdateWithoutAppointmentsInput>
+}
+
 export type EmployeeCreateWithoutTenantInput = {
   id?: string
   name: string
@@ -527,6 +548,7 @@ export type EmployeeCreateWithoutTenantInput = {
   employeeServices?: Prisma.EmployeeServiceCreateNestedManyWithoutEmployeeInput
   availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutEmployeeInput
   blockedTimes?: Prisma.BlockedTimeCreateNestedManyWithoutEmployeeInput
+  appointments?: Prisma.AppointmentCreateNestedManyWithoutEmployeeInput
 }
 
 export type EmployeeUncheckedCreateWithoutTenantInput = {
@@ -541,6 +563,7 @@ export type EmployeeUncheckedCreateWithoutTenantInput = {
   employeeServices?: Prisma.EmployeeServiceUncheckedCreateNestedManyWithoutEmployeeInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutEmployeeInput
   blockedTimes?: Prisma.BlockedTimeUncheckedCreateNestedManyWithoutEmployeeInput
+  appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutEmployeeInput
 }
 
 export type EmployeeCreateOrConnectWithoutTenantInput = {
@@ -596,6 +619,7 @@ export type EmployeeCreateWithoutEmployeeServicesInput = {
   tenant: Prisma.TenantCreateNestedOneWithoutEmployeesInput
   availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutEmployeeInput
   blockedTimes?: Prisma.BlockedTimeCreateNestedManyWithoutEmployeeInput
+  appointments?: Prisma.AppointmentCreateNestedManyWithoutEmployeeInput
 }
 
 export type EmployeeUncheckedCreateWithoutEmployeeServicesInput = {
@@ -610,6 +634,7 @@ export type EmployeeUncheckedCreateWithoutEmployeeServicesInput = {
   updatedAt?: Date | string
   availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutEmployeeInput
   blockedTimes?: Prisma.BlockedTimeUncheckedCreateNestedManyWithoutEmployeeInput
+  appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutEmployeeInput
 }
 
 export type EmployeeCreateOrConnectWithoutEmployeeServicesInput = {
@@ -640,6 +665,7 @@ export type EmployeeUpdateWithoutEmployeeServicesInput = {
   tenant?: Prisma.TenantUpdateOneRequiredWithoutEmployeesNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutEmployeeNestedInput
   blockedTimes?: Prisma.BlockedTimeUpdateManyWithoutEmployeeNestedInput
+  appointments?: Prisma.AppointmentUpdateManyWithoutEmployeeNestedInput
 }
 
 export type EmployeeUncheckedUpdateWithoutEmployeeServicesInput = {
@@ -654,6 +680,7 @@ export type EmployeeUncheckedUpdateWithoutEmployeeServicesInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutEmployeeNestedInput
   blockedTimes?: Prisma.BlockedTimeUncheckedUpdateManyWithoutEmployeeNestedInput
+  appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutEmployeeNestedInput
 }
 
 export type EmployeeCreateWithoutAvailabilityRulesInput = {
@@ -668,6 +695,7 @@ export type EmployeeCreateWithoutAvailabilityRulesInput = {
   tenant: Prisma.TenantCreateNestedOneWithoutEmployeesInput
   employeeServices?: Prisma.EmployeeServiceCreateNestedManyWithoutEmployeeInput
   blockedTimes?: Prisma.BlockedTimeCreateNestedManyWithoutEmployeeInput
+  appointments?: Prisma.AppointmentCreateNestedManyWithoutEmployeeInput
 }
 
 export type EmployeeUncheckedCreateWithoutAvailabilityRulesInput = {
@@ -682,6 +710,7 @@ export type EmployeeUncheckedCreateWithoutAvailabilityRulesInput = {
   updatedAt?: Date | string
   employeeServices?: Prisma.EmployeeServiceUncheckedCreateNestedManyWithoutEmployeeInput
   blockedTimes?: Prisma.BlockedTimeUncheckedCreateNestedManyWithoutEmployeeInput
+  appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutEmployeeInput
 }
 
 export type EmployeeCreateOrConnectWithoutAvailabilityRulesInput = {
@@ -712,6 +741,7 @@ export type EmployeeUpdateWithoutAvailabilityRulesInput = {
   tenant?: Prisma.TenantUpdateOneRequiredWithoutEmployeesNestedInput
   employeeServices?: Prisma.EmployeeServiceUpdateManyWithoutEmployeeNestedInput
   blockedTimes?: Prisma.BlockedTimeUpdateManyWithoutEmployeeNestedInput
+  appointments?: Prisma.AppointmentUpdateManyWithoutEmployeeNestedInput
 }
 
 export type EmployeeUncheckedUpdateWithoutAvailabilityRulesInput = {
@@ -726,6 +756,7 @@ export type EmployeeUncheckedUpdateWithoutAvailabilityRulesInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   employeeServices?: Prisma.EmployeeServiceUncheckedUpdateManyWithoutEmployeeNestedInput
   blockedTimes?: Prisma.BlockedTimeUncheckedUpdateManyWithoutEmployeeNestedInput
+  appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutEmployeeNestedInput
 }
 
 export type EmployeeCreateWithoutBlockedTimesInput = {
@@ -740,6 +771,7 @@ export type EmployeeCreateWithoutBlockedTimesInput = {
   tenant: Prisma.TenantCreateNestedOneWithoutEmployeesInput
   employeeServices?: Prisma.EmployeeServiceCreateNestedManyWithoutEmployeeInput
   availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutEmployeeInput
+  appointments?: Prisma.AppointmentCreateNestedManyWithoutEmployeeInput
 }
 
 export type EmployeeUncheckedCreateWithoutBlockedTimesInput = {
@@ -754,6 +786,7 @@ export type EmployeeUncheckedCreateWithoutBlockedTimesInput = {
   updatedAt?: Date | string
   employeeServices?: Prisma.EmployeeServiceUncheckedCreateNestedManyWithoutEmployeeInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutEmployeeInput
+  appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutEmployeeInput
 }
 
 export type EmployeeCreateOrConnectWithoutBlockedTimesInput = {
@@ -784,6 +817,7 @@ export type EmployeeUpdateWithoutBlockedTimesInput = {
   tenant?: Prisma.TenantUpdateOneRequiredWithoutEmployeesNestedInput
   employeeServices?: Prisma.EmployeeServiceUpdateManyWithoutEmployeeNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutEmployeeNestedInput
+  appointments?: Prisma.AppointmentUpdateManyWithoutEmployeeNestedInput
 }
 
 export type EmployeeUncheckedUpdateWithoutBlockedTimesInput = {
@@ -798,6 +832,83 @@ export type EmployeeUncheckedUpdateWithoutBlockedTimesInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   employeeServices?: Prisma.EmployeeServiceUncheckedUpdateManyWithoutEmployeeNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutEmployeeNestedInput
+  appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutEmployeeNestedInput
+}
+
+export type EmployeeCreateWithoutAppointmentsInput = {
+  id?: string
+  name: string
+  email?: string | null
+  phone?: string | null
+  avatarUrl?: string | null
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  tenant: Prisma.TenantCreateNestedOneWithoutEmployeesInput
+  employeeServices?: Prisma.EmployeeServiceCreateNestedManyWithoutEmployeeInput
+  availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutEmployeeInput
+  blockedTimes?: Prisma.BlockedTimeCreateNestedManyWithoutEmployeeInput
+}
+
+export type EmployeeUncheckedCreateWithoutAppointmentsInput = {
+  id?: string
+  tenantId: string
+  name: string
+  email?: string | null
+  phone?: string | null
+  avatarUrl?: string | null
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  employeeServices?: Prisma.EmployeeServiceUncheckedCreateNestedManyWithoutEmployeeInput
+  availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutEmployeeInput
+  blockedTimes?: Prisma.BlockedTimeUncheckedCreateNestedManyWithoutEmployeeInput
+}
+
+export type EmployeeCreateOrConnectWithoutAppointmentsInput = {
+  where: Prisma.EmployeeWhereUniqueInput
+  create: Prisma.XOR<Prisma.EmployeeCreateWithoutAppointmentsInput, Prisma.EmployeeUncheckedCreateWithoutAppointmentsInput>
+}
+
+export type EmployeeUpsertWithoutAppointmentsInput = {
+  update: Prisma.XOR<Prisma.EmployeeUpdateWithoutAppointmentsInput, Prisma.EmployeeUncheckedUpdateWithoutAppointmentsInput>
+  create: Prisma.XOR<Prisma.EmployeeCreateWithoutAppointmentsInput, Prisma.EmployeeUncheckedCreateWithoutAppointmentsInput>
+  where?: Prisma.EmployeeWhereInput
+}
+
+export type EmployeeUpdateToOneWithWhereWithoutAppointmentsInput = {
+  where?: Prisma.EmployeeWhereInput
+  data: Prisma.XOR<Prisma.EmployeeUpdateWithoutAppointmentsInput, Prisma.EmployeeUncheckedUpdateWithoutAppointmentsInput>
+}
+
+export type EmployeeUpdateWithoutAppointmentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  tenant?: Prisma.TenantUpdateOneRequiredWithoutEmployeesNestedInput
+  employeeServices?: Prisma.EmployeeServiceUpdateManyWithoutEmployeeNestedInput
+  availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutEmployeeNestedInput
+  blockedTimes?: Prisma.BlockedTimeUpdateManyWithoutEmployeeNestedInput
+}
+
+export type EmployeeUncheckedUpdateWithoutAppointmentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  tenantId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  employeeServices?: Prisma.EmployeeServiceUncheckedUpdateManyWithoutEmployeeNestedInput
+  availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutEmployeeNestedInput
+  blockedTimes?: Prisma.BlockedTimeUncheckedUpdateManyWithoutEmployeeNestedInput
 }
 
 export type EmployeeCreateManyTenantInput = {
@@ -823,6 +934,7 @@ export type EmployeeUpdateWithoutTenantInput = {
   employeeServices?: Prisma.EmployeeServiceUpdateManyWithoutEmployeeNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutEmployeeNestedInput
   blockedTimes?: Prisma.BlockedTimeUpdateManyWithoutEmployeeNestedInput
+  appointments?: Prisma.AppointmentUpdateManyWithoutEmployeeNestedInput
 }
 
 export type EmployeeUncheckedUpdateWithoutTenantInput = {
@@ -837,6 +949,7 @@ export type EmployeeUncheckedUpdateWithoutTenantInput = {
   employeeServices?: Prisma.EmployeeServiceUncheckedUpdateManyWithoutEmployeeNestedInput
   availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutEmployeeNestedInput
   blockedTimes?: Prisma.BlockedTimeUncheckedUpdateManyWithoutEmployeeNestedInput
+  appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutEmployeeNestedInput
 }
 
 export type EmployeeUncheckedUpdateManyWithoutTenantInput = {
@@ -859,12 +972,14 @@ export type EmployeeCountOutputType = {
   employeeServices: number
   availabilityRules: number
   blockedTimes: number
+  appointments: number
 }
 
 export type EmployeeCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   employeeServices?: boolean | EmployeeCountOutputTypeCountEmployeeServicesArgs
   availabilityRules?: boolean | EmployeeCountOutputTypeCountAvailabilityRulesArgs
   blockedTimes?: boolean | EmployeeCountOutputTypeCountBlockedTimesArgs
+  appointments?: boolean | EmployeeCountOutputTypeCountAppointmentsArgs
 }
 
 /**
@@ -898,6 +1013,13 @@ export type EmployeeCountOutputTypeCountBlockedTimesArgs<ExtArgs extends runtime
   where?: Prisma.BlockedTimeWhereInput
 }
 
+/**
+ * EmployeeCountOutputType without action
+ */
+export type EmployeeCountOutputTypeCountAppointmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AppointmentWhereInput
+}
+
 
 export type EmployeeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -913,6 +1035,7 @@ export type EmployeeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   employeeServices?: boolean | Prisma.Employee$employeeServicesArgs<ExtArgs>
   availabilityRules?: boolean | Prisma.Employee$availabilityRulesArgs<ExtArgs>
   blockedTimes?: boolean | Prisma.Employee$blockedTimesArgs<ExtArgs>
+  appointments?: boolean | Prisma.Employee$appointmentsArgs<ExtArgs>
   _count?: boolean | Prisma.EmployeeCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["employee"]>
 
@@ -960,6 +1083,7 @@ export type EmployeeInclude<ExtArgs extends runtime.Types.Extensions.InternalArg
   employeeServices?: boolean | Prisma.Employee$employeeServicesArgs<ExtArgs>
   availabilityRules?: boolean | Prisma.Employee$availabilityRulesArgs<ExtArgs>
   blockedTimes?: boolean | Prisma.Employee$blockedTimesArgs<ExtArgs>
+  appointments?: boolean | Prisma.Employee$appointmentsArgs<ExtArgs>
   _count?: boolean | Prisma.EmployeeCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type EmployeeIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -976,6 +1100,7 @@ export type $EmployeePayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     employeeServices: Prisma.$EmployeeServicePayload<ExtArgs>[]
     availabilityRules: Prisma.$AvailabilityRulePayload<ExtArgs>[]
     blockedTimes: Prisma.$BlockedTimePayload<ExtArgs>[]
+    appointments: Prisma.$AppointmentPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1385,6 +1510,7 @@ export interface Prisma__EmployeeClient<T, Null = never, ExtArgs extends runtime
   employeeServices<T extends Prisma.Employee$employeeServicesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Employee$employeeServicesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$EmployeeServicePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   availabilityRules<T extends Prisma.Employee$availabilityRulesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Employee$availabilityRulesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AvailabilityRulePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   blockedTimes<T extends Prisma.Employee$blockedTimesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Employee$blockedTimesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BlockedTimePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  appointments<T extends Prisma.Employee$appointmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Employee$appointmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AppointmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1893,6 +2019,30 @@ export type Employee$blockedTimesArgs<ExtArgs extends runtime.Types.Extensions.I
   take?: number
   skip?: number
   distinct?: Prisma.BlockedTimeScalarFieldEnum | Prisma.BlockedTimeScalarFieldEnum[]
+}
+
+/**
+ * Employee.appointments
+ */
+export type Employee$appointmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Appointment
+   */
+  select?: Prisma.AppointmentSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Appointment
+   */
+  omit?: Prisma.AppointmentOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AppointmentInclude<ExtArgs> | null
+  where?: Prisma.AppointmentWhereInput
+  orderBy?: Prisma.AppointmentOrderByWithRelationInput | Prisma.AppointmentOrderByWithRelationInput[]
+  cursor?: Prisma.AppointmentWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AppointmentScalarFieldEnum | Prisma.AppointmentScalarFieldEnum[]
 }
 
 /**

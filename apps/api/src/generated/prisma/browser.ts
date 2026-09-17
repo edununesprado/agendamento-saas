@@ -62,3 +62,8 @@ export type AvailabilityRule = Prisma.AvailabilityRuleModel
  * 
  */
 export type BlockedTime = Prisma.BlockedTimeModel
+/**
+ * Model Appointment
+ * 
+ */
+export type Appointment = Prisma.AppointmentModel
