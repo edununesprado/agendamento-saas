@@ -3,17 +3,281 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { DateTime } from 'luxon';
 
 import { PrismaService } from '../prisma/prisma.service.js';
-import {
-  SetAvailabilityDto,
-} from './dto/set-availability.dto.js';
+import { SetAvailabilityDto } from './dto/set-availability.dto.js';
 
 @Injectable()
 export class AvailabilityService {
   constructor(
     private readonly prisma: PrismaService,
   ) {}
+
+  async getAvailableSlots(
+    tenantId: string,
+    employeeId: string,
+    serviceId: string,
+    date: string,
+  ) {
+    // 1. Verifica se o funcionário existe,
+    // pertence à empresa e está ativo
+    const employee =
+      await this.prisma.employee.findFirst({
+        where: {
+          id: employeeId,
+          tenantId,
+          active: true,
+        },
+      });
+
+    if (!employee) {
+      throw new NotFoundException(
+        'Funcionário não encontrado ou inativo',
+      );
+    }
+
+    // 2. Verifica se o serviço existe,
+    // pertence à empresa e está ativo
+    const service =
+      await this.prisma.service.findFirst({
+        where: {
+          id: serviceId,
+          tenantId,
+          active: true,
+        },
+      });
+
+    if (!service) {
+      throw new NotFoundException(
+        'Serviço não encontrado ou inativo',
+      );
+    }
+
+    // 3. Verifica se o funcionário realiza esse serviço
+    const employeeService =
+      await this.prisma.employeeService.findFirst({
+        where: {
+          employeeId,
+          serviceId,
+          employee: {
+            tenantId,
+          },
+          service: {
+            tenantId,
+          },
+        },
+      });
+
+    if (!employeeService) {
+      throw new BadRequestException(
+        'Este funcionário não realiza o serviço informado',
+      );
+    }
+
+    // 4. Busca timezone da empresa
+    const tenant =
+      await this.prisma.tenant.findUnique({
+        where: {
+          id: tenantId,
+        },
+        select: {
+          timezone: true,
+        },
+      });
+
+    if (!tenant) {
+      throw new NotFoundException(
+        'Empresa não encontrada',
+      );
+    }
+
+    // 5. Converte a data usando timezone da empresa
+    const selectedDate = DateTime.fromISO(
+      date,
+      {
+        zone: tenant.timezone,
+      },
+    );
+
+    if (!selectedDate.isValid) {
+      throw new BadRequestException(
+        'Data inválida',
+      );
+    }
+
+    // 6. Descobre o dia da semana
+    const dayOfWeek =
+      this.getPrismaDayOfWeek(
+        selectedDate.weekday,
+      );
+
+    // 7. Busca jornada do funcionário naquele dia
+    const availabilityRules =
+      await this.prisma.availabilityRule.findMany({
+        where: {
+          tenantId,
+          employeeId,
+          dayOfWeek,
+        },
+
+        orderBy: {
+          startMinute: 'asc',
+        },
+      });
+
+    // Se não trabalha nesse dia
+    if (availabilityRules.length === 0) {
+      return {
+        date,
+        employeeId,
+        serviceId,
+
+        employee: {
+          id: employee.id,
+          name: employee.name,
+        },
+
+        service: {
+          id: service.id,
+          name: service.name,
+          durationMin: service.durationMin,
+          priceCents: service.priceCents,
+        },
+
+        timezone: tenant.timezone,
+
+        slots: [],
+      };
+    }
+
+    // 8. Limites do dia
+    const dayStart =
+      selectedDate.startOf('day');
+
+    const dayEnd =
+      selectedDate.endOf('day');
+
+    // 9. Busca bloqueios que encostam nesse dia
+    const blockedTimes =
+      await this.prisma.blockedTime.findMany({
+        where: {
+          tenantId,
+          employeeId,
+
+          startsAt: {
+            lt: dayEnd.toJSDate(),
+          },
+
+          endsAt: {
+            gt: dayStart.toJSDate(),
+          },
+        },
+
+        orderBy: {
+          startsAt: 'asc',
+        },
+      });
+
+    // Intervalo entre possíveis horários
+    const slotIntervalMin = 30;
+
+    const slots: string[] = [];
+
+    // 10. Percorre cada período de trabalho
+    for (const rule of availabilityRules) {
+      let currentStart =
+        rule.startMinute;
+
+      while (
+        currentStart +
+          service.durationMin <=
+        rule.endMinute
+      ) {
+        const currentEnd =
+          currentStart +
+          service.durationMin;
+
+        const slotStart =
+          selectedDate
+            .startOf('day')
+            .plus({
+              minutes: currentStart,
+            });
+
+        const slotEnd =
+          selectedDate
+            .startOf('day')
+            .plus({
+              minutes: currentEnd,
+            });
+
+        // 11. Verifica se o horário bate com algum bloqueio
+        const hasBlockedTime =
+          blockedTimes.some(
+            (blockedTime) => {
+              const blockedStart =
+                DateTime.fromJSDate(
+                  blockedTime.startsAt,
+                  {
+                    zone: tenant.timezone,
+                  },
+                );
+
+              const blockedEnd =
+                DateTime.fromJSDate(
+                  blockedTime.endsAt,
+                  {
+                    zone: tenant.timezone,
+                  },
+                );
+
+              return (
+                slotStart.toMillis() <
+                  blockedEnd.toMillis() &&
+                slotEnd.toMillis() >
+                  blockedStart.toMillis()
+              );
+            },
+          );
+
+        // 12. Se não está bloqueado, adiciona
+        if (!hasBlockedTime) {
+          slots.push(
+            slotStart.toFormat('HH:mm'),
+          );
+        }
+
+        currentStart +=
+          slotIntervalMin;
+      }
+    }
+
+    return {
+      date,
+      employeeId,
+      serviceId,
+
+      employee: {
+        id: employee.id,
+        name: employee.name,
+      },
+
+      service: {
+        id: service.id,
+        name: service.name,
+        durationMin:
+          service.durationMin,
+        priceCents:
+          service.priceCents,
+      },
+
+      timezone:
+        tenant.timezone,
+
+      slots,
+    };
+  }
 
   async findByEmployee(
     tenantId: string,
@@ -44,8 +308,12 @@ export class AvailabilityService {
     return rules.map((rule) => ({
       id: rule.id,
       dayOfWeek: rule.dayOfWeek,
-      start: this.minuteToTime(rule.startMinute),
-      end: this.minuteToTime(rule.endMinute),
+      start: this.minuteToTime(
+        rule.startMinute,
+      ),
+      end: this.minuteToTime(
+        rule.endMinute,
+      ),
     }));
   }
 
@@ -61,30 +329,46 @@ export class AvailabilityService {
 
     this.validateDays(data);
 
-    const rows = data.days.flatMap((day) =>
-      day.intervals.map((interval) => ({
-        tenantId,
-        employeeId,
-        dayOfWeek: day.dayOfWeek,
-        startMinute: this.timeToMinute(interval.start),
-        endMinute: this.timeToMinute(interval.end),
-      })),
+    const rows =
+      data.days.flatMap((day) =>
+        day.intervals.map(
+          (interval) => ({
+            tenantId,
+            employeeId,
+            dayOfWeek:
+              day.dayOfWeek,
+            startMinute:
+              this.timeToMinute(
+                interval.start,
+              ),
+            endMinute:
+              this.timeToMinute(
+                interval.end,
+              ),
+          }),
+        ),
+      );
+
+    await this.prisma.$transaction(
+      async (tx) => {
+        await tx.availabilityRule.deleteMany(
+          {
+            where: {
+              tenantId,
+              employeeId,
+            },
+          },
+        );
+
+        if (rows.length > 0) {
+          await tx.availabilityRule.createMany(
+            {
+              data: rows,
+            },
+          );
+        }
+      },
     );
-
-    await this.prisma.$transaction(async (tx) => {
-      await tx.availabilityRule.deleteMany({
-        where: {
-          tenantId,
-          employeeId,
-        },
-      });
-
-      if (rows.length > 0) {
-        await tx.availabilityRule.createMany({
-          data: rows,
-        });
-      }
-    });
 
     return this.findByEmployee(
       tenantId,
@@ -95,26 +379,46 @@ export class AvailabilityService {
   private validateDays(
     data: SetAvailabilityDto,
   ) {
-    const receivedDays = new Set<string>();
+    const receivedDays =
+      new Set<string>();
 
     for (const day of data.days) {
-      if (receivedDays.has(day.dayOfWeek)) {
+      if (
+        receivedDays.has(
+          day.dayOfWeek,
+        )
+      ) {
         throw new BadRequestException(
           `O dia ${day.dayOfWeek} foi informado mais de uma vez`,
         );
       }
 
-      receivedDays.add(day.dayOfWeek);
+      receivedDays.add(
+        day.dayOfWeek,
+      );
 
-      const intervals = day.intervals
-        .map((interval) => ({
-          start: this.timeToMinute(interval.start),
-          end: this.timeToMinute(interval.end),
-        }))
-        .sort((a, b) => a.start - b.start);
+      const intervals =
+        day.intervals
+          .map((interval) => ({
+            start:
+              this.timeToMinute(
+                interval.start,
+              ),
+            end:
+              this.timeToMinute(
+                interval.end,
+              ),
+          }))
+          .sort(
+            (a, b) =>
+              a.start - b.start,
+          );
 
       for (const interval of intervals) {
-        if (interval.start >= interval.end) {
+        if (
+          interval.start >=
+          interval.end
+        ) {
           throw new BadRequestException(
             `Horário inicial deve ser menor que o horário final em ${day.dayOfWeek}`,
           );
@@ -126,10 +430,16 @@ export class AvailabilityService {
         index < intervals.length;
         index++
       ) {
-        const previous = intervals[index - 1];
-        const current = intervals[index];
+        const previous =
+          intervals[index - 1];
 
-        if (current.start < previous.end) {
+        const current =
+          intervals[index];
+
+        if (
+          current.start <
+          previous.end
+        ) {
           throw new BadRequestException(
             `Existem horários sobrepostos em ${day.dayOfWeek}`,
           );
@@ -148,6 +458,7 @@ export class AvailabilityService {
           id: employeeId,
           tenantId,
         },
+
         select: {
           id: true,
         },
@@ -163,21 +474,56 @@ export class AvailabilityService {
   private timeToMinute(
     value: string,
   ) {
-    const [hour, minute] = value
-      .split(':')
-      .map(Number);
+    const [hour, minute] =
+      value
+        .split(':')
+        .map(Number);
 
-    return hour * 60 + minute;
+    return (
+      hour * 60 +
+      minute
+    );
   }
 
   private minuteToTime(
     value: number,
   ) {
-    const hour = Math.floor(value / 60);
-    const minute = value % 60;
+    const hour =
+      Math.floor(value / 60);
 
-    return `${String(hour).padStart(2, '0')}:${String(
+    const minute =
+      value % 60;
+
+    return `${String(hour).padStart(
+      2,
+      '0',
+    )}:${String(
       minute,
     ).padStart(2, '0')}`;
+  }
+
+  private getPrismaDayOfWeek(
+    weekday: number,
+  ):
+    | 'MONDAY'
+    | 'TUESDAY'
+    | 'WEDNESDAY'
+    | 'THURSDAY'
+    | 'FRIDAY'
+    | 'SATURDAY'
+    | 'SUNDAY' {
+    const days = {
+      1: 'MONDAY',
+      2: 'TUESDAY',
+      3: 'WEDNESDAY',
+      4: 'THURSDAY',
+      5: 'FRIDAY',
+      6: 'SATURDAY',
+      7: 'SUNDAY',
+    } as const;
+
+    return days[
+      weekday as keyof typeof days
+    ];
   }
 }
