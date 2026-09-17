@@ -142,6 +142,7 @@ export const EmployeeScalarFieldEnum = {
   phone: 'phone',
   avatarUrl: 'avatarUrl',
   active: 'active',
+  membershipId: 'membershipId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

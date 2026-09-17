@@ -15,7 +15,9 @@ import { RolesGuard } from '../auth/guards/roles.guard.js';
 import type { JwtPayload } from '../auth/types/jwt-payload.js';
 
 import { CreateTeamMemberDto } from './dto/create-team-member.dto.js';
+import { LinkTeamMemberEmployeeDto } from './dto/link-team-member-employee.dto.js';
 import { UpdateTeamMemberRoleDto } from './dto/update-team-member-role.dto.js';
+
 import { TeamMembersService } from './team-members.service.js';
 
 @Controller('team-members')
@@ -28,6 +30,10 @@ export class TeamMembersController {
     private readonly teamMembersService: TeamMembersService,
   ) {}
 
+  /**
+   * OWNER e ADMIN podem
+   * visualizar os usuários.
+   */
   @Get()
   @Roles(
     'OWNER',
@@ -41,6 +47,9 @@ export class TeamMembersController {
     );
   }
 
+  /**
+   * Somente OWNER cria usuários.
+   */
   @Post()
   @Roles('OWNER')
   create(
@@ -53,6 +62,9 @@ export class TeamMembersController {
     );
   }
 
+  /**
+   * Somente OWNER altera funções.
+   */
   @Patch(':id/role')
   @Roles('OWNER')
   updateRole(
@@ -61,6 +73,24 @@ export class TeamMembersController {
     @Body() data: UpdateTeamMemberRoleDto,
   ) {
     return this.teamMembersService.updateRole(
+      user.tenantId,
+      id,
+      data,
+    );
+  }
+
+  /**
+   * Somente OWNER pode vincular
+   * login STAFF a Employee.
+   */
+  @Patch(':id/employee')
+  @Roles('OWNER')
+  linkEmployee(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() data: LinkTeamMemberEmployeeDto,
+  ) {
+    return this.teamMembersService.linkEmployee(
       user.tenantId,
       id,
       data,

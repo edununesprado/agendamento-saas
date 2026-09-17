@@ -45,13 +45,13 @@ model Tenant {
 
   timezone String @default("America/Sao_Paulo")
 
-  memberships Membership[]
-  services    Service[]
-  employees Employee[]
-  clients Client[]
+  memberships       Membership[]
+  services          Service[]
+  employees         Employee[]
+  clients           Client[]
   availabilityRules AvailabilityRule[]
-  blockedTimes BlockedTime[]
-  appointments Appointment[]
+  blockedTimes      BlockedTime[]
+  appointments      Appointment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -78,8 +78,9 @@ model Membership {
 
   role MembershipRole @default(STAFF)
 
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee Employee?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -105,8 +106,8 @@ model Service {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   employeeServices EmployeeService[]
-  appointments Appointment[]
-  
+  appointments     Appointment[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -126,12 +127,14 @@ model Employee {
 
   active Boolean @default(true)
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  membershipId String?     @unique
+  membership   Membership? @relation(fields: [membershipId], references: [id], onDelete: SetNull)
 
-  employeeServices EmployeeService[]
+  employeeServices  EmployeeService[]
   availabilityRules AvailabilityRule[]
-  blockedTimes BlockedTime[]
-  appointments Appointment[]
+  blockedTimes      BlockedTime[]
+  appointments      Appointment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -173,7 +176,7 @@ model Client {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   appointments Appointment[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -188,7 +191,7 @@ model AvailabilityRule {
   tenantId   String
   employeeId String
 
-  dayOfWeek  DayOfWeek
+  dayOfWeek   DayOfWeek
   startMinute Int
   endMinute   Int
 
