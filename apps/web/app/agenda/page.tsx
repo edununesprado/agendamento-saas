@@ -1063,9 +1063,11 @@ export default function AgendaPage() {
                 Clientes
             </Link>
 
-            <button className="w-full rounded-lg px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-900">
-              Funcionários
-            </button>
+            <Link
+                href="/funcionarios"
+                className="block rounded-lg px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-900">
+                Funcionários
+            </Link>
 
             <button className="w-full rounded-lg px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-900">
               Serviços

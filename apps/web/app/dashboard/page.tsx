@@ -301,20 +301,25 @@ export default function DashboardPage() {
             </button>
 
             <Link
-                href="/agenda"
-                className="block w-full rounded-lg px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-900">
-                Agenda
+              href="/agenda"
+              className="block rounded-lg px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-900"
+            >
+              Agenda
             </Link>
 
             <Link
-                href="/clientes"
-                className="block w-full rounded-lg px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-900">
-                Clientes
+              href="/clientes"
+              className="block rounded-lg px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-900"
+            >
+              Clientes
             </Link>
 
-            <button className="w-full rounded-lg px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-900">
+            <Link
+              href="/funcionarios"
+              className="block rounded-lg bg-zinc-800 px-4 py-3 text-sm font-medium text-white"
+            >
               Funcionários
-            </button>
+            </Link>
 
             <button className="w-full rounded-lg px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-900">
               Serviços

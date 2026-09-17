@@ -3,21 +3,27 @@
 import Link from 'next/link';
 import {
   FormEvent,
-  useCallback,
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { apiFetch } from '@/lib/api';
 
-type Client = {
+type Employee = {
   id: string;
   name: string;
   email?: string | null;
   phone?: string | null;
-  birthDate?: string | null;
-  notes?: string | null;
+  active: boolean;
+};
+
+type Service = {
+  id: string;
+  name: string;
+  durationMin: number;
+  priceCents: number;
   active: boolean;
 };
 
@@ -40,20 +46,16 @@ type CurrentUser = {
   };
 };
 
-type ClientForm = {
+type EmployeeForm = {
   name: string;
   email: string;
   phone: string;
-  birthDate: string;
-  notes: string;
 };
 
-const emptyForm: ClientForm = {
+const emptyForm: EmployeeForm = {
   name: '',
   email: '',
   phone: '',
-  birthDate: '',
-  notes: '',
 };
 
 async function readResponse<T>(
@@ -75,22 +77,19 @@ async function readResponse<T>(
   return data as T;
 }
 
-function formatBirthDate(
-  value?: string | null,
+function formatCurrency(
+  cents: number,
 ) {
-  if (!value) {
-    return '-';
-  }
-
-  return new Intl.DateTimeFormat(
+  return new Intl.NumberFormat(
     'pt-BR',
     {
-      timeZone: 'UTC',
+      style: 'currency',
+      currency: 'BRL',
     },
-  ).format(new Date(value));
+  ).format(cents / 100);
 }
 
-export default function ClientsPage() {
+export default function EmployeesPage() {
   const router = useRouter();
 
   const [
@@ -102,10 +101,16 @@ export default function ClientsPage() {
     );
 
   const [
-    clients,
-    setClients,
+    employees,
+    setEmployees,
   ] =
-    useState<Client[]>([]);
+    useState<Employee[]>([]);
+
+  const [
+    services,
+    setServices,
+  ] =
+    useState<Service[]>([]);
 
   const [search, setSearch] =
     useState('');
@@ -134,15 +139,38 @@ export default function ClientsPage() {
     useState(false);
 
   const [
-    editingClient,
-    setEditingClient,
+    editingEmployee,
+    setEditingEmployee,
   ] =
-    useState<Client | null>(null);
+    useState<Employee | null>(
+      null,
+    );
 
   const [form, setForm] =
-    useState<ClientForm>(
+    useState<EmployeeForm>(
       emptyForm,
     );
+
+  // Serviços do funcionário
+  const [
+    serviceEmployee,
+    setServiceEmployee,
+  ] =
+    useState<Employee | null>(
+      null,
+    );
+
+  const [
+    selectedServiceIds,
+    setSelectedServiceIds,
+  ] =
+    useState<string[]>([]);
+
+  const [
+    loadingServices,
+    setLoadingServices,
+  ] =
+    useState(false);
 
   function handleLogout() {
     localStorage.removeItem(
@@ -156,133 +184,158 @@ export default function ClientsPage() {
     router.replace('/login');
   }
 
-  const loadClients =
-    useCallback(async () => {
-      try {
-        setLoading(true);
-        setError('');
+  async function loadEmployees(
+    targetStatus:
+      | 'active'
+      | 'inactive'
+      | 'all' = status,
+  ) {
+    try {
+      setLoading(true);
+      setError('');
 
-        const params =
-          new URLSearchParams();
-
-        params.set(
-          'status',
-          status,
+      const response =
+        await apiFetch(
+          `/employees?status=${targetStatus}`,
         );
 
-        if (search.trim()) {
-          params.set(
-            'search',
-            search.trim(),
-          );
-        }
-
-        const response =
-          await apiFetch(
-            `/clients?${params.toString()}`,
-          );
-
-        if (
-          response.status === 401
-        ) {
-          handleLogout();
-          return;
-        }
-
-        const data =
-          await readResponse<
-            Client[]
-          >(response);
-
-        setClients(data);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Erro ao carregar clientes',
-        );
-      } finally {
-        setLoading(false);
+      if (response.status === 401) {
+        handleLogout();
+        return;
       }
-    }, [search, status]);
+
+      const data =
+        await readResponse<Employee[]>(
+          response,
+        );
+
+      setEmployees(data);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Erro ao carregar funcionários',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadServices() {
+    try {
+      const response =
+        await apiFetch(
+          '/services?status=active',
+        );
+
+      const data =
+        await readResponse<Service[]>(
+          response,
+        );
+
+      setServices(data);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Erro ao carregar serviços',
+      );
+    }
+  }
 
   useEffect(() => {
-    const token =
-      localStorage.getItem(
-        'accessToken',
-      );
+    async function initialize() {
+      const token =
+        localStorage.getItem(
+          'accessToken',
+        );
 
-    const storedUser =
-      localStorage.getItem(
-        'currentUser',
-      );
+      const storedUser =
+        localStorage.getItem(
+          'currentUser',
+        );
 
-    if (!token || !storedUser) {
-      router.replace('/login');
-      return;
+      if (!token || !storedUser) {
+        router.replace('/login');
+        return;
+      }
+
+      try {
+        const parsed =
+          JSON.parse(
+            storedUser,
+          ) as CurrentUser;
+
+        setCurrentUser(parsed);
+
+        await Promise.all([
+          loadEmployees('active'),
+          loadServices(),
+        ]);
+      } catch {
+        handleLogout();
+      }
     }
 
-    try {
-      setCurrentUser(
-        JSON.parse(
-          storedUser,
-        ) as CurrentUser,
-      );
-    } catch {
-      handleLogout();
-      return;
-    }
+    initialize();
 
-    loadClients();
-  }, [loadClients, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const filteredEmployees =
+    useMemo(() => {
+      const value =
+        search
+          .trim()
+          .toLowerCase();
+
+      if (!value) {
+        return employees;
+      }
+
+      return employees.filter(
+        (employee) =>
+          employee.name
+            .toLowerCase()
+            .includes(value) ||
+          employee.email
+            ?.toLowerCase()
+            .includes(value) ||
+          employee.phone
+            ?.toLowerCase()
+            .includes(value),
+      );
+    }, [employees, search]);
 
   function openCreate() {
-    setEditingClient(null);
-
+    setEditingEmployee(null);
     setForm(emptyForm);
-
     setShowForm(true);
-
     setError('');
     setSuccess('');
   }
 
   function openEdit(
-    client: Client,
+    employee: Employee,
   ) {
-    setEditingClient(client);
+    setEditingEmployee(employee);
 
     setForm({
-      name:
-        client.name ?? '',
-
+      name: employee.name,
       email:
-        client.email ?? '',
-
+        employee.email ?? '',
       phone:
-        client.phone ?? '',
-
-      birthDate:
-        client.birthDate
-          ? client.birthDate.slice(
-              0,
-              10,
-            )
-          : '',
-
-      notes:
-        client.notes ?? '',
+        employee.phone ?? '',
     });
 
     setShowForm(true);
-
     setError('');
     setSuccess('');
   }
 
   function closeForm() {
     setShowForm(false);
-    setEditingClient(null);
+    setEditingEmployee(null);
     setForm(emptyForm);
   }
 
@@ -293,9 +346,8 @@ export default function ClientsPage() {
 
     if (!form.name.trim()) {
       setError(
-        'Informe o nome do cliente.',
+        'Informe o nome do funcionário.',
       );
-
       return;
     }
 
@@ -315,69 +367,59 @@ export default function ClientsPage() {
         phone:
           form.phone.trim() ||
           undefined,
-
-        birthDate:
-          form.birthDate ||
-          undefined,
-
-        notes:
-          form.notes.trim() ||
-          undefined,
       };
 
       const response =
-        editingClient
+        editingEmployee
           ? await apiFetch(
-              `/clients/${editingClient.id}`,
+              `/employees/${editingEmployee.id}`,
               {
                 method: 'PATCH',
-
                 body: JSON.stringify(
                   payload,
                 ),
               },
             )
           : await apiFetch(
-              '/clients',
+              '/employees',
               {
                 method: 'POST',
-
                 body: JSON.stringify(
                   payload,
                 ),
               },
             );
 
-      await readResponse<Client>(
+      await readResponse<Employee>(
         response,
       );
 
       setSuccess(
-        editingClient
-          ? 'Cliente atualizado com sucesso.'
-          : 'Cliente cadastrado com sucesso.',
+        editingEmployee
+          ? 'Funcionário atualizado com sucesso.'
+          : 'Funcionário cadastrado com sucesso.',
       );
 
       closeForm();
 
-      await loadClients();
+      await loadEmployees();
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : 'Erro ao salvar cliente',
+          : 'Erro ao salvar funcionário',
       );
     } finally {
       setSaving(false);
     }
   }
 
-  async function deactivateClient(
-    client: Client,
+  async function deactivateEmployee(
+    employee: Employee,
   ) {
     const confirmed =
       window.confirm(
-        `Deseja desativar o cliente ${client.name}?`,
+        `Deseja desativar ${employee.name}?`,
       );
 
     if (!confirmed) {
@@ -390,32 +432,32 @@ export default function ClientsPage() {
 
       const response =
         await apiFetch(
-          `/clients/${client.id}`,
+          `/employees/${employee.id}`,
           {
             method: 'DELETE',
           },
         );
 
-      await readResponse<Client>(
+      await readResponse<Employee>(
         response,
       );
 
       setSuccess(
-        'Cliente desativado com sucesso.',
+        'Funcionário desativado com sucesso.',
       );
 
-      await loadClients();
+      await loadEmployees();
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : 'Erro ao desativar cliente',
+          : 'Erro ao desativar funcionário',
       );
     }
   }
 
-  async function restoreClient(
-    client: Client,
+  async function restoreEmployee(
+    employee: Employee,
   ) {
     try {
       setError('');
@@ -423,27 +465,139 @@ export default function ClientsPage() {
 
       const response =
         await apiFetch(
-          `/clients/${client.id}/restore`,
+          `/employees/${employee.id}/restore`,
           {
             method: 'PATCH',
           },
         );
 
-      await readResponse<Client>(
+      await readResponse<Employee>(
         response,
       );
 
       setSuccess(
-        'Cliente reativado com sucesso.',
+        'Funcionário reativado com sucesso.',
       );
 
-      await loadClients();
+      await loadEmployees();
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : 'Erro ao reativar cliente',
+          : 'Erro ao reativar funcionário',
       );
+    }
+  }
+
+  async function openServices(
+    employee: Employee,
+  ) {
+    try {
+      setError('');
+      setSuccess('');
+      setLoadingServices(true);
+
+      setServiceEmployee(
+        employee,
+      );
+
+      const response =
+        await apiFetch(
+          `/employees/${employee.id}/services`,
+        );
+
+      const data =
+        await readResponse<
+          Array<
+            | Service
+            | {
+                service: Service;
+              }
+          >
+        >(response);
+
+      const ids =
+        data.map((item) => {
+          if ('service' in item) {
+            return item.service.id;
+          }
+
+          return item.id;
+        });
+
+      setSelectedServiceIds(
+        ids,
+      );
+    } catch (err) {
+      setServiceEmployee(null);
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Erro ao carregar serviços do funcionário',
+      );
+    } finally {
+      setLoadingServices(false);
+    }
+  }
+
+  function toggleService(
+    serviceId: string,
+  ) {
+    setSelectedServiceIds(
+      (current) =>
+        current.includes(serviceId)
+          ? current.filter(
+              (id) =>
+                id !== serviceId,
+            )
+          : [
+              ...current,
+              serviceId,
+            ],
+    );
+  }
+
+  async function saveEmployeeServices() {
+    if (!serviceEmployee) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError('');
+      setSuccess('');
+
+      const response =
+        await apiFetch(
+          `/employees/${serviceEmployee.id}/services`,
+          {
+            method: 'PUT',
+
+            body: JSON.stringify({
+              serviceIds:
+                selectedServiceIds,
+            }),
+          },
+        );
+
+      await readResponse<unknown>(
+        response,
+      );
+
+      setSuccess(
+        'Serviços do funcionário atualizados com sucesso.',
+      );
+
+      setServiceEmployee(null);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Erro ao atualizar serviços',
+      );
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -451,6 +605,7 @@ export default function ClientsPage() {
     <div className="min-h-screen bg-zinc-100">
       <div className="flex min-h-screen">
 
+        {/* MENU */}
         <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-zinc-950 text-white md:flex">
           <div className="border-b border-zinc-800 p-6">
             <h1 className="text-xl font-bold">
@@ -465,27 +620,30 @@ export default function ClientsPage() {
           <nav className="flex-1 space-y-2 p-4">
             <Link
               href="/dashboard"
-              className="block rounded-lg px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-900">
+              className="block rounded-lg px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-900"
+            >
               Dashboard
             </Link>
 
             <Link
               href="/agenda"
-              className="block rounded-lg px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-900">
+              className="block rounded-lg px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-900"
+            >
               Agenda
             </Link>
 
             <Link
-                href="/clientes"
-                className="block rounded-lg bg-zinc-800 px-4 py-3 text-sm font-medium text-white">
-                Clientes
+              href="/clientes"
+              className="block rounded-lg px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-900"
+            >
+              Clientes
             </Link>
 
             <Link
-                href="/funcionarios"
-                className="block rounded-lg bg-zinc-800 px-4 py-3 text-sm font-medium text-white"
-                >
-                Funcionários
+              href="/funcionarios"
+              className="block rounded-lg bg-zinc-800 px-4 py-3 text-sm font-medium text-white"
+            >
+              Funcionários
             </Link>
 
             <button className="w-full rounded-lg px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-900">
@@ -495,9 +653,7 @@ export default function ClientsPage() {
 
           <div className="mt-auto border-t border-zinc-800 p-4">
             <button
-              onClick={
-                handleLogout
-              }
+              onClick={handleLogout}
               className="w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white hover:bg-red-700"
             >
               Sair
@@ -505,6 +661,7 @@ export default function ClientsPage() {
           </div>
         </aside>
 
+        {/* CONTEÚDO */}
         <main className="min-w-0 flex-1">
 
           <header className="border-b border-zinc-200 bg-white px-6 py-5">
@@ -512,12 +669,11 @@ export default function ClientsPage() {
               {currentUser
                 ?.tenant
                 .name ??
-                'Clientes'}
+                'Funcionários'}
             </h2>
 
             <p className="text-sm text-zinc-500">
-              Cadastro e gerenciamento
-              de clientes
+              Equipe e serviços realizados
             </p>
           </header>
 
@@ -526,22 +682,19 @@ export default function ClientsPage() {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-zinc-900">
-                  Clientes
+                  Funcionários
                 </h1>
 
                 <p className="mt-1 text-sm text-zinc-500">
-                  Gerencie os clientes
-                  da empresa.
+                  Gerencie sua equipe profissional.
                 </p>
               </div>
 
               <button
-                onClick={
-                  openCreate
-                }
+                onClick={openCreate}
                 className="rounded-lg bg-zinc-900 px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800"
               >
-                + Novo cliente
+                + Novo funcionário
               </button>
             </div>
 
@@ -557,20 +710,19 @@ export default function ClientsPage() {
               </div>
             )}
 
+            {/* FORMULÁRIO */}
             {showForm && (
               <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
 
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-zinc-900">
-                    {editingClient
-                      ? 'Editar cliente'
-                      : 'Novo cliente'}
+                    {editingEmployee
+                      ? 'Editar funcionário'
+                      : 'Novo funcionário'}
                   </h2>
 
                   <button
-                    onClick={
-                      closeForm
-                    }
+                    onClick={closeForm}
                     className="text-sm text-zinc-500 hover:text-zinc-900"
                   >
                     Fechar
@@ -578,34 +730,28 @@ export default function ClientsPage() {
                 </div>
 
                 <form
-                  onSubmit={
-                    handleSubmit
-                  }
+                  onSubmit={handleSubmit}
                   className="mt-6 grid gap-5 md:grid-cols-2"
                 >
-
                   <div>
                     <label className="mb-2 block text-sm font-medium text-zinc-700">
                       Nome *
                     </label>
 
                     <input
-                      value={
-                        form.name
-                      }
+                      value={form.name}
                       onChange={(
                         event,
                       ) =>
                         setForm({
                           ...form,
                           name:
-                            event
-                              .target
+                            event.target
                               .value,
                         })
                       }
                       className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                      placeholder="Nome do cliente"
+                      placeholder="Nome do profissional"
                     />
                   </div>
 
@@ -615,17 +761,14 @@ export default function ClientsPage() {
                     </label>
 
                     <input
-                      value={
-                        form.phone
-                      }
+                      value={form.phone}
                       onChange={(
                         event,
                       ) =>
                         setForm({
                           ...form,
                           phone:
-                            event
-                              .target
+                            event.target
                               .value,
                         })
                       }
@@ -634,105 +777,143 @@ export default function ClientsPage() {
                     />
                   </div>
 
-                  <div>
+                  <div className="md:col-span-2">
                     <label className="mb-2 block text-sm font-medium text-zinc-700">
                       E-mail
                     </label>
 
                     <input
                       type="email"
-                      value={
-                        form.email
-                      }
+                      value={form.email}
                       onChange={(
                         event,
                       ) =>
                         setForm({
                           ...form,
                           email:
-                            event
-                              .target
+                            event.target
                               .value,
                         })
                       }
                       className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                      placeholder="cliente@email.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-zinc-700">
-                      Data de nascimento
-                    </label>
-
-                    <input
-                      type="date"
-                      value={
-                        form.birthDate
-                      }
-                      onChange={(
-                        event,
-                      ) =>
-                        setForm({
-                          ...form,
-                          birthDate:
-                            event
-                              .target
-                              .value,
-                        })
-                      }
-                      className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="mb-2 block text-sm font-medium text-zinc-700">
-                      Observações
-                    </label>
-
-                    <textarea
-                      value={
-                        form.notes
-                      }
-                      onChange={(
-                        event,
-                      ) =>
-                        setForm({
-                          ...form,
-                          notes:
-                            event
-                              .target
-                              .value,
-                        })
-                      }
-                      rows={3}
-                      className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                      placeholder="Informações adicionais..."
+                      placeholder="profissional@email.com"
                     />
                   </div>
 
                   <div className="md:col-span-2">
                     <button
                       type="submit"
-                      disabled={
-                        saving
-                      }
+                      disabled={saving}
                       className="rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
                     >
                       {saving
                         ? 'Salvando...'
-                        : editingClient
+                        : editingEmployee
                           ? 'Salvar alterações'
-                          : 'Cadastrar cliente'}
+                          : 'Cadastrar funcionário'}
                     </button>
                   </div>
                 </form>
               </section>
             )}
 
-            <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
+            {/* VÍNCULO DE SERVIÇOS */}
+            {serviceEmployee && (
+              <section className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-6">
 
-              <div className="grid gap-4 md:grid-cols-[1fr_200px_auto]">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-zinc-900">
+                      Serviços de {serviceEmployee.name}
+                    </h2>
+
+                    <p className="mt-1 text-sm text-zinc-600">
+                      Selecione os serviços que este profissional realiza.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      setServiceEmployee(
+                        null,
+                      )
+                    }
+                    className="text-sm text-zinc-500"
+                  >
+                    Fechar
+                  </button>
+                </div>
+
+                {loadingServices ? (
+                  <p className="mt-5 text-sm text-zinc-500">
+                    Carregando...
+                  </p>
+                ) : services.length ===
+                  0 ? (
+                  <p className="mt-5 text-sm text-zinc-500">
+                    Nenhum serviço ativo cadastrado.
+                  </p>
+                ) : (
+                  <div className="mt-5 grid gap-3 md:grid-cols-2">
+                    {services.map(
+                      (service) => (
+                        <label
+                          key={
+                            service.id
+                          }
+                          className="flex cursor-pointer items-center gap-3 rounded-xl border border-blue-100 bg-white p-4"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedServiceIds.includes(
+                              service.id,
+                            )}
+                            onChange={() =>
+                              toggleService(
+                                service.id,
+                              )
+                            }
+                            className="h-4 w-4"
+                          />
+
+                          <div>
+                            <p className="font-medium text-zinc-900">
+                              {service.name}
+                            </p>
+
+                            <p className="text-xs text-zinc-500">
+                              {
+                                service.durationMin
+                              }{' '}
+                              min •{' '}
+                              {formatCurrency(
+                                service.priceCents,
+                              )}
+                            </p>
+                          </div>
+                        </label>
+                      ),
+                    )}
+                  </div>
+                )}
+
+                <button
+                  onClick={
+                    saveEmployeeServices
+                  }
+                  disabled={saving}
+                  className="mt-5 rounded-lg bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {saving
+                    ? 'Salvando...'
+                    : 'Salvar serviços'}
+                </button>
+              </section>
+            )}
+
+            {/* FILTROS */}
+            <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
+              <div className="grid gap-4 md:grid-cols-[1fr_220px]">
 
                 <input
                   value={search}
@@ -744,33 +925,30 @@ export default function ClientsPage() {
                         .value,
                     )
                   }
-                  onKeyDown={(
-                    event,
-                  ) => {
-                    if (
-                      event.key ===
-                      'Enter'
-                    ) {
-                      loadClients();
-                    }
-                  }}
-                  placeholder="Buscar por nome, telefone ou e-mail..."
+                  placeholder="Buscar funcionário..."
                   className="rounded-lg border border-zinc-300 px-4 py-3"
                 />
 
                 <select
                   value={status}
-                  onChange={(
+                  onChange={async (
                     event,
-                  ) =>
-                    setStatus(
+                  ) => {
+                    const nextStatus =
                       event.target
                         .value as
                         | 'active'
                         | 'inactive'
-                        | 'all',
-                    )
-                  }
+                        | 'all';
+
+                    setStatus(
+                      nextStatus,
+                    );
+
+                    await loadEmployees(
+                      nextStatus,
+                    );
+                  }}
                   className="rounded-lg border border-zinc-300 bg-white px-4 py-3"
                 >
                   <option value="active">
@@ -785,28 +963,22 @@ export default function ClientsPage() {
                     Todos
                   </option>
                 </select>
-
-                <button
-                  onClick={
-                    loadClients
-                  }
-                  className="rounded-lg bg-zinc-900 px-5 py-3 text-sm font-medium text-white"
-                >
-                  Buscar
-                </button>
               </div>
             </section>
 
+            {/* LISTA */}
             <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
 
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-zinc-900">
-                  Lista de clientes
+                  Equipe
                 </h2>
 
                 <span className="text-sm text-zinc-500">
-                  {clients.length}{' '}
-                  cliente(s)
+                  {
+                    filteredEmployees.length
+                  }{' '}
+                  funcionário(s)
                 </span>
               </div>
 
@@ -814,17 +986,17 @@ export default function ClientsPage() {
                 <p className="mt-6 text-sm text-zinc-500">
                   Carregando...
                 </p>
-              ) : clients.length ===
+              ) : filteredEmployees.length ===
                 0 ? (
                 <div className="mt-6 rounded-xl bg-zinc-50 p-8 text-center">
                   <p className="text-zinc-500">
-                    Nenhum cliente
-                    encontrado.
+                    Nenhum funcionário encontrado.
                   </p>
                 </div>
               ) : (
                 <div className="mt-5 overflow-x-auto">
-                  <table className="w-full min-w-[750px] text-left">
+
+                  <table className="w-full min-w-[720px] text-left">
 
                     <thead>
                       <tr className="border-b border-zinc-200 text-sm text-zinc-500">
@@ -841,10 +1013,6 @@ export default function ClientsPage() {
                         </th>
 
                         <th className="px-3 py-3">
-                          Nascimento
-                        </th>
-
-                        <th className="px-3 py-3">
                           Status
                         </th>
 
@@ -855,45 +1023,39 @@ export default function ClientsPage() {
                     </thead>
 
                     <tbody>
-                      {clients.map(
-                        (client) => (
+                      {filteredEmployees.map(
+                        (employee) => (
                           <tr
                             key={
-                              client.id
+                              employee.id
                             }
                             className="border-b border-zinc-100"
                           >
                             <td className="px-3 py-4 font-medium text-zinc-900">
                               {
-                                client.name
+                                employee.name
                               }
                             </td>
 
                             <td className="px-3 py-4 text-sm text-zinc-600">
-                              {client.phone ||
+                              {employee.phone ||
                                 '-'}
                             </td>
 
                             <td className="px-3 py-4 text-sm text-zinc-600">
-                              {client.email ||
+                              {employee.email ||
                                 '-'}
-                            </td>
-
-                            <td className="px-3 py-4 text-sm text-zinc-600">
-                              {formatBirthDate(
-                                client.birthDate,
-                              )}
                             </td>
 
                             <td className="px-3 py-4">
                               <span
                                 className={
-                                  client.active
+                                  employee.active
                                     ? 'rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700'
                                     : 'rounded-full bg-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600'
                                 }
                               >
-                                {client.active
+                                {employee.active
                                   ? 'Ativo'
                                   : 'Inativo'}
                               </span>
@@ -904,8 +1066,19 @@ export default function ClientsPage() {
 
                                 <button
                                   onClick={() =>
+                                    openServices(
+                                      employee,
+                                    )
+                                  }
+                                  className="rounded-lg border border-blue-300 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-50"
+                                >
+                                  Serviços
+                                </button>
+
+                                <button
+                                  onClick={() =>
                                     openEdit(
-                                      client,
+                                      employee,
                                     )
                                   }
                                   className="rounded-lg border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
@@ -913,11 +1086,11 @@ export default function ClientsPage() {
                                   Editar
                                 </button>
 
-                                {client.active ? (
+                                {employee.active ? (
                                   <button
                                     onClick={() =>
-                                      deactivateClient(
-                                        client,
+                                      deactivateEmployee(
+                                        employee,
                                       )
                                     }
                                     className="rounded-lg border border-red-300 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50"
@@ -927,8 +1100,8 @@ export default function ClientsPage() {
                                 ) : (
                                   <button
                                     onClick={() =>
-                                      restoreClient(
-                                        client,
+                                      restoreEmployee(
+                                        employee,
                                       )
                                     }
                                     className="rounded-lg border border-green-300 px-3 py-2 text-xs font-medium text-green-700 hover:bg-green-50"
