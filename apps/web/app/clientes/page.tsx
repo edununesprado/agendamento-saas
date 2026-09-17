@@ -10,6 +10,31 @@ import { useRouter } from 'next/navigation';
 import { PanelShell } from '@/components/panel-shell';
 import { apiFetch } from '@/lib/api';
 
+type Role =
+  | 'OWNER'
+  | 'ADMIN'
+  | 'RECEPTIONIST'
+  | 'STAFF';
+
+type CurrentUser = {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+
+  tenant: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+
+  membership: {
+    id: string;
+    role: Role;
+  };
+};
+
 type Client = {
   id: string;
   name: string;
@@ -67,11 +92,21 @@ function formatBirthDate(
     {
       timeZone: 'UTC',
     },
-  ).format(new Date(value));
+  ).format(
+    new Date(value),
+  );
 }
 
 export default function ClientsPage() {
   const router = useRouter();
+
+  const [
+    currentUser,
+    setCurrentUser,
+  ] =
+    useState<CurrentUser | null>(
+      null,
+    );
 
   const [
     clients,
@@ -139,6 +174,20 @@ export default function ClientsPage() {
       emptyForm,
     );
 
+  /**
+   * OWNER, ADMIN e RECEPTIONIST
+   * podem gerenciar clientes.
+   *
+   * STAFF fica somente com leitura.
+   */
+  const canManageClients =
+    currentUser?.membership.role ===
+      'OWNER' ||
+    currentUser?.membership.role ===
+      'ADMIN' ||
+    currentUser?.membership.role ===
+      'RECEPTIONIST';
+
   function handleLogout() {
     localStorage.removeItem(
       'accessToken',
@@ -148,7 +197,9 @@ export default function ClientsPage() {
       'currentUser',
     );
 
-    router.replace('/login');
+    router.replace(
+      '/login',
+    );
   }
 
   async function loadClients(
@@ -198,7 +249,9 @@ export default function ClientsPage() {
           Client[]
         >(response);
 
-      setClients(data);
+      setClients(
+        data,
+      );
     } catch (err) {
       setError(
         err instanceof Error
@@ -225,26 +278,56 @@ export default function ClientsPage() {
       !token ||
       !storedUser
     ) {
-      router.replace('/login');
+      router.replace(
+        '/login',
+      );
+
       return;
     }
 
-    loadClients(
-      'active',
-      '',
-    );
+    try {
+      const parsed =
+        JSON.parse(
+          storedUser,
+        ) as CurrentUser;
+
+      setCurrentUser(
+        parsed,
+      );
+
+      loadClients(
+        'active',
+        '',
+      );
+    } catch {
+      handleLogout();
+    }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function openCreate() {
-    setEditingClient(null);
+    if (
+      !canManageClients
+    ) {
+      setError(
+        'Você não possui permissão para cadastrar clientes.',
+      );
+
+      return;
+    }
+
+    setEditingClient(
+      null,
+    );
 
     setForm(
       emptyForm,
     );
 
-    setShowForm(true);
+    setShowForm(
+      true,
+    );
 
     setError('');
     setSuccess('');
@@ -253,6 +336,16 @@ export default function ClientsPage() {
   function openEdit(
     client: Client,
   ) {
+    if (
+      !canManageClients
+    ) {
+      setError(
+        'Você não possui permissão para editar clientes.',
+      );
+
+      return;
+    }
+
     setEditingClient(
       client,
     );
@@ -279,16 +372,22 @@ export default function ClientsPage() {
         client.notes ?? '',
     });
 
-    setShowForm(true);
+    setShowForm(
+      true,
+    );
 
     setError('');
     setSuccess('');
   }
 
   function closeForm() {
-    setShowForm(false);
+    setShowForm(
+      false,
+    );
 
-    setEditingClient(null);
+    setEditingClient(
+      null,
+    );
 
     setForm(
       emptyForm,
@@ -299,6 +398,16 @@ export default function ClientsPage() {
     event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
+
+    if (
+      !canManageClients
+    ) {
+      setError(
+        'Você não possui permissão para alterar clientes.',
+      );
+
+      return;
+    }
 
     if (
       !form.name.trim()
@@ -391,6 +500,16 @@ export default function ClientsPage() {
   async function deactivateClient(
     client: Client,
   ) {
+    if (
+      !canManageClients
+    ) {
+      setError(
+        'Você não possui permissão para desativar clientes.',
+      );
+
+      return;
+    }
+
     const confirmed =
       window.confirm(
         `Deseja desativar o cliente ${client.name}?`,
@@ -434,6 +553,16 @@ export default function ClientsPage() {
   async function restoreClient(
     client: Client,
   ) {
+    if (
+      !canManageClients
+    ) {
+      setError(
+        'Você não possui permissão para reativar clientes.',
+      );
+
+      return;
+    }
+
     try {
       setError('');
       setSuccess('');
@@ -470,21 +599,33 @@ export default function ClientsPage() {
       title="Clientes"
       subtitle="Cadastro e gerenciamento de clientes"
     >
-      {/* CABEÇALHO DA PÁGINA */}
+      {/* CABEÇALHO */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
-        <p className="text-sm text-zinc-500">
-          Gerencie os clientes da empresa.
-        </p>
+        <div>
+          <p className="text-sm text-zinc-500">
+            {canManageClients
+              ? 'Gerencie os clientes da empresa.'
+              : 'Consulte os clientes da empresa.'}
+          </p>
 
-        <button
-          onClick={
-            openCreate
-          }
-          className="rounded-lg bg-zinc-900 px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800"
-        >
-          + Novo cliente
-        </button>
+          {!canManageClients && (
+            <p className="mt-1 text-xs text-zinc-400">
+              Seu perfil possui acesso somente para visualização.
+            </p>
+          )}
+        </div>
+
+        {canManageClients && (
+          <button
+            onClick={
+              openCreate
+            }
+            className="rounded-lg bg-zinc-900 px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800"
+          >
+            + Novo cliente
+          </button>
+        )}
       </div>
 
       {/* ERRO */}
@@ -502,191 +643,192 @@ export default function ClientsPage() {
       )}
 
       {/* FORMULÁRIO */}
-      {showForm && (
-        <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      {showForm &&
+        canManageClients && (
+          <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
 
-          <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
 
-            <h2 className="text-lg font-semibold text-zinc-900">
-              {editingClient
-                ? 'Editar cliente'
-                : 'Novo cliente'}
-            </h2>
-
-            <button
-              onClick={
-                closeForm
-              }
-              className="text-sm text-zinc-500 hover:text-zinc-900"
-            >
-              Fechar
-            </button>
-          </div>
-
-          <form
-            onSubmit={
-              handleSubmit
-            }
-            className="mt-6 grid gap-5 md:grid-cols-2"
-          >
-
-            {/* NOME */}
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Nome *
-              </label>
-
-              <input
-                value={
-                  form.name
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-
-                    name:
-                      event
-                        .target
-                        .value,
-                  })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                placeholder="Nome do cliente"
-              />
-            </div>
-
-            {/* TELEFONE */}
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Telefone
-              </label>
-
-              <input
-                value={
-                  form.phone
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-
-                    phone:
-                      event
-                        .target
-                        .value,
-                  })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                placeholder="(34) 99999-9999"
-              />
-            </div>
-
-            {/* EMAIL */}
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                E-mail
-              </label>
-
-              <input
-                type="email"
-                value={
-                  form.email
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-
-                    email:
-                      event
-                        .target
-                        .value,
-                  })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                placeholder="cliente@email.com"
-              />
-            </div>
-
-            {/* NASCIMENTO */}
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Data de nascimento
-              </label>
-
-              <input
-                type="date"
-                value={
-                  form.birthDate
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-
-                    birthDate:
-                      event
-                        .target
-                        .value,
-                  })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-              />
-            </div>
-
-            {/* OBSERVAÇÕES */}
-            <div className="md:col-span-2">
-
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Observações
-              </label>
-
-              <textarea
-                value={
-                  form.notes
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-
-                    notes:
-                      event
-                        .target
-                        .value,
-                  })
-                }
-                rows={3}
-                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                placeholder="Informações adicionais..."
-              />
-            </div>
-
-            <div className="md:col-span-2">
+              <h2 className="text-lg font-semibold text-zinc-900">
+                {editingClient
+                  ? 'Editar cliente'
+                  : 'Novo cliente'}
+              </h2>
 
               <button
-                type="submit"
-                disabled={
-                  saving
+                onClick={
+                  closeForm
                 }
-                className="rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                className="text-sm text-zinc-500 hover:text-zinc-900"
               >
-                {saving
-                  ? 'Salvando...'
-                  : editingClient
-                    ? 'Salvar alterações'
-                    : 'Cadastrar cliente'}
+                Fechar
               </button>
             </div>
-          </form>
-        </section>
-      )}
+
+            <form
+              onSubmit={
+                handleSubmit
+              }
+              className="mt-6 grid gap-5 md:grid-cols-2"
+            >
+
+              {/* NOME */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Nome *
+                </label>
+
+                <input
+                  value={
+                    form.name
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      name:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                  placeholder="Nome do cliente"
+                />
+              </div>
+
+              {/* TELEFONE */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Telefone
+                </label>
+
+                <input
+                  value={
+                    form.phone
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      phone:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                  placeholder="(34) 99999-9999"
+                />
+              </div>
+
+              {/* EMAIL */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  E-mail
+                </label>
+
+                <input
+                  type="email"
+                  value={
+                    form.email
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      email:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                  placeholder="cliente@email.com"
+                />
+              </div>
+
+              {/* NASCIMENTO */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Data de nascimento
+                </label>
+
+                <input
+                  type="date"
+                  value={
+                    form.birthDate
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      birthDate:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                />
+              </div>
+
+              {/* OBSERVAÇÕES */}
+              <div className="md:col-span-2">
+
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Observações
+                </label>
+
+                <textarea
+                  value={
+                    form.notes
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      notes:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                  rows={3}
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                  placeholder="Informações adicionais..."
+                />
+              </div>
+
+              <div className="md:col-span-2">
+
+                <button
+                  type="submit"
+                  disabled={
+                    saving
+                  }
+                  className="rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                >
+                  {saving
+                    ? 'Salvando...'
+                    : editingClient
+                      ? 'Salvar alterações'
+                      : 'Cadastrar cliente'}
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
 
       {/* FILTROS */}
       <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
@@ -822,9 +964,11 @@ export default function ClientsPage() {
                     Status
                   </th>
 
-                  <th className="px-3 py-3 text-right">
-                    Ações
-                  </th>
+                  {canManageClients && (
+                    <th className="px-3 py-3 text-right">
+                      Ações
+                    </th>
+                  )}
                 </tr>
               </thead>
 
@@ -861,6 +1005,7 @@ export default function ClientsPage() {
                       </td>
 
                       <td className="px-3 py-4">
+
                         <span
                           className={
                             client.active
@@ -874,46 +1019,48 @@ export default function ClientsPage() {
                         </span>
                       </td>
 
-                      <td className="px-3 py-4">
+                      {canManageClients && (
+                        <td className="px-3 py-4">
 
-                        <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-2">
 
-                          <button
-                            onClick={() =>
-                              openEdit(
-                                client,
-                              )
-                            }
-                            className="rounded-lg border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-                          >
-                            Editar
-                          </button>
-
-                          {client.active ? (
                             <button
                               onClick={() =>
-                                deactivateClient(
+                                openEdit(
                                   client,
                                 )
                               }
-                              className="rounded-lg border border-red-300 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50"
+                              className="rounded-lg border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
                             >
-                              Desativar
+                              Editar
                             </button>
-                          ) : (
-                            <button
-                              onClick={() =>
-                                restoreClient(
-                                  client,
-                                )
-                              }
-                              className="rounded-lg border border-green-300 px-3 py-2 text-xs font-medium text-green-700 hover:bg-green-50"
-                            >
-                              Reativar
-                            </button>
-                          )}
-                        </div>
-                      </td>
+
+                            {client.active ? (
+                              <button
+                                onClick={() =>
+                                  deactivateClient(
+                                    client,
+                                  )
+                                }
+                                className="rounded-lg border border-red-300 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50"
+                              >
+                                Desativar
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() =>
+                                  restoreClient(
+                                    client,
+                                  )
+                                }
+                                className="rounded-lg border border-green-300 px-3 py-2 text-xs font-medium text-green-700 hover:bg-green-50"
+                              >
+                                Reativar
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ),
                 )}
