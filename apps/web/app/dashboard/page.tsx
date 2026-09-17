@@ -306,9 +306,11 @@ export default function DashboardPage() {
                 Agenda
             </Link>
 
-            <button className="w-full rounded-lg px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-900">
-              Clientes
-            </button>
+            <Link
+                href="/clientes"
+                className="block w-full rounded-lg px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-900">
+                Clientes
+            </Link>
 
             <button className="w-full rounded-lg px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-900">
               Funcionários
