@@ -20,6 +20,7 @@ import { CancelAppointmentDto } from './dto/cancel-appointment.dto.js';
 import { CreateAppointmentDto } from './dto/create-appointment.dto.js';
 import { ListAppointmentsQueryDto } from './dto/list-appointments-query.dto.js';
 import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto.js';
+import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto.js';
 
 @Controller('appointments')
 @UseGuards(
@@ -94,4 +95,17 @@ export class AppointmentsController {
       data,
     );
   }
+
+  @Patch(':id/reschedule')
+    reschedule(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() data: RescheduleAppointmentDto,
+    ) {
+    return this.appointmentsService.reschedule(
+        user.tenantId,
+        id,
+        data,
+    );
+    }
 }

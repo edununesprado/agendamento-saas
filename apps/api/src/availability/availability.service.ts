@@ -19,6 +19,7 @@ export class AvailabilityService {
     employeeId: string,
     serviceId: string,
     date: string,
+    excludeAppointmentId?: string,
   ) {
     // 1. Funcionário
     const employee =
@@ -155,53 +156,36 @@ export class AvailabilityService {
 
     // 9. Agendamentos já existentes
     const appointments =
-      await this.prisma.appointment.findMany({
-        where: {
-          tenantId,
-          employeeId,
+  await this.prisma.appointment.findMany({
+    where: {
+      tenantId,
+      employeeId,
 
-          status: {
-            not: 'CANCELED',
-          },
+      status: {
+        not: 'CANCELED',
+      },
 
-          startsAt: {
-            lt: dayEnd.toJSDate(),
-          },
+      ...(excludeAppointmentId
+        ? {
+            id: {
+              not: excludeAppointmentId,
+            },
+          }
+        : {}),
 
-          endsAt: {
-            gt: dayStart.toJSDate(),
-          },
-        },
+      startsAt: {
+        lt: dayEnd.toJSDate(),
+      },
 
-        orderBy: {
-          startsAt: 'asc',
-        },
-      });
+      endsAt: {
+        gt: dayStart.toJSDate(),
+      },
+    },
 
-    // Se o funcionário não trabalha nesse dia
-    if (availabilityRules.length === 0) {
-      return {
-        date,
-        employeeId,
-        serviceId,
-
-        employee: {
-          id: employee.id,
-          name: employee.name,
-        },
-
-        service: {
-          id: service.id,
-          name: service.name,
-          durationMin: service.durationMin,
-          priceCents: service.priceCents,
-        },
-
-        timezone: tenant.timezone,
-
-        slots: [],
-      };
-    }
+    orderBy: {
+      startsAt: 'asc',
+    },
+  });
 
     // Intervalo entre horários oferecidos
     const slotIntervalMin = 30;

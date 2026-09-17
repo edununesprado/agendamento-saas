@@ -12,6 +12,7 @@ import { CancelAppointmentDto } from './dto/cancel-appointment.dto.js';
 import { CreateAppointmentDto } from './dto/create-appointment.dto.js';
 import { ListAppointmentsQueryDto } from './dto/list-appointments-query.dto.js';
 import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto.js';
+import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto.js';
 
 @Injectable()
 export class AppointmentsService {
@@ -417,4 +418,172 @@ export class AppointmentsService {
       },
     });
   }
+
+  async reschedule(
+    tenantId: string,
+    id: string,
+    data: RescheduleAppointmentDto,
+    ) {
+    const appointment =
+        await this.findOne(
+        tenantId,
+        id,
+    );
+
+    if (
+        appointment.status === 'CANCELED' ||
+        appointment.status === 'COMPLETED' ||
+        appointment.status === 'NO_SHOW'
+    ) {
+        throw new BadRequestException(
+        `Agendamento com status ${appointment.status} não pode ser reagendado`,
+        );
+    }
+
+    const tenant =
+        await this.prisma.tenant.findUnique({
+        where: {
+            id: tenantId,
+        },
+
+        select: {
+            timezone: true,
+        },
+    });
+
+    if (!tenant) {
+        throw new NotFoundException(
+        'Empresa não encontrada',
+        );
+    }
+
+    const requestedDateTime =
+        DateTime.fromISO(
+        data.startsAt,
+        {
+            setZone: true,
+        },
+    );
+
+    if (!requestedDateTime.isValid) {
+        throw new BadRequestException(
+        'Data ou horário inválido',
+        );
+    }
+
+    const localDateTime =
+        requestedDateTime.setZone(
+        tenant.timezone,
+    );
+
+    const date =
+        localDateTime.toISODate();
+
+    if (!date) {
+        throw new BadRequestException(
+        'Data inválida',
+        );
+    }
+
+    const requestedTime =
+        localDateTime.toFormat(
+        'HH:mm',
+    );
+
+    const availability =
+        await this.availabilityService.getAvailableSlots(
+        tenantId,
+        appointment.employeeId,
+        appointment.serviceId,
+        date,
+        appointment.id,
+        );
+
+    if (
+        !availability.slots.includes(
+        requestedTime,
+        )
+    ) {
+        throw new BadRequestException(
+        'O novo horário informado não está disponível',
+        );
+    }
+
+    const startsAt =
+        requestedDateTime
+        .toUTC()
+        .toJSDate();
+
+    const endsAt =
+        requestedDateTime
+        .plus({
+            minutes:
+            appointment.durationMin,
+        })
+        .toUTC()
+        .toJSDate();
+
+    return this.prisma.$transaction(
+        async (tx) => {
+            await tx.$queryRaw<
+                Array<{ lock_value: number }>
+            >`
+                SELECT 1::int AS lock_value
+                FROM pg_advisory_xact_lock(
+                hashtext(${tenantId}),
+                hashtext(${appointment.employeeId})
+                )
+            `;
+
+        const conflictingAppointment =
+            await tx.appointment.findFirst({
+            where: {
+                id: {
+                not: appointment.id,
+                },
+
+                tenantId,
+
+                employeeId:
+                appointment.employeeId,
+
+                status: {
+                not: 'CANCELED',
+                },
+
+                startsAt: {
+                lt: endsAt,
+                },
+
+                endsAt: {
+                gt: startsAt,
+                },
+            },
+        });
+
+        if (conflictingAppointment) {
+            throw new ConflictException(
+            'O novo horário acabou de ser ocupado',
+            );
+        }
+
+        return tx.appointment.update({
+            where: {
+            id: appointment.id,
+            },
+
+            data: {
+            startsAt,
+            endsAt,
+            },
+
+            include: {
+            employee: true,
+            service: true,
+            client: true,
+            },
+        });
+    },
+  );
+}
 }
