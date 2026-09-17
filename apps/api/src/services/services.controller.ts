@@ -22,15 +22,28 @@ import { UpdateServiceDto } from './dto/update-service.dto.js';
 import { ServicesService } from './services.service.js';
 
 @Controller('services')
-@UseGuards(JwtAuthGuard)
+@UseGuards(
+  JwtAuthGuard,
+  RolesGuard,
+)
 export class ServicesController {
   constructor(
     private readonly servicesService: ServicesService,
   ) {}
 
+  /**
+   * Criar serviço
+   *
+   * OWNER ✅
+   * ADMIN ✅
+   * RECEPTIONIST ❌
+   * STAFF ❌
+   */
   @Post()
-  @UseGuards(RolesGuard)
-  @Roles('OWNER', 'ADMIN')
+  @Roles(
+    'OWNER',
+    'ADMIN',
+  )
   create(
     @CurrentUser() user: JwtPayload,
     @Body() data: CreateServiceDto,
@@ -41,7 +54,18 @@ export class ServicesController {
     );
   }
 
+  /**
+   * Listar serviços
+   *
+   * Todos podem visualizar.
+   */
   @Get()
+  @Roles(
+    'OWNER',
+    'ADMIN',
+    'RECEPTIONIST',
+    'STAFF',
+  )
   findAll(
     @CurrentUser() user: JwtPayload,
     @Query() query: ListServicesQueryDto,
@@ -52,7 +76,18 @@ export class ServicesController {
     );
   }
 
+  /**
+   * Visualizar um serviço
+   *
+   * Todos podem visualizar.
+   */
   @Get(':id')
+  @Roles(
+    'OWNER',
+    'ADMIN',
+    'RECEPTIONIST',
+    'STAFF',
+  )
   findOne(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -63,9 +98,19 @@ export class ServicesController {
     );
   }
 
+  /**
+   * Reativar serviço
+   *
+   * OWNER ✅
+   * ADMIN ✅
+   * RECEPTIONIST ❌
+   * STAFF ❌
+   */
   @Patch(':id/restore')
-  @UseGuards(RolesGuard)
-  @Roles('OWNER', 'ADMIN')
+  @Roles(
+    'OWNER',
+    'ADMIN',
+  )
   restore(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -76,9 +121,19 @@ export class ServicesController {
     );
   }
 
+  /**
+   * Editar serviço
+   *
+   * OWNER ✅
+   * ADMIN ✅
+   * RECEPTIONIST ❌
+   * STAFF ❌
+   */
   @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles('OWNER', 'ADMIN')
+  @Roles(
+    'OWNER',
+    'ADMIN',
+  )
   update(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -91,9 +146,19 @@ export class ServicesController {
     );
   }
 
+  /**
+   * Desativar serviço
+   *
+   * OWNER ✅
+   * ADMIN ✅
+   * RECEPTIONIST ❌
+   * STAFF ❌
+   */
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles('OWNER', 'ADMIN')
+  @Roles(
+    'OWNER',
+    'ADMIN',
+  )
   remove(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
