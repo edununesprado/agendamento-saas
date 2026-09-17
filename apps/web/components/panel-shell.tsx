@@ -55,6 +55,10 @@ const menuItems = [
     label: 'Serviços',
     href: '/servicos',
   },
+  {
+    label: 'Configurações',
+    href: '/configuracoes',
+  },
 ];
 
 export function PanelShell({
