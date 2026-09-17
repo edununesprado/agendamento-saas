@@ -12,6 +12,7 @@ import {
 } from 'next/navigation';
 
 import { PanelShell } from '@/components/panel-shell';
+import { apiFetch } from '@/lib/api';
 
 type DayOfWeek =
   | 'MONDAY'
