@@ -14,6 +14,12 @@ import {
 import { PanelShell } from '@/components/panel-shell';
 import { apiFetch } from '@/lib/api';
 
+type Role =
+  | 'OWNER'
+  | 'ADMIN'
+  | 'RECEPTIONIST'
+  | 'STAFF';
+
 type DayOfWeek =
   | 'MONDAY'
   | 'TUESDAY'
@@ -62,6 +68,11 @@ type StoredUser = {
     slug: string;
     timezone?: string;
   };
+
+  membership: {
+    id: string;
+    role: Role;
+  };
 };
 
 const dayLabels: Record<
@@ -91,7 +102,8 @@ function createEmptySchedule(): DaySchedule[] {
   return dayOrder.map(
     (dayOfWeek) => ({
       dayOfWeek,
-      label: dayLabels[dayOfWeek],
+      label:
+        dayLabels[dayOfWeek],
       enabled: false,
 
       intervals: [
@@ -112,12 +124,18 @@ async function readResponse<T>(
 
   if (!response.ok) {
     const message =
-      Array.isArray(data?.message)
-        ? data.message.join(', ')
+      Array.isArray(
+        data?.message,
+      )
+        ? data.message.join(
+            ', ',
+          )
         : data?.message ??
           'Erro na requisição';
 
-    throw new Error(message);
+    throw new Error(
+      message,
+    );
   }
 
   return data as T;
@@ -239,7 +257,8 @@ function formatBlockedDate(
 }
 
 export default function EmployeeSchedulePage() {
-  const router = useRouter();
+  const router =
+    useRouter();
 
   const params =
     useParams<{
@@ -248,6 +267,14 @@ export default function EmployeeSchedulePage() {
 
   const employeeId =
     params.id;
+
+  const [
+    role,
+    setRole,
+  ] =
+    useState<Role | null>(
+      null,
+    );
 
   const [
     employee,
@@ -323,6 +350,14 @@ export default function EmployeeSchedulePage() {
   ] =
     useState('');
 
+  /**
+   * Somente OWNER e ADMIN
+   * administram jornada e bloqueios.
+   */
+  const canManageSchedule =
+    role === 'OWNER' ||
+    role === 'ADMIN';
+
   function handleLogout() {
     localStorage.removeItem(
       'accessToken',
@@ -332,7 +367,9 @@ export default function EmployeeSchedulePage() {
       'currentUser',
     );
 
-    router.replace('/login');
+    router.replace(
+      '/login',
+    );
   }
 
   useEffect(() => {
@@ -351,7 +388,10 @@ export default function EmployeeSchedulePage() {
         !token ||
         !storedUser
       ) {
-        router.replace('/login');
+        router.replace(
+          '/login',
+        );
+
         return;
       }
 
@@ -360,6 +400,25 @@ export default function EmployeeSchedulePage() {
           JSON.parse(
             storedUser,
           ) as StoredUser;
+
+        /**
+         * STAFF não deve acessar
+         * a área geral de funcionários.
+         */
+        if (
+          parsed.membership.role ===
+          'STAFF'
+        ) {
+          router.replace(
+            '/agenda',
+          );
+
+          return;
+        }
+
+        setRole(
+          parsed.membership.role,
+        );
 
         setTimezone(
           parsed.tenant.timezone ??
@@ -412,7 +471,9 @@ export default function EmployeeSchedulePage() {
         const blockedData =
           await readResponse<
             BlockedTime[]
-          >(blockedResponse);
+          >(
+            blockedResponse,
+          );
 
         setEmployee(
           employeeData,
@@ -426,7 +487,8 @@ export default function EmployeeSchedulePage() {
           createEmptySchedule();
 
         for (
-          const rule of availabilityData
+          const rule of
+          availabilityData
         ) {
           const day =
             grouped.find(
@@ -441,14 +503,14 @@ export default function EmployeeSchedulePage() {
 
           if (!day.enabled) {
             day.enabled = true;
-
-            day.intervals =
-              [];
+            day.intervals = [];
           }
 
           day.intervals.push({
-            start: rule.start,
-            end: rule.end,
+            start:
+              rule.start,
+            end:
+              rule.end,
           });
         }
 
@@ -462,7 +524,9 @@ export default function EmployeeSchedulePage() {
             : 'Erro ao carregar horários',
         );
       } finally {
-        setLoading(false);
+        setLoading(
+          false,
+        );
       }
     }
 
@@ -474,6 +538,12 @@ export default function EmployeeSchedulePage() {
   function toggleDay(
     dayOfWeek: DayOfWeek,
   ) {
+    if (
+      !canManageSchedule
+    ) {
+      return;
+    }
+
     setSchedule(
       (current) =>
         current.map(
@@ -517,6 +587,12 @@ export default function EmployeeSchedulePage() {
       | 'end',
     value: string,
   ) {
+    if (
+      !canManageSchedule
+    ) {
+      return;
+    }
+
     setSchedule(
       (current) =>
         current.map(
@@ -555,6 +631,12 @@ export default function EmployeeSchedulePage() {
   function addInterval(
     dayOfWeek: DayOfWeek,
   ) {
+    if (
+      !canManageSchedule
+    ) {
+      return;
+    }
+
     setSchedule(
       (current) =>
         current.map(
@@ -585,6 +667,12 @@ export default function EmployeeSchedulePage() {
     dayOfWeek: DayOfWeek,
     index: number,
   ) {
+    if (
+      !canManageSchedule
+    ) {
+      return;
+    }
+
     setSchedule(
       (current) =>
         current.map(
@@ -615,8 +703,20 @@ export default function EmployeeSchedulePage() {
   }
 
   async function saveSchedule() {
+    if (
+      !canManageSchedule
+    ) {
+      setError(
+        'Você não possui permissão para alterar a jornada.',
+      );
+
+      return;
+    }
+
     try {
-      setSaving(true);
+      setSaving(
+        true,
+      );
 
       setError('');
       setSuccess('');
@@ -668,7 +768,9 @@ export default function EmployeeSchedulePage() {
           : 'Erro ao salvar jornada',
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false,
+      );
     }
   }
 
@@ -702,6 +804,16 @@ export default function EmployeeSchedulePage() {
     event.preventDefault();
 
     if (
+      !canManageSchedule
+    ) {
+      setError(
+        'Você não possui permissão para criar bloqueios.',
+      );
+
+      return;
+    }
+
+    if (
       !blockedStart ||
       !blockedEnd
     ) {
@@ -713,7 +825,9 @@ export default function EmployeeSchedulePage() {
     }
 
     try {
-      setSaving(true);
+      setSaving(
+        true,
+      );
 
       setError('');
       setSuccess('');
@@ -778,13 +892,25 @@ export default function EmployeeSchedulePage() {
           : 'Erro ao criar bloqueio',
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false,
+      );
     }
   }
 
   async function deleteBlockedTime(
     blockedTime: BlockedTime,
   ) {
+    if (
+      !canManageSchedule
+    ) {
+      setError(
+        'Você não possui permissão para remover bloqueios.',
+      );
+
+      return;
+    }
+
     const confirmed =
       window.confirm(
         'Deseja remover este bloqueio?',
@@ -863,9 +989,16 @@ export default function EmployeeSchedulePage() {
         </Link>
 
         <p className="mt-4 text-sm text-zinc-500">
-          Configure a jornada semanal
-          e períodos indisponíveis.
+          {canManageSchedule
+            ? 'Configure a jornada semanal e períodos indisponíveis.'
+            : 'Consulte a jornada semanal e os períodos indisponíveis.'}
         </p>
+
+        {!canManageSchedule && (
+          <p className="mt-1 text-xs text-zinc-400">
+            Seu perfil possui acesso somente para visualização.
+          </p>
+        )}
       </div>
 
       {/* ERRO */}
@@ -891,8 +1024,9 @@ export default function EmployeeSchedulePage() {
           </h2>
 
           <p className="mt-1 text-sm text-zinc-500">
-            Defina os horários em que o
-            profissional atende.
+            {canManageSchedule
+              ? 'Defina os horários em que o profissional atende.'
+              : 'Horários em que o profissional atende.'}
           </p>
         </div>
 
@@ -909,25 +1043,37 @@ export default function EmployeeSchedulePage() {
 
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
 
-                  <label className="flex min-w-44 items-center gap-3">
+                  <div className="flex min-w-44 items-center gap-3">
 
-                    <input
-                      type="checkbox"
-                      checked={
-                        day.enabled
-                      }
-                      onChange={() =>
-                        toggleDay(
-                          day.dayOfWeek,
-                        )
-                      }
-                      className="h-4 w-4"
-                    />
+                    {canManageSchedule ? (
+                      <input
+                        type="checkbox"
+                        checked={
+                          day.enabled
+                        }
+                        onChange={() =>
+                          toggleDay(
+                            day.dayOfWeek,
+                          )
+                        }
+                        className="h-4 w-4"
+                      />
+                    ) : (
+                      <span
+                        className={
+                          day.enabled
+                            ? 'h-3 w-3 rounded-full bg-green-500'
+                            : 'h-3 w-3 rounded-full bg-zinc-300'
+                        }
+                      />
+                    )}
 
                     <span className="font-medium text-zinc-900">
-                      {day.label}
+                      {
+                        day.label
+                      }
                     </span>
-                  </label>
+                  </div>
 
                   {day.enabled ? (
                     <div className="flex-1 space-y-3">
@@ -944,77 +1090,96 @@ export default function EmployeeSchedulePage() {
                             className="flex flex-wrap items-center gap-3"
                           >
 
-                            <input
-                              type="time"
-                              value={
-                                interval.start
-                              }
-                              onChange={(
-                                event,
-                              ) =>
-                                updateInterval(
-                                  day.dayOfWeek,
-                                  index,
-                                  'start',
-                                  event.target.value,
-                                )
-                              }
-                              className="rounded-lg border border-zinc-300 px-3 py-2"
-                            />
+                            {canManageSchedule ? (
+                              <input
+                                type="time"
+                                value={
+                                  interval.start
+                                }
+                                onChange={(
+                                  event,
+                                ) =>
+                                  updateInterval(
+                                    day.dayOfWeek,
+                                    index,
+                                    'start',
+                                    event.target.value,
+                                  )
+                                }
+                                className="rounded-lg border border-zinc-300 px-3 py-2"
+                              />
+                            ) : (
+                              <span className="rounded-lg bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-700">
+                                {
+                                  interval.start
+                                }
+                              </span>
+                            )}
 
                             <span className="text-sm text-zinc-500">
                               até
                             </span>
 
-                            <input
-                              type="time"
-                              value={
-                                interval.end
-                              }
-                              onChange={(
-                                event,
-                              ) =>
-                                updateInterval(
-                                  day.dayOfWeek,
-                                  index,
-                                  'end',
-                                  event.target.value,
-                                )
-                              }
-                              className="rounded-lg border border-zinc-300 px-3 py-2"
-                            />
-
-                            {day.intervals
-                              .length >
-                              1 && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  removeInterval(
+                            {canManageSchedule ? (
+                              <input
+                                type="time"
+                                value={
+                                  interval.end
+                                }
+                                onChange={(
+                                  event,
+                                ) =>
+                                  updateInterval(
                                     day.dayOfWeek,
                                     index,
+                                    'end',
+                                    event.target.value,
                                   )
                                 }
-                                className="rounded-lg border border-red-300 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50"
-                              >
-                                Remover
-                              </button>
+                                className="rounded-lg border border-zinc-300 px-3 py-2"
+                              />
+                            ) : (
+                              <span className="rounded-lg bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-700">
+                                {
+                                  interval.end
+                                }
+                              </span>
                             )}
+
+                            {canManageSchedule &&
+                              day.intervals
+                                .length >
+                                1 && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    removeInterval(
+                                      day.dayOfWeek,
+                                      index,
+                                    )
+                                  }
+                                  className="rounded-lg border border-red-300 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50"
+                                >
+                                  Remover
+                                </button>
+                              )}
                           </div>
                         ),
                       )}
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          addInterval(
-                            day.dayOfWeek,
-                          )
-                        }
-                        className="text-sm font-medium text-blue-600 hover:underline"
-                      >
-                        + Adicionar intervalo
-                      </button>
+                      {canManageSchedule && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            addInterval(
+                              day.dayOfWeek,
+                            )
+                          }
+                          className="text-sm font-medium text-blue-600 hover:underline"
+                        >
+                          + Adicionar intervalo
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm text-zinc-400">
@@ -1027,19 +1192,21 @@ export default function EmployeeSchedulePage() {
           )}
         </div>
 
-        <button
-          onClick={
-            saveSchedule
-          }
-          disabled={
-            saving
-          }
-          className="mt-6 rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
-        >
-          {saving
-            ? 'Salvando...'
-            : 'Salvar jornada'}
-        </button>
+        {canManageSchedule && (
+          <button
+            onClick={
+              saveSchedule
+            }
+            disabled={
+              saving
+            }
+            className="mt-6 rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+          >
+            {saving
+              ? 'Salvando...'
+              : 'Salvar jornada'}
+          </button>
+        )}
       </section>
 
       {/* BLOQUEIOS */}
@@ -1050,103 +1217,109 @@ export default function EmployeeSchedulePage() {
         </h2>
 
         <p className="mt-1 text-sm text-zinc-500">
-          Use para folgas, consultas,
-          compromissos ou outros períodos
-          indisponíveis.
+          {canManageSchedule
+            ? 'Use para folgas, consultas, compromissos ou outros períodos indisponíveis.'
+            : 'Períodos em que o profissional não estará disponível.'}
         </p>
 
-        <form
-          onSubmit={
-            createBlockedTime
-          }
-          className="mt-6 grid gap-4 lg:grid-cols-2"
-        >
+        {/* FORMULÁRIO SOMENTE OWNER/ADMIN */}
+        {canManageSchedule && (
+          <form
+            onSubmit={
+              createBlockedTime
+            }
+            className="mt-6 grid gap-4 lg:grid-cols-2"
+          >
 
-          {/* INÍCIO */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-700">
-              Início
-            </label>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-700">
+                Início
+              </label>
 
-            <input
-              type="datetime-local"
-              value={
-                blockedStart
-              }
-              onChange={(
-                event,
-              ) =>
-                setBlockedStart(
-                  event.target.value,
-                )
-              }
-              className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-            />
-          </div>
+              <input
+                type="datetime-local"
+                value={
+                  blockedStart
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setBlockedStart(
+                    event.target.value,
+                  )
+                }
+                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+              />
+            </div>
 
-          {/* FIM */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-700">
-              Fim
-            </label>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-700">
+                Fim
+              </label>
 
-            <input
-              type="datetime-local"
-              value={
-                blockedEnd
-              }
-              onChange={(
-                event,
-              ) =>
-                setBlockedEnd(
-                  event.target.value,
-                )
-              }
-              className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-            />
-          </div>
+              <input
+                type="datetime-local"
+                value={
+                  blockedEnd
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setBlockedEnd(
+                    event.target.value,
+                  )
+                }
+                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+              />
+            </div>
 
-          {/* MOTIVO */}
-          <div className="lg:col-span-2">
+            <div className="lg:col-span-2">
 
-            <label className="mb-2 block text-sm font-medium text-zinc-700">
-              Motivo
-            </label>
+              <label className="mb-2 block text-sm font-medium text-zinc-700">
+                Motivo
+              </label>
 
-            <input
-              value={
-                blockedReason
-              }
-              onChange={(
-                event,
-              ) =>
-                setBlockedReason(
-                  event.target.value,
-                )
-              }
-              placeholder="Ex: Consulta médica"
-              className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-            />
-          </div>
+              <input
+                value={
+                  blockedReason
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setBlockedReason(
+                    event.target.value,
+                  )
+                }
+                placeholder="Ex: Consulta médica"
+                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+              />
+            </div>
 
-          <div className="lg:col-span-2">
+            <div className="lg:col-span-2">
 
-            <button
-              type="submit"
-              disabled={
-                saving
-              }
-              className="rounded-lg bg-zinc-900 px-6 py-3 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
-            >
-              {saving
-                ? 'Salvando...'
-                : 'Criar bloqueio'}
-            </button>
-          </div>
-        </form>
+              <button
+                type="submit"
+                disabled={
+                  saving
+                }
+                className="rounded-lg bg-zinc-900 px-6 py-3 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+              >
+                {saving
+                  ? 'Salvando...'
+                  : 'Criar bloqueio'}
+              </button>
+            </div>
+          </form>
+        )}
 
         {/* BLOQUEIOS CADASTRADOS */}
-        <div className="mt-8">
+        <div
+          className={
+            canManageSchedule
+              ? 'mt-8'
+              : 'mt-6'
+          }
+        >
 
           <h3 className="font-semibold text-zinc-900">
             Bloqueios cadastrados
@@ -1161,7 +1334,9 @@ export default function EmployeeSchedulePage() {
             <div className="mt-4 space-y-3">
 
               {blockedTimes.map(
-                (blockedTime) => (
+                (
+                  blockedTime,
+                ) => (
                   <div
                     key={
                       blockedTime.id
@@ -1190,16 +1365,18 @@ export default function EmployeeSchedulePage() {
                       </p>
                     </div>
 
-                    <button
-                      onClick={() =>
-                        deleteBlockedTime(
-                          blockedTime,
-                        )
-                      }
-                      className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
-                    >
-                      Remover
-                    </button>
+                    {canManageSchedule && (
+                      <button
+                        onClick={() =>
+                          deleteBlockedTime(
+                            blockedTime,
+                          )
+                        }
+                        className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+                      >
+                        Remover
+                      </button>
+                    )}
                   </div>
                 ),
               )}
