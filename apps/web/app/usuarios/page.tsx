@@ -16,6 +16,14 @@ type Role =
   | 'RECEPTIONIST'
   | 'STAFF';
 
+type Employee = {
+  id: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  active: boolean;
+};
+
 type TeamMember = {
   id: string;
   role: Role;
@@ -26,6 +34,8 @@ type TeamMember = {
     name: string;
     email: string;
   };
+
+  employee: Employee | null;
 };
 
 type StoredUser = {
@@ -51,6 +61,7 @@ type UserForm = {
   name: string;
   email: string;
   password: string;
+
   role:
     | 'ADMIN'
     | 'RECEPTIONIST'
@@ -64,7 +75,10 @@ const emptyForm: UserForm = {
   role: 'RECEPTIONIST',
 };
 
-const roleLabels: Record<Role, string> = {
+const roleLabels: Record<
+  Role,
+  string
+> = {
   OWNER: 'Proprietário',
   ADMIN: 'Administrador',
   RECEPTIONIST: 'Recepção',
@@ -79,25 +93,50 @@ async function readResponse<T>(
 
   if (!response.ok) {
     const message =
-      Array.isArray(data?.message)
-        ? data.message.join(', ')
+      Array.isArray(
+        data?.message,
+      )
+        ? data.message.join(
+            ', ',
+          )
         : data?.message ??
           'Erro na requisição';
 
-    throw new Error(message);
+    throw new Error(
+      message,
+    );
   }
 
   return data as T;
 }
 
 export default function UsersPage() {
-  const router = useRouter();
+  const router =
+    useRouter();
 
   const [
     members,
     setMembers,
   ] =
-    useState<TeamMember[]>([]);
+    useState<TeamMember[]>(
+      [],
+    );
+
+  const [
+    employees,
+    setEmployees,
+  ] =
+    useState<Employee[]>(
+      [],
+    );
+
+  const [
+    employeeSelections,
+    setEmployeeSelections,
+  ] =
+    useState<
+      Record<string, string>
+    >({});
 
   const [
     currentUser,
@@ -145,6 +184,10 @@ export default function UsersPage() {
   ] =
     useState('');
 
+  const isOwner =
+    currentUser?.membership.role ===
+    'OWNER';
+
   function handleLogout() {
     localStorage.removeItem(
       'accessToken',
@@ -154,12 +197,17 @@ export default function UsersPage() {
       'currentUser',
     );
 
-    router.replace('/login');
+    router.replace(
+      '/login',
+    );
   }
 
   async function loadMembers() {
     try {
-      setLoading(true);
+      setLoading(
+        true,
+      );
+
       setError('');
 
       const response =
@@ -168,14 +216,16 @@ export default function UsersPage() {
         );
 
       if (
-        response.status === 401
+        response.status ===
+        401
       ) {
         handleLogout();
         return;
       }
 
       if (
-        response.status === 403
+        response.status ===
+        403
       ) {
         setError(
           'Você não possui permissão para acessar os usuários da empresa.',
@@ -189,7 +239,32 @@ export default function UsersPage() {
           TeamMember[]
         >(response);
 
-      setMembers(data);
+      setMembers(
+        data,
+      );
+
+      /**
+       * Preenche o select de cada
+       * STAFF com o Employee que
+       * já está vinculado.
+       */
+      const selections:
+        Record<string, string> =
+          {};
+
+      for (
+        const member of data
+      ) {
+        selections[
+          member.id
+        ] =
+          member.employee?.id ??
+          '';
+      }
+
+      setEmployeeSelections(
+        selections,
+      );
     } catch (err) {
       setError(
         err instanceof Error
@@ -197,7 +272,41 @@ export default function UsersPage() {
           : 'Erro ao carregar usuários',
       );
     } finally {
-      setLoading(false);
+      setLoading(
+        false,
+      );
+    }
+  }
+
+  async function loadEmployees() {
+    try {
+      const response =
+        await apiFetch(
+          '/employees?status=all',
+        );
+
+      if (
+        response.status ===
+        401
+      ) {
+        handleLogout();
+        return;
+      }
+
+      const data =
+        await readResponse<
+          Employee[]
+        >(response);
+
+      setEmployees(
+        data,
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Erro ao carregar funcionários',
+      );
     }
   }
 
@@ -216,7 +325,10 @@ export default function UsersPage() {
       !token ||
       !storedUser
     ) {
-      router.replace('/login');
+      router.replace(
+        '/login',
+      );
+
       return;
     }
 
@@ -230,6 +342,10 @@ export default function UsersPage() {
         parsed,
       );
 
+      /**
+       * RECEPTIONIST e STAFF
+       * não acessam esta página.
+       */
       if (
         parsed.membership.role !==
           'OWNER' &&
@@ -237,13 +353,29 @@ export default function UsersPage() {
           'ADMIN'
       ) {
         router.replace(
-          '/dashboard',
+          '/agenda',
         );
 
         return;
       }
 
-      loadMembers();
+      async function initialize() {
+        await loadMembers();
+
+        /**
+         * Só OWNER precisa carregar
+         * os funcionários para fazer
+         * os vínculos.
+         */
+        if (
+          parsed.membership.role ===
+          'OWNER'
+        ) {
+          await loadEmployees();
+        }
+      }
+
+      initialize();
     } catch {
       handleLogout();
     }
@@ -256,14 +388,18 @@ export default function UsersPage() {
       emptyForm,
     );
 
-    setShowForm(true);
+    setShowForm(
+      true,
+    );
 
     setError('');
     setSuccess('');
   }
 
   function closeForm() {
-    setShowForm(false);
+    setShowForm(
+      false,
+    );
 
     setForm(
       emptyForm,
@@ -274,6 +410,14 @@ export default function UsersPage() {
     event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
+
+    if (!isOwner) {
+      setError(
+        'Somente o proprietário pode cadastrar usuários.',
+      );
+
+      return;
+    }
 
     if (
       !form.name.trim()
@@ -296,7 +440,8 @@ export default function UsersPage() {
     }
 
     if (
-      form.password.length < 6
+      form.password.length <
+      6
     ) {
       setError(
         'A senha deve possuir pelo menos 6 caracteres.',
@@ -306,7 +451,9 @@ export default function UsersPage() {
     }
 
     try {
-      setSaving(true);
+      setSaving(
+        true,
+      );
 
       setError('');
       setSuccess('');
@@ -315,28 +462,31 @@ export default function UsersPage() {
         await apiFetch(
           '/team-members',
           {
-            method: 'POST',
+            method:
+              'POST',
 
-            body: JSON.stringify({
-              name:
-                form.name.trim(),
+            body:
+              JSON.stringify({
+                name:
+                  form.name.trim(),
 
-              email:
-                form.email
-                  .trim()
-                  .toLowerCase(),
+                email:
+                  form.email
+                    .trim()
+                    .toLowerCase(),
 
-              password:
-                form.password,
+                password:
+                  form.password,
 
-              role:
-                form.role,
-            }),
+                role:
+                  form.role,
+              }),
           },
         );
 
       if (
-        response.status === 401
+        response.status ===
+        401
       ) {
         handleLogout();
         return;
@@ -360,7 +510,9 @@ export default function UsersPage() {
           : 'Erro ao cadastrar usuário',
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false,
+      );
     }
   }
 
@@ -371,8 +523,18 @@ export default function UsersPage() {
       | 'RECEPTIONIST'
       | 'STAFF',
   ) {
+    if (!isOwner) {
+      setError(
+        'Somente o proprietário pode alterar permissões.',
+      );
+
+      return;
+    }
+
     try {
-      setSaving(true);
+      setSaving(
+        true,
+      );
 
       setError('');
       setSuccess('');
@@ -381,22 +543,25 @@ export default function UsersPage() {
         await apiFetch(
           `/team-members/${member.id}/role`,
           {
-            method: 'PATCH',
+            method:
+              'PATCH',
 
-            body: JSON.stringify({
-              role,
-            }),
+            body:
+              JSON.stringify({
+                role,
+              }),
           },
         );
 
       if (
-        response.status === 401
+        response.status ===
+        401
       ) {
         handleLogout();
         return;
       }
 
-      await readResponse<TeamMember>(
+      await readResponse<unknown>(
         response,
       );
 
@@ -412,25 +577,130 @@ export default function UsersPage() {
           : 'Erro ao alterar permissão',
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false,
+      );
     }
   }
 
-  const isOwner =
-    currentUser?.membership.role ===
-    'OWNER';
+  async function saveEmployeeLink(
+    member: TeamMember,
+  ) {
+    if (!isOwner) {
+      setError(
+        'Somente o proprietário pode vincular funcionários.',
+      );
+
+      return;
+    }
+
+    if (
+      member.role !==
+      'STAFF'
+    ) {
+      setError(
+        'Somente usuários com função Funcionário podem possuir vínculo.',
+      );
+
+      return;
+    }
+
+    try {
+      setSaving(
+        true,
+      );
+
+      setError('');
+      setSuccess('');
+
+      const selectedEmployeeId =
+        employeeSelections[
+          member.id
+        ] ?? '';
+
+      const response =
+        await apiFetch(
+          `/team-members/${member.id}/employee`,
+          {
+            method:
+              'PATCH',
+
+            body:
+              JSON.stringify({
+                employeeId:
+                  selectedEmployeeId ||
+                  null,
+              }),
+          },
+        );
+
+      if (
+        response.status ===
+        401
+      ) {
+        handleLogout();
+        return;
+      }
+
+      await readResponse<unknown>(
+        response,
+      );
+
+      setSuccess(
+        selectedEmployeeId
+          ? `Funcionário vinculado ao usuário ${member.user.name}.`
+          : `Vínculo de ${member.user.name} removido.`,
+      );
+
+      await loadMembers();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Erro ao vincular funcionário',
+      );
+    } finally {
+      setSaving(
+        false,
+      );
+    }
+  }
+
+  /**
+   * Verifica se determinado funcionário
+   * já está associado a outro usuário.
+   */
+  function isEmployeeLinkedToAnotherMember(
+    employeeId: string,
+    currentMemberId: string,
+  ) {
+    return members.some(
+      (member) =>
+        member.id !==
+          currentMemberId &&
+        member.employee?.id ===
+          employeeId,
+    );
+  }
 
   return (
     <PanelShell
       title="Usuários"
       subtitle="Acessos e permissões da empresa"
     >
+      {/* CABEÇALHO */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
         <div>
           <p className="text-sm text-zinc-500">
             Controle quem pode acessar o sistema.
           </p>
+
+          {isOwner && (
+            <p className="mt-1 text-xs text-zinc-400">
+              Usuários com função Funcionário podem ser vinculados ao profissional correspondente.
+            </p>
+          )}
         </div>
 
         {isOwner && (
@@ -445,178 +715,197 @@ export default function UsersPage() {
         )}
       </div>
 
+      {/* ERRO */}
       {error && (
         <div className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
 
+      {/* SUCESSO */}
       {success && (
         <div className="mt-5 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
           {success}
         </div>
       )}
 
-      {showForm && isOwner && (
-        <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      {/* NOVO USUÁRIO */}
+      {showForm &&
+        isOwner && (
+          <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
 
-          <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
 
-            <div>
-              <h2 className="text-lg font-semibold text-zinc-900">
-                Novo usuário
-              </h2>
+              <div>
+                <h2 className="text-lg font-semibold text-zinc-900">
+                  Novo usuário
+                </h2>
 
-              <p className="mt-1 text-sm text-zinc-500">
-                Crie um acesso para uma pessoa da empresa.
-              </p>
-            </div>
-
-            <button
-              onClick={
-                closeForm
-              }
-              className="text-sm text-zinc-500 hover:text-zinc-900"
-            >
-              Fechar
-            </button>
-          </div>
-
-          <form
-            onSubmit={
-              handleSubmit
-            }
-            className="mt-6 grid gap-5 md:grid-cols-2"
-          >
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Nome *
-              </label>
-
-              <input
-                value={
-                  form.name
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-                    name:
-                      event.target.value,
-                  })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                placeholder="Nome do usuário"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                E-mail *
-              </label>
-
-              <input
-                type="email"
-                value={
-                  form.email
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-                    email:
-                      event.target.value,
-                  })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                placeholder="usuario@empresa.com"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Senha inicial *
-              </label>
-
-              <input
-                type="password"
-                value={
-                  form.password
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-                    password:
-                      event.target.value,
-                  })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                placeholder="Mínimo 6 caracteres"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Função *
-              </label>
-
-              <select
-                value={
-                  form.role
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-
-                    role:
-                      event.target
-                        .value as
-                        | 'ADMIN'
-                        | 'RECEPTIONIST'
-                        | 'STAFF',
-                  })
-                }
-                className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3"
-              >
-                <option value="ADMIN">
-                  Administrador
-                </option>
-
-                <option value="RECEPTIONIST">
-                  Recepção
-                </option>
-
-                <option value="STAFF">
-                  Funcionário
-                </option>
-              </select>
-            </div>
-
-            <div className="md:col-span-2">
+                <p className="mt-1 text-sm text-zinc-500">
+                  Crie um acesso para uma pessoa da empresa.
+                </p>
+              </div>
 
               <button
-                type="submit"
-                disabled={
-                  saving
+                onClick={
+                  closeForm
                 }
-                className="rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                className="text-sm text-zinc-500 hover:text-zinc-900"
               >
-                {saving
-                  ? 'Salvando...'
-                  : 'Criar usuário'}
+                Fechar
               </button>
             </div>
-          </form>
-        </section>
-      )}
 
+            <form
+              onSubmit={
+                handleSubmit
+              }
+              className="mt-6 grid gap-5 md:grid-cols-2"
+            >
+
+              {/* NOME */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Nome *
+                </label>
+
+                <input
+                  value={
+                    form.name
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      name:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                  placeholder="Nome do usuário"
+                />
+              </div>
+
+              {/* EMAIL */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  E-mail *
+                </label>
+
+                <input
+                  type="email"
+                  value={
+                    form.email
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      email:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                  placeholder="usuario@empresa.com"
+                />
+              </div>
+
+              {/* SENHA */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Senha inicial *
+                </label>
+
+                <input
+                  type="password"
+                  value={
+                    form.password
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      password:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                  placeholder="Mínimo 6 caracteres"
+                />
+              </div>
+
+              {/* FUNÇÃO */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Função *
+                </label>
+
+                <select
+                  value={
+                    form.role
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      role:
+                        event
+                          .target
+                          .value as
+                          | 'ADMIN'
+                          | 'RECEPTIONIST'
+                          | 'STAFF',
+                    })
+                  }
+                  className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3"
+                >
+                  <option value="ADMIN">
+                    Administrador
+                  </option>
+
+                  <option value="RECEPTIONIST">
+                    Recepção
+                  </option>
+
+                  <option value="STAFF">
+                    Funcionário
+                  </option>
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+
+                <button
+                  type="submit"
+                  disabled={
+                    saving
+                  }
+                  className="rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                >
+                  {saving
+                    ? 'Salvando...'
+                    : 'Criar usuário'}
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
+
+      {/* USUÁRIOS */}
       <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
 
         <div className="flex items-center justify-between">
@@ -648,7 +937,7 @@ export default function UsersPage() {
         ) : (
           <div className="mt-6 overflow-x-auto">
 
-            <table className="w-full min-w-[760px] text-left">
+            <table className="w-full min-w-[1100px] text-left">
 
               <thead>
                 <tr className="border-b border-zinc-200 text-sm text-zinc-500">
@@ -665,6 +954,10 @@ export default function UsersPage() {
                     Função
                   </th>
 
+                  <th className="px-3 py-3">
+                    Funcionário vinculado
+                  </th>
+
                   <th className="px-3 py-3 text-right">
                     Permissão
                   </th>
@@ -678,14 +971,15 @@ export default function UsersPage() {
                       key={
                         member.id
                       }
-                      className="border-b border-zinc-100"
+                      className="border-b border-zinc-100 align-top"
                     >
 
+                      {/* USUÁRIO */}
                       <td className="px-3 py-4">
 
                         <div className="flex items-center gap-3">
 
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 font-semibold text-zinc-700">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 font-semibold text-zinc-700">
                             {member.user.name
                               .charAt(0)
                               .toUpperCase()}
@@ -693,7 +987,10 @@ export default function UsersPage() {
 
                           <div>
                             <p className="font-medium text-zinc-900">
-                              {member.user.name}
+                              {
+                                member.user
+                                  .name
+                              }
                             </p>
 
                             {currentUser
@@ -708,10 +1005,15 @@ export default function UsersPage() {
                         </div>
                       </td>
 
+                      {/* EMAIL */}
                       <td className="px-3 py-4 text-sm text-zinc-600">
-                        {member.user.email}
+                        {
+                          member.user
+                            .email
+                        }
                       </td>
 
+                      {/* FUNÇÃO */}
                       <td className="px-3 py-4">
 
                         <span
@@ -736,6 +1038,137 @@ export default function UsersPage() {
                         </span>
                       </td>
 
+                      {/* FUNCIONÁRIO VINCULADO */}
+                      <td className="px-3 py-4">
+
+                        {member.role !==
+                        'STAFF' ? (
+                          <span className="text-sm text-zinc-400">
+                            Não se aplica
+                          </span>
+                        ) : isOwner ? (
+                          <div className="flex min-w-[280px] flex-col gap-2">
+
+                            <select
+                              value={
+                                employeeSelections[
+                                  member.id
+                                ] ?? ''
+                              }
+                              disabled={
+                                saving
+                              }
+                              onChange={(
+                                event,
+                              ) =>
+                                setEmployeeSelections(
+                                  (
+                                    current,
+                                  ) => ({
+                                    ...current,
+
+                                    [member.id]:
+                                      event
+                                        .target
+                                        .value,
+                                  }),
+                                )
+                              }
+                              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+                            >
+                              <option value="">
+                                Nenhum funcionário vinculado
+                              </option>
+
+                              {employees.map(
+                                (
+                                  employee,
+                                ) => {
+                                  const linkedToAnother =
+                                    isEmployeeLinkedToAnotherMember(
+                                      employee.id,
+                                      member.id,
+                                    );
+
+                                  return (
+                                    <option
+                                      key={
+                                        employee.id
+                                      }
+                                      value={
+                                        employee.id
+                                      }
+                                      disabled={
+                                        linkedToAnother ||
+                                        !employee.active
+                                      }
+                                    >
+                                      {
+                                        employee.name
+                                      }
+
+                                      {!employee.active
+                                        ? ' — Inativo'
+                                        : linkedToAnother
+                                          ? ' — Já vinculado'
+                                          : ''}
+                                    </option>
+                                  );
+                                },
+                              )}
+                            </select>
+
+                            <div className="flex items-center justify-between gap-3">
+
+                              <span className="text-xs text-zinc-400">
+                                {member.employee
+                                  ? `Atual: ${member.employee.name}`
+                                  : 'Nenhum vínculo atual'}
+                              </span>
+
+                              <button
+                                type="button"
+                                disabled={
+                                  saving
+                                }
+                                onClick={() =>
+                                  saveEmployeeLink(
+                                    member,
+                                  )
+                                }
+                                className="rounded-lg border border-blue-300 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-60"
+                              >
+                                {saving
+                                  ? 'Salvando...'
+                                  : 'Salvar vínculo'}
+                              </button>
+                            </div>
+                          </div>
+                        ) : member.employee ? (
+                          <div>
+                            <p className="text-sm font-medium text-zinc-800">
+                              {
+                                member
+                                  .employee
+                                  .name
+                              }
+                            </p>
+
+                            {!member.employee
+                              .active && (
+                              <p className="mt-1 text-xs text-red-500">
+                                Funcionário inativo
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-zinc-400">
+                            Não vinculado
+                          </span>
+                        )}
+                      </td>
+
+                      {/* PERMISSÃO */}
                       <td className="px-3 py-4 text-right">
 
                         {member.role ===
@@ -793,6 +1226,7 @@ export default function UsersPage() {
         )}
       </section>
 
+      {/* EXPLICAÇÃO */}
       <section className="mt-6 rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
 
         <h3 className="font-semibold text-zinc-900">
@@ -802,45 +1236,62 @@ export default function UsersPage() {
         <div className="mt-4 grid gap-3 md:grid-cols-2">
 
           <div className="rounded-xl bg-white p-4">
+
             <p className="font-medium text-zinc-900">
               Proprietário
             </p>
 
             <p className="mt-1 text-sm text-zinc-500">
-              Responsável principal pela empresa e pelos acessos.
+              Responsável principal pela empresa, usuários e permissões.
             </p>
           </div>
 
           <div className="rounded-xl bg-white p-4">
+
             <p className="font-medium text-zinc-900">
               Administrador
             </p>
 
             <p className="mt-1 text-sm text-zinc-500">
-              Pode gerenciar as principais áreas da operação.
+              Pode gerenciar as principais áreas da operação, mas não administra usuários.
             </p>
           </div>
 
           <div className="rounded-xl bg-white p-4">
+
             <p className="font-medium text-zinc-900">
               Recepção
             </p>
 
             <p className="mt-1 text-sm text-zinc-500">
-              Destinado ao atendimento e gerenciamento da agenda.
+              Destinado ao atendimento, clientes e gerenciamento da agenda.
             </p>
           </div>
 
           <div className="rounded-xl bg-white p-4">
+
             <p className="font-medium text-zinc-900">
               Funcionário
             </p>
 
             <p className="mt-1 text-sm text-zinc-500">
-              Perfil com acesso mais restrito.
+              Vinculado a um profissional e limitado à própria agenda.
             </p>
           </div>
         </div>
+
+        {isOwner && (
+          <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4">
+
+            <p className="text-sm font-medium text-blue-900">
+              Vínculo de funcionários
+            </p>
+
+            <p className="mt-1 text-sm text-blue-700">
+              Ao mudar um usuário Funcionário para outra função, o vínculo com o profissional é removido automaticamente.
+            </p>
+          </div>
+        )}
       </section>
     </PanelShell>
   );
