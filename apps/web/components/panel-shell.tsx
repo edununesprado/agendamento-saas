@@ -60,14 +60,17 @@ const menuItems: MenuItem[] = [
       'ADMIN',
     ],
   },
+
   {
     label: 'Agenda',
     href: '/agenda',
   },
+
   {
     label: 'Clientes',
     href: '/clientes',
   },
+
   {
     label: 'Funcionários',
     href: '/funcionarios',
@@ -77,10 +80,12 @@ const menuItems: MenuItem[] = [
       'RECEPTIONIST',
     ],
   },
+
   {
     label: 'Serviços',
     href: '/servicos',
   },
+
   {
     label: 'Usuários',
     href: '/usuarios',
@@ -89,6 +94,7 @@ const menuItems: MenuItem[] = [
       'ADMIN',
     ],
   },
+
   {
     label: 'Configurações',
     href: '/configuracoes',
@@ -104,7 +110,8 @@ export function PanelShell({
   subtitle,
   children,
 }: PanelShellProps) {
-  const router = useRouter();
+  const router =
+    useRouter();
 
   const pathname =
     usePathname();
@@ -160,7 +167,7 @@ export function PanelShell({
             storedUser,
           ) as StoredUser;
 
-        /*
+        /**
          * Salva a função do usuário
          * para controlar o menu.
          */
@@ -168,7 +175,7 @@ export function PanelShell({
           parsed.membership.role,
         );
 
-        /*
+        /**
          * Mostra imediatamente os dados
          * da empresa que já temos
          * no navegador.
@@ -177,7 +184,7 @@ export function PanelShell({
           parsed.tenant,
         );
 
-        /*
+        /**
          * Busca os dados mais recentes
          * da empresa no backend.
          */
@@ -202,13 +209,14 @@ export function PanelShell({
             tenantData,
           );
 
-          /*
+          /**
            * Atualiza também os dados
            * armazenados no navegador.
            */
           const updatedStoredUser = {
             ...parsed,
-            tenant: tenantData,
+            tenant:
+              tenantData,
           };
 
           localStorage.setItem(
@@ -219,7 +227,9 @@ export function PanelShell({
           );
         }
 
-        setReady(true);
+        setReady(
+          true,
+        );
       } catch {
         handleLogout();
       }
@@ -261,21 +271,44 @@ export function PanelShell({
     );
   }
 
-  /*
-   * Filtra o menu conforme a
-   * função do usuário.
+  /**
+   * Filtra o menu conforme
+   * a função do usuário.
+   *
+   * STAFF recebe ainda uma
+   * identificação especial
+   * para a própria agenda.
    */
   const visibleMenuItems =
-    menuItems.filter(
-      (item) =>
-        !item.roles ||
-        (
-          role &&
-          item.roles.includes(
-            role,
-          )
-        ),
-    );
+    menuItems
+      .filter(
+        (item) =>
+          !item.roles ||
+          (
+            role &&
+            item.roles.includes(
+              role,
+            )
+          ),
+      )
+      .map(
+        (item) => {
+          if (
+            role ===
+              'STAFF' &&
+            item.href ===
+              '/agenda'
+          ) {
+            return {
+              ...item,
+              label:
+                'Minha Agenda',
+            };
+          }
+
+          return item;
+        },
+      );
 
   const primaryColor =
     tenant?.primaryColor ||
@@ -284,6 +317,7 @@ export function PanelShell({
   if (!ready) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-100">
+
         <p className="text-sm text-zinc-500">
           Carregando...
         </p>
@@ -293,6 +327,7 @@ export function PanelShell({
 
   return (
     <div className="min-h-screen bg-zinc-100">
+
       <div className="flex min-h-screen">
 
         {/* MENU DESKTOP */}
@@ -337,6 +372,20 @@ export function PanelShell({
             <p className="mt-1 text-xs text-zinc-400">
               Sistema de agendamento
             </p>
+
+            {role ===
+              'STAFF' && (
+              <div className="mt-3 rounded-lg bg-zinc-900 px-3 py-2">
+
+                <p className="text-xs font-medium text-zinc-300">
+                  Perfil: Funcionário
+                </p>
+
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  Acesso à própria agenda
+                </p>
+              </div>
+            )}
           </div>
 
           {/* MENU */}
@@ -418,12 +467,24 @@ export function PanelShell({
                 </p>
 
                 <h2 className="mt-1 text-xl font-bold text-zinc-900">
-                  {title}
+                  {role ===
+                    'STAFF' &&
+                  pathname.startsWith(
+                    '/agenda',
+                  )
+                    ? 'Minha Agenda'
+                    : title}
                 </h2>
 
                 {subtitle && (
                   <p className="mt-1 text-sm text-zinc-500">
-                    {subtitle}
+                    {role ===
+                      'STAFF' &&
+                    pathname.startsWith(
+                      '/agenda',
+                    )
+                      ? 'Seus horários e atendimentos'
+                      : subtitle}
                   </p>
                 )}
               </div>

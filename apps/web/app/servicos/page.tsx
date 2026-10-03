@@ -11,6 +11,19 @@ import { useRouter } from 'next/navigation';
 import { PanelShell } from '@/components/panel-shell';
 import { apiFetch } from '@/lib/api';
 
+type Role =
+  | 'OWNER'
+  | 'ADMIN'
+  | 'RECEPTIONIST'
+  | 'STAFF';
+
+type StoredUser = {
+  membership: {
+    id: string;
+    role: Role;
+  };
+};
+
 type Service = {
   id: string;
   name: string;
@@ -42,12 +55,18 @@ async function readResponse<T>(
 
   if (!response.ok) {
     const message =
-      Array.isArray(data?.message)
-        ? data.message.join(', ')
+      Array.isArray(
+        data?.message,
+      )
+        ? data.message.join(
+            ', ',
+          )
         : data?.message ??
           'Erro na requisição';
 
-    throw new Error(message);
+    throw new Error(
+      message,
+    );
   }
 
   return data as T;
@@ -90,13 +109,24 @@ function priceToCents(
 }
 
 export default function ServicesPage() {
-  const router = useRouter();
+  const router =
+    useRouter();
+
+  const [
+    role,
+    setRole,
+  ] =
+    useState<Role | null>(
+      null,
+    );
 
   const [
     services,
     setServices,
   ] =
-    useState<Service[]>([]);
+    useState<Service[]>(
+      [],
+    );
 
   const [
     search,
@@ -158,6 +188,17 @@ export default function ServicesPage() {
       emptyForm,
     );
 
+  /**
+   * Somente OWNER e ADMIN
+   * podem administrar serviços.
+   *
+   * RECEPTIONIST e STAFF
+   * ficam somente com consulta.
+   */
+  const canManageServices =
+    role === 'OWNER' ||
+    role === 'ADMIN';
+
   function handleLogout() {
     localStorage.removeItem(
       'accessToken',
@@ -167,7 +208,9 @@ export default function ServicesPage() {
       'currentUser',
     );
 
-    router.replace('/login');
+    router.replace(
+      '/login',
+    );
   }
 
   async function loadServices(
@@ -177,7 +220,10 @@ export default function ServicesPage() {
       | 'all' = status,
   ) {
     try {
-      setLoading(true);
+      setLoading(
+        true,
+      );
+
       setError('');
 
       const response =
@@ -186,7 +232,8 @@ export default function ServicesPage() {
         );
 
       if (
-        response.status === 401
+        response.status ===
+        401
       ) {
         handleLogout();
         return;
@@ -197,7 +244,9 @@ export default function ServicesPage() {
           Service[]
         >(response);
 
-      setServices(data);
+      setServices(
+        data,
+      );
     } catch (err) {
       setError(
         err instanceof Error
@@ -205,7 +254,9 @@ export default function ServicesPage() {
           : 'Erro ao carregar serviços',
       );
     } finally {
-      setLoading(false);
+      setLoading(
+        false,
+      );
     }
   }
 
@@ -224,11 +275,29 @@ export default function ServicesPage() {
       !token ||
       !storedUser
     ) {
-      router.replace('/login');
+      router.replace(
+        '/login',
+      );
+
       return;
     }
 
-    loadServices('active');
+    try {
+      const parsed =
+        JSON.parse(
+          storedUser,
+        ) as StoredUser;
+
+      setRole(
+        parsed.membership.role,
+      );
+
+      loadServices(
+        'active',
+      );
+    } catch {
+      handleLogout();
+    }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -259,13 +328,27 @@ export default function ServicesPage() {
     ]);
 
   function openCreate() {
-    setEditingService(null);
+    if (
+      !canManageServices
+    ) {
+      setError(
+        'Você não possui permissão para cadastrar serviços.',
+      );
+
+      return;
+    }
+
+    setEditingService(
+      null,
+    );
 
     setForm(
       emptyForm,
     );
 
-    setShowForm(true);
+    setShowForm(
+      true,
+    );
 
     setError('');
     setSuccess('');
@@ -274,6 +357,16 @@ export default function ServicesPage() {
   function openEdit(
     service: Service,
   ) {
+    if (
+      !canManageServices
+    ) {
+      setError(
+        'Você não possui permissão para editar serviços.',
+      );
+
+      return;
+    }
+
     setEditingService(
       service,
     );
@@ -297,17 +390,24 @@ export default function ServicesPage() {
           100
         )
           .toFixed(2)
-          .replace('.', ','),
+          .replace(
+            '.',
+            ',',
+          ),
     });
 
-    setShowForm(true);
+    setShowForm(
+      true,
+    );
 
     setError('');
     setSuccess('');
   }
 
   function closeForm() {
-    setShowForm(false);
+    setShowForm(
+      false,
+    );
 
     setEditingService(
       null,
@@ -322,6 +422,16 @@ export default function ServicesPage() {
     event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
+
+    if (
+      !canManageServices
+    ) {
+      setError(
+        'Você não possui permissão para alterar serviços.',
+      );
+
+      return;
+    }
 
     setError('');
     setSuccess('');
@@ -370,7 +480,9 @@ export default function ServicesPage() {
     }
 
     try {
-      setSaving(true);
+      setSaving(
+        true,
+      );
 
       const payload = {
         name:
@@ -431,13 +543,25 @@ export default function ServicesPage() {
           : 'Erro ao salvar serviço',
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false,
+      );
     }
   }
 
   async function deactivateService(
     service: Service,
   ) {
+    if (
+      !canManageServices
+    ) {
+      setError(
+        'Você não possui permissão para desativar serviços.',
+      );
+
+      return;
+    }
+
     const confirmed =
       window.confirm(
         `Deseja desativar o serviço ${service.name}?`,
@@ -481,6 +605,16 @@ export default function ServicesPage() {
   async function restoreService(
     service: Service,
   ) {
+    if (
+      !canManageServices
+    ) {
+      setError(
+        'Você não possui permissão para reativar serviços.',
+      );
+
+      return;
+    }
+
     try {
       setError('');
       setSuccess('');
@@ -520,19 +654,30 @@ export default function ServicesPage() {
       {/* CABEÇALHO */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
-        <p className="text-sm text-zinc-500">
-          Cadastre preços, duração e
-          serviços oferecidos.
-        </p>
+        <div>
+          <p className="text-sm text-zinc-500">
+            {canManageServices
+              ? 'Cadastre preços, duração e serviços oferecidos.'
+              : 'Consulte os serviços, preços e duração.'}
+          </p>
 
-        <button
-          onClick={
-            openCreate
-          }
-          className="rounded-lg bg-zinc-900 px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800"
-        >
-          + Novo serviço
-        </button>
+          {!canManageServices && (
+            <p className="mt-1 text-xs text-zinc-400">
+              Seu perfil possui acesso somente para visualização.
+            </p>
+          )}
+        </div>
+
+        {canManageServices && (
+          <button
+            onClick={
+              openCreate
+            }
+            className="rounded-lg bg-zinc-900 px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800"
+          >
+            + Novo serviço
+          </button>
+        )}
       </div>
 
       {/* ERRO */}
@@ -550,170 +695,171 @@ export default function ServicesPage() {
       )}
 
       {/* FORMULÁRIO */}
-      {showForm && (
-        <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+      {showForm &&
+        canManageServices && (
+          <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
 
-          <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
 
-            <h2 className="text-lg font-semibold text-zinc-900">
-              {editingService
-                ? 'Editar serviço'
-                : 'Novo serviço'}
-            </h2>
-
-            <button
-              onClick={
-                closeForm
-              }
-              className="text-sm text-zinc-500 hover:text-zinc-900"
-            >
-              Fechar
-            </button>
-          </div>
-
-          <form
-            onSubmit={
-              handleSubmit
-            }
-            className="mt-6 grid gap-5 md:grid-cols-2"
-          >
-
-            {/* NOME */}
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Nome *
-              </label>
-
-              <input
-                value={
-                  form.name
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-
-                    name:
-                      event
-                        .target
-                        .value,
-                  })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                placeholder="Ex: Corte Masculino"
-              />
-            </div>
-
-            {/* DURAÇÃO */}
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Duração em minutos *
-              </label>
-
-              <input
-                type="number"
-                min="1"
-                value={
-                  form.durationMin
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-
-                    durationMin:
-                      event
-                        .target
-                        .value,
-                  })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                placeholder="30"
-              />
-            </div>
-
-            {/* PREÇO */}
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Preço *
-              </label>
-
-              <input
-                value={
-                  form.price
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-
-                    price:
-                      event
-                        .target
-                        .value,
-                  })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                placeholder="50,00"
-              />
-
-              <p className="mt-1 text-xs text-zinc-400">
-                Digite em reais.
-                Exemplo: 50,00
-              </p>
-            </div>
-
-            {/* DESCRIÇÃO */}
-            <div className="md:col-span-2">
-
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Descrição
-              </label>
-
-              <textarea
-                value={
-                  form.description
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-
-                    description:
-                      event
-                        .target
-                        .value,
-                  })
-                }
-                rows={3}
-                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                placeholder="Descrição opcional do serviço..."
-              />
-            </div>
-
-            <div className="md:col-span-2">
+              <h2 className="text-lg font-semibold text-zinc-900">
+                {editingService
+                  ? 'Editar serviço'
+                  : 'Novo serviço'}
+              </h2>
 
               <button
-                type="submit"
-                disabled={
-                  saving
+                onClick={
+                  closeForm
                 }
-                className="rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                className="text-sm text-zinc-500 hover:text-zinc-900"
               >
-                {saving
-                  ? 'Salvando...'
-                  : editingService
-                    ? 'Salvar alterações'
-                    : 'Cadastrar serviço'}
+                Fechar
               </button>
             </div>
-          </form>
-        </section>
-      )}
+
+            <form
+              onSubmit={
+                handleSubmit
+              }
+              className="mt-6 grid gap-5 md:grid-cols-2"
+            >
+
+              {/* NOME */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Nome *
+                </label>
+
+                <input
+                  value={
+                    form.name
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      name:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                  placeholder="Ex: Corte Masculino"
+                />
+              </div>
+
+              {/* DURAÇÃO */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Duração em minutos *
+                </label>
+
+                <input
+                  type="number"
+                  min="1"
+                  value={
+                    form.durationMin
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      durationMin:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                  placeholder="30"
+                />
+              </div>
+
+              {/* PREÇO */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Preço *
+                </label>
+
+                <input
+                  value={
+                    form.price
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      price:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                  placeholder="50,00"
+                />
+
+                <p className="mt-1 text-xs text-zinc-400">
+                  Digite em reais.
+                  Exemplo: 50,00
+                </p>
+              </div>
+
+              {/* DESCRIÇÃO */}
+              <div className="md:col-span-2">
+
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Descrição
+                </label>
+
+                <textarea
+                  value={
+                    form.description
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      description:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                  rows={3}
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                  placeholder="Descrição opcional do serviço..."
+                />
+              </div>
+
+              <div className="md:col-span-2">
+
+                <button
+                  type="submit"
+                  disabled={
+                    saving
+                  }
+                  className="rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                >
+                  {saving
+                    ? 'Salvando...'
+                    : editingService
+                      ? 'Salvar alterações'
+                      : 'Cadastrar serviço'}
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
 
       {/* FILTROS */}
       <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
@@ -804,7 +950,7 @@ export default function ServicesPage() {
         ) : (
           <div className="mt-5 overflow-x-auto">
 
-            <table className="w-full min-w-[760px] text-left">
+            <table className="w-full min-w-[650px] text-left">
 
               <thead>
                 <tr className="border-b border-zinc-200 text-sm text-zinc-500">
@@ -825,9 +971,11 @@ export default function ServicesPage() {
                     Status
                   </th>
 
-                  <th className="px-3 py-3 text-right">
-                    Ações
-                  </th>
+                  {canManageServices && (
+                    <th className="px-3 py-3 text-right">
+                      Ações
+                    </th>
+                  )}
                 </tr>
               </thead>
 
@@ -841,30 +989,40 @@ export default function ServicesPage() {
                       className="border-b border-zinc-100"
                     >
 
+                      {/* SERVIÇO */}
                       <td className="px-3 py-4">
 
                         <p className="font-medium text-zinc-900">
-                          {service.name}
+                          {
+                            service.name
+                          }
                         </p>
 
                         {service.description && (
                           <p className="mt-1 max-w-sm text-xs text-zinc-500">
-                            {service.description}
+                            {
+                              service.description
+                            }
                           </p>
                         )}
                       </td>
 
+                      {/* DURAÇÃO */}
                       <td className="px-3 py-4 text-sm text-zinc-600">
-                        {service.durationMin}{' '}
+                        {
+                          service.durationMin
+                        }{' '}
                         min
                       </td>
 
+                      {/* PREÇO */}
                       <td className="px-3 py-4 font-medium text-zinc-900">
                         {formatCurrency(
                           service.priceCents,
                         )}
                       </td>
 
+                      {/* STATUS */}
                       <td className="px-3 py-4">
 
                         <span
@@ -880,46 +1038,49 @@ export default function ServicesPage() {
                         </span>
                       </td>
 
-                      <td className="px-3 py-4">
+                      {/* AÇÕES SOMENTE OWNER / ADMIN */}
+                      {canManageServices && (
+                        <td className="px-3 py-4">
 
-                        <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-2">
 
-                          <button
-                            onClick={() =>
-                              openEdit(
-                                service,
-                              )
-                            }
-                            className="rounded-lg border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-                          >
-                            Editar
-                          </button>
-
-                          {service.active ? (
                             <button
                               onClick={() =>
-                                deactivateService(
+                                openEdit(
                                   service,
                                 )
                               }
-                              className="rounded-lg border border-red-300 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50"
+                              className="rounded-lg border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
                             >
-                              Desativar
+                              Editar
                             </button>
-                          ) : (
-                            <button
-                              onClick={() =>
-                                restoreService(
-                                  service,
-                                )
-                              }
-                              className="rounded-lg border border-green-300 px-3 py-2 text-xs font-medium text-green-700 hover:bg-green-50"
-                            >
-                              Reativar
-                            </button>
-                          )}
-                        </div>
-                      </td>
+
+                            {service.active ? (
+                              <button
+                                onClick={() =>
+                                  deactivateService(
+                                    service,
+                                  )
+                                }
+                                className="rounded-lg border border-red-300 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50"
+                              >
+                                Desativar
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() =>
+                                  restoreService(
+                                    service,
+                                  )
+                                }
+                                className="rounded-lg border border-green-300 px-3 py-2 text-xs font-medium text-green-700 hover:bg-green-50"
+                              >
+                                Reativar
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ),
                 )}
