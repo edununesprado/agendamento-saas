@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
@@ -24,6 +25,24 @@ import { PublicBookingModule } from './public-booking/public-booking.module.js';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+
+    /*
+     * Configuração base do rate limiting.
+     *
+     * Importamos o ThrottlerModule uma única vez.
+     * O ThrottlerGuard será aplicado somente ao
+     * controller público, então as rotas internas
+     * autenticadas não serão limitadas por esta regra.
+     *
+     * Limite padrão das rotas públicas:
+     * 120 requisições por minuto por IP.
+     */
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: 120,
+      },
+    ]),
 
     PrismaModule,
     HealthModule,
