@@ -99,6 +99,18 @@ export default function SettingsPage() {
   ] =
     useState('');
 
+  const [
+    publicBookingUrl,
+    setPublicBookingUrl,
+  ] =
+    useState('');
+
+  const [
+    copied,
+    setCopied,
+  ] =
+    useState(false);
+
   function handleLogout() {
     localStorage.removeItem(
       'accessToken',
@@ -143,6 +155,10 @@ export default function SettingsPage() {
 
         setTenant(data);
 
+        setPublicBookingUrl(
+          `${window.location.origin}/agendar/${data.slug}`,
+        );
+
         setForm({
           name:
             data.name ?? '',
@@ -179,6 +195,40 @@ export default function SettingsPage() {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function handleCopyPublicLink() {
+    if (!publicBookingUrl) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(
+        publicBookingUrl,
+      );
+
+      setCopied(true);
+
+      window.setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch {
+      setError(
+        'Não foi possível copiar o link automaticamente.',
+      );
+    }
+  }
+
+  function handleOpenPublicPage() {
+    if (!publicBookingUrl) {
+      return;
+    }
+
+    window.open(
+      publicBookingUrl,
+      '_blank',
+      'noopener,noreferrer',
+    );
+  }
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>,
@@ -311,6 +361,59 @@ export default function SettingsPage() {
         <div className="mb-5 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
           {success}
         </div>
+      )}
+
+      {tenant && (
+        <section className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-semibold text-zinc-900">
+                Link público de agendamento
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-500">
+                Compartilhe este link com seus clientes para que eles possam agendar sem fazer login.
+              </p>
+
+              <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+                <p className="break-all font-mono text-sm text-zinc-700">
+                  {publicBookingUrl}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={
+                  handleCopyPublicLink
+                }
+                className="rounded-lg border border-zinc-300 bg-white px-5 py-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              >
+                {copied
+                  ? 'Link copiado!'
+                  : 'Copiar link'}
+              </button>
+
+              <button
+                type="button"
+                onClick={
+                  handleOpenPublicPage
+                }
+                className="rounded-lg bg-zinc-900 px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800"
+              >
+                Abrir página pública
+              </button>
+            </div>
+          </div>
+
+          <p className="mt-3 text-xs text-zinc-400">
+            O endereço usa o identificador da empresa:{' '}
+            <span className="font-mono">
+              {tenant.slug}
+            </span>
+          </p>
+        </section>
       )}
 
       <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
