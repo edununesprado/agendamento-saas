@@ -953,6 +953,134 @@ export default function AgendaPage() {
     }
   }
 
+  async function handleComplete(
+    appointment: Appointment,
+  ) {
+    if (
+      !canManageAppointments
+    ) {
+      setError(
+        'Você não possui permissão para concluir agendamentos.',
+      );
+
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `Deseja marcar o atendimento de ${appointment.client.name} como concluído?`,
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError('');
+      setSuccess('');
+
+      const response =
+        await apiFetch(
+          `/appointments/${appointment.id}/status`,
+          {
+            method:
+              'PATCH',
+
+            body:
+              JSON.stringify({
+                status:
+                  'COMPLETED',
+              }),
+          },
+        );
+
+      await readResponse<Appointment>(
+        response,
+      );
+
+      setSuccess(
+        'Atendimento concluído com sucesso.',
+      );
+
+      await loadAgenda(
+        date,
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Erro ao concluir atendimento',
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleNoShow(
+    appointment: Appointment,
+  ) {
+    if (
+      !canManageAppointments
+    ) {
+      setError(
+        'Você não possui permissão para registrar ausência.',
+      );
+
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `Deseja marcar ${appointment.client.name} como não compareceu?`,
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError('');
+      setSuccess('');
+
+      const response =
+        await apiFetch(
+          `/appointments/${appointment.id}/status`,
+          {
+            method:
+              'PATCH',
+
+            body:
+              JSON.stringify({
+                status:
+                  'NO_SHOW',
+              }),
+          },
+        );
+
+      await readResponse<Appointment>(
+        response,
+      );
+
+      setSuccess(
+        'Ausência registrada com sucesso.',
+      );
+
+      await loadAgenda(
+        date,
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Erro ao registrar ausência',
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleCancel(
     appointment: Appointment,
   ) {
@@ -1815,10 +1943,41 @@ export default function AgendaPage() {
                               }
                               className="rounded-lg border border-green-300 bg-green-50 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                              {saving
-                                ? 'Confirmando...'
-                                : 'Confirmar'}
+                              Confirmar
                             </button>
+                          )}
+
+                          {appointment.status ===
+                            'CONFIRMED' && (
+                            <>
+                              <button
+                                onClick={() =>
+                                  handleComplete(
+                                    appointment,
+                                  )
+                                }
+                                disabled={
+                                  saving
+                                }
+                                className="rounded-lg border border-green-300 bg-green-50 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Concluir
+                              </button>
+
+                              <button
+                                onClick={() =>
+                                  handleNoShow(
+                                    appointment,
+                                  )
+                                }
+                                disabled={
+                                  saving
+                                }
+                                className="rounded-lg border border-zinc-300 bg-zinc-50 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Não compareceu
+                              </button>
+                            </>
                           )}
 
                           <button
