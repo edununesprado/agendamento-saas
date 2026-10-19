@@ -13,12 +13,6 @@ import { CreatePublicAppointmentDto } from './dto/create-public-appointment.dto.
 import { PublicAvailabilityQueryDto } from './dto/public-availability-query.dto.js';
 import { PublicEmployeesQueryDto } from './dto/public-employees-query.dto.js';
 
-const PUBLIC_MIN_ADVANCE_MINUTES =
-  60;
-
-const PUBLIC_MAX_ADVANCE_DAYS =
-  7;
-
 @Injectable()
 export class PublicBookingService {
   constructor(
@@ -44,6 +38,12 @@ export class PublicBookingService {
           phone: true,
           email: true,
           timezone: true,
+
+          bookingMinAdvanceMinutes:
+            true,
+
+          bookingMaxAdvanceDays:
+            true,
         },
       });
 
@@ -65,18 +65,10 @@ export class PublicBookingService {
     );
   }
 
-  /*
-   * Janela permitida para
-   * agendamento público.
-   *
-   * Mínimo:
-   * 60 minutos a partir de agora.
-   *
-   * Máximo:
-   * até 7 dias à frente.
-   */
   private getPublicBookingWindow(
     timezone: string,
+    bookingMinAdvanceMinutes: number,
+    bookingMaxAdvanceDays: number,
   ) {
     const now =
       DateTime.now().setZone(
@@ -89,7 +81,7 @@ export class PublicBookingService {
       minimumStart:
         now.plus({
           minutes:
-            PUBLIC_MIN_ADVANCE_MINUTES,
+            bookingMinAdvanceMinutes,
         }),
 
       minimumDate:
@@ -101,7 +93,7 @@ export class PublicBookingService {
         now
           .plus({
             days:
-              PUBLIC_MAX_ADVANCE_DAYS,
+              bookingMaxAdvanceDays,
           })
           .startOf(
             'day',
@@ -112,6 +104,8 @@ export class PublicBookingService {
   private validatePublicDate(
     date: string,
     timezone: string,
+    bookingMinAdvanceMinutes: number,
+    bookingMaxAdvanceDays: number,
   ) {
     const selectedDate =
       DateTime.fromISO(
@@ -136,6 +130,8 @@ export class PublicBookingService {
     } =
       this.getPublicBookingWindow(
         timezone,
+        bookingMinAdvanceMinutes,
+        bookingMaxAdvanceDays,
       );
 
     const selectedDay =
@@ -157,7 +153,7 @@ export class PublicBookingService {
       maximumDate.toMillis()
     ) {
       throw new BadRequestException(
-        'Agendamentos públicos podem ser feitos com no máximo 7 dias de antecedência',
+        `Agendamentos públicos podem ser feitos com no máximo ${bookingMaxAdvanceDays} dias de antecedência`,
       );
     }
 
@@ -173,14 +169,32 @@ export class PublicBookingService {
       );
 
     return {
-      name: tenant.name,
-      slug: tenant.slug,
-      logoUrl: tenant.logoUrl,
+      name:
+        tenant.name,
+
+      slug:
+        tenant.slug,
+
+      logoUrl:
+        tenant.logoUrl,
+
       primaryColor:
         tenant.primaryColor,
-      phone: tenant.phone,
-      email: tenant.email,
-      timezone: tenant.timezone,
+
+      phone:
+        tenant.phone,
+
+      email:
+        tenant.email,
+
+      timezone:
+        tenant.timezone,
+
+      bookingMinAdvanceMinutes:
+        tenant.bookingMinAdvanceMinutes,
+
+      bookingMaxAdvanceDays:
+        tenant.bookingMaxAdvanceDays,
     };
   }
 
@@ -209,7 +223,8 @@ export class PublicBookingService {
       },
 
       orderBy: {
-        name: 'asc',
+        name:
+          'asc',
       },
     });
   }
@@ -237,7 +252,8 @@ export class PublicBookingService {
         },
 
         select: {
-          id: true,
+          id:
+            true,
         },
       });
 
@@ -269,7 +285,8 @@ export class PublicBookingService {
       },
 
       orderBy: {
-        name: 'asc',
+        name:
+          'asc',
       },
     });
   }
@@ -283,13 +300,11 @@ export class PublicBookingService {
         slug,
       );
 
-    /*
-     * Impede consulta pública
-     * para datas fora da janela.
-     */
     this.validatePublicDate(
       query.date,
       tenant.timezone,
+      tenant.bookingMinAdvanceMinutes,
+      tenant.bookingMaxAdvanceDays,
     );
 
     const availability =
@@ -305,16 +320,10 @@ export class PublicBookingService {
     } =
       this.getPublicBookingWindow(
         tenant.timezone,
+        tenant.bookingMinAdvanceMinutes,
+        tenant.bookingMaxAdvanceDays,
       );
 
-    /*
-     * Remove horários com menos
-     * de 60 minutos de antecedência.
-     *
-     * Isso também funciona caso
-     * o período mínimo ultrapasse
-     * a meia-noite.
-     */
     const slots =
       availability.slots.filter(
         (slot) => {
@@ -359,7 +368,8 @@ export class PublicBookingService {
       DateTime.fromISO(
         data.startsAt,
         {
-          setZone: true,
+          setZone:
+            true,
         },
       );
 
@@ -377,10 +387,6 @@ export class PublicBookingService {
     const requestedUtc =
       requestedDateTime.toUTC();
 
-    /*
-     * Mantemos a validação
-     * original de horário passado.
-     */
     if (
       requestedUtc.toMillis() <=
       nowUtc.toMillis()
@@ -390,16 +396,10 @@ export class PublicBookingService {
       );
     }
 
-    /*
-     * Segurança do backend:
-     * mesmo que alguém tente burlar
-     * o frontend, o agendamento precisa
-     * ter no mínimo 60 minutos.
-     */
     const minimumStartUtc =
       nowUtc.plus({
         minutes:
-          PUBLIC_MIN_ADVANCE_MINUTES,
+          tenant.bookingMinAdvanceMinutes,
       });
 
     if (
@@ -407,7 +407,7 @@ export class PublicBookingService {
       minimumStartUtc.toMillis()
     ) {
       throw new BadRequestException(
-        'Agendamentos públicos precisam ser feitos com pelo menos 60 minutos de antecedência',
+        `Agendamentos públicos precisam ser feitos com pelo menos ${tenant.bookingMinAdvanceMinutes} minutos de antecedência`,
       );
     }
 
@@ -425,13 +425,11 @@ export class PublicBookingService {
       );
     }
 
-    /*
-     * Segurança do backend:
-     * máximo de 7 dias.
-     */
     this.validatePublicDate(
       date,
       tenant.timezone,
+      tenant.bookingMinAdvanceMinutes,
+      tenant.bookingMaxAdvanceDays,
     );
 
     const requestedTime =
@@ -439,17 +437,6 @@ export class PublicBookingService {
         'HH:mm',
       );
 
-    /*
-     * Esta chamada já verifica:
-     *
-     * - funcionário ativo;
-     * - serviço ativo;
-     * - mesma empresa;
-     * - funcionário realiza serviço;
-     * - jornada;
-     * - bloqueios;
-     * - agendamentos existentes.
-     */
     const availability =
       await this.availabilityService.getAvailableSlots(
         tenant.id,
@@ -510,10 +497,6 @@ export class PublicBookingService {
     const appointment =
       await this.prisma.$transaction(
         async (tx) => {
-          /*
-           * Serializa a criação/reutilização
-           * do cliente público pelo telefone.
-           */
           await tx.$queryRaw<
             Array<{
               lock_value: number;
@@ -539,7 +522,8 @@ export class PublicBookingService {
               },
 
               select: {
-                id: true,
+                id:
+                  true,
               },
             });
 
@@ -559,19 +543,12 @@ export class PublicBookingService {
                 },
 
                 select: {
-                  id: true,
+                  id:
+                    true,
                 },
               });
           }
 
-          /*
-           * Trava o profissional.
-           *
-           * Mesmo que duas pessoas tenham
-           * escolhido o mesmo horário antes
-           * de apertar Confirmar, apenas uma
-           * poderá gravar o agendamento.
-           */
           await tx.$queryRaw<
             Array<{
               lock_value: number;
@@ -610,7 +587,8 @@ export class PublicBookingService {
               },
 
               select: {
-                id: true,
+                id:
+                  true,
               },
             });
 
@@ -645,36 +623,50 @@ export class PublicBookingService {
               priceCents:
                 availability.service.priceCents,
 
-              /*
-               * Público começa aguardando
-               * confirmação da empresa.
-               */
               status:
                 'PENDING',
 
               notes:
-                notes || undefined,
+                notes ||
+                undefined,
             },
 
             select: {
-              id: true,
-              startsAt: true,
-              endsAt: true,
-              status: true,
+              id:
+                true,
+
+              startsAt:
+                true,
+
+              endsAt:
+                true,
+
+              status:
+                true,
 
               employee: {
                 select: {
-                  id: true,
-                  name: true,
+                  id:
+                    true,
+
+                  name:
+                    true,
                 },
               },
 
               service: {
                 select: {
-                  id: true,
-                  name: true,
-                  durationMin: true,
-                  priceCents: true,
+                  id:
+                    true,
+
+                  name:
+                    true,
+
+                  durationMin:
+                    true,
+
+                  priceCents:
+                    true,
                 },
               },
             },
@@ -682,11 +674,6 @@ export class PublicBookingService {
         },
       );
 
-    /*
-     * Não devolvemos Client completo.
-     * Assim telefone e e-mail do cliente
-     * não aparecem na resposta pública.
-     */
     return appointment;
   }
 }

@@ -45,6 +45,9 @@ model Tenant {
 
   timezone String @default("America/Sao_Paulo")
 
+  bookingMinAdvanceMinutes Int @default(60)
+  bookingMaxAdvanceDays    Int @default(7)
+
   memberships       Membership[]
   services          Service[]
   employees         Employee[]

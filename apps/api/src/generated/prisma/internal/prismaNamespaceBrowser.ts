@@ -88,6 +88,8 @@ export const TenantScalarFieldEnum = {
   phone: 'phone',
   email: 'email',
   timezone: 'timezone',
+  bookingMinAdvanceMinutes: 'bookingMinAdvanceMinutes',
+  bookingMaxAdvanceDays: 'bookingMaxAdvanceDays',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

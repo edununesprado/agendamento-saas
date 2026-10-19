@@ -20,8 +20,20 @@ export type TenantModel = runtime.Types.Result.DefaultSelection<Prisma.$TenantPa
 
 export type AggregateTenant = {
   _count: TenantCountAggregateOutputType | null
+  _avg: TenantAvgAggregateOutputType | null
+  _sum: TenantSumAggregateOutputType | null
   _min: TenantMinAggregateOutputType | null
   _max: TenantMaxAggregateOutputType | null
+}
+
+export type TenantAvgAggregateOutputType = {
+  bookingMinAdvanceMinutes: number | null
+  bookingMaxAdvanceDays: number | null
+}
+
+export type TenantSumAggregateOutputType = {
+  bookingMinAdvanceMinutes: number | null
+  bookingMaxAdvanceDays: number | null
 }
 
 export type TenantMinAggregateOutputType = {
@@ -33,6 +45,8 @@ export type TenantMinAggregateOutputType = {
   phone: string | null
   email: string | null
   timezone: string | null
+  bookingMinAdvanceMinutes: number | null
+  bookingMaxAdvanceDays: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -46,6 +60,8 @@ export type TenantMaxAggregateOutputType = {
   phone: string | null
   email: string | null
   timezone: string | null
+  bookingMinAdvanceMinutes: number | null
+  bookingMaxAdvanceDays: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -59,11 +75,23 @@ export type TenantCountAggregateOutputType = {
   phone: number
   email: number
   timezone: number
+  bookingMinAdvanceMinutes: number
+  bookingMaxAdvanceDays: number
   createdAt: number
   updatedAt: number
   _all: number
 }
 
+
+export type TenantAvgAggregateInputType = {
+  bookingMinAdvanceMinutes?: true
+  bookingMaxAdvanceDays?: true
+}
+
+export type TenantSumAggregateInputType = {
+  bookingMinAdvanceMinutes?: true
+  bookingMaxAdvanceDays?: true
+}
 
 export type TenantMinAggregateInputType = {
   id?: true
@@ -74,6 +102,8 @@ export type TenantMinAggregateInputType = {
   phone?: true
   email?: true
   timezone?: true
+  bookingMinAdvanceMinutes?: true
+  bookingMaxAdvanceDays?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -87,6 +117,8 @@ export type TenantMaxAggregateInputType = {
   phone?: true
   email?: true
   timezone?: true
+  bookingMinAdvanceMinutes?: true
+  bookingMaxAdvanceDays?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -100,6 +132,8 @@ export type TenantCountAggregateInputType = {
   phone?: true
   email?: true
   timezone?: true
+  bookingMinAdvanceMinutes?: true
+  bookingMaxAdvanceDays?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -143,6 +177,18 @@ export type TenantAggregateArgs<ExtArgs extends runtime.Types.Extensions.Interna
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: TenantAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: TenantSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: TenantMinAggregateInputType
@@ -173,6 +219,8 @@ export type TenantGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalA
   take?: number
   skip?: number
   _count?: TenantCountAggregateInputType | true
+  _avg?: TenantAvgAggregateInputType
+  _sum?: TenantSumAggregateInputType
   _min?: TenantMinAggregateInputType
   _max?: TenantMaxAggregateInputType
 }
@@ -186,9 +234,13 @@ export type TenantGroupByOutputType = {
   phone: string | null
   email: string | null
   timezone: string
+  bookingMinAdvanceMinutes: number
+  bookingMaxAdvanceDays: number
   createdAt: Date
   updatedAt: Date
   _count: TenantCountAggregateOutputType | null
+  _avg: TenantAvgAggregateOutputType | null
+  _sum: TenantSumAggregateOutputType | null
   _min: TenantMinAggregateOutputType | null
   _max: TenantMaxAggregateOutputType | null
 }
@@ -220,6 +272,8 @@ export type TenantWhereInput = {
   phone?: Prisma.StringNullableFilter<"Tenant"> | string | null
   email?: Prisma.StringNullableFilter<"Tenant"> | string | null
   timezone?: Prisma.StringFilter<"Tenant"> | string
+  bookingMinAdvanceMinutes?: Prisma.IntFilter<"Tenant"> | number
+  bookingMaxAdvanceDays?: Prisma.IntFilter<"Tenant"> | number
   createdAt?: Prisma.DateTimeFilter<"Tenant"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Tenant"> | Date | string
   memberships?: Prisma.MembershipListRelationFilter
@@ -240,6 +294,8 @@ export type TenantOrderByWithRelationInput = {
   phone?: Prisma.SortOrderInput | Prisma.SortOrder
   email?: Prisma.SortOrderInput | Prisma.SortOrder
   timezone?: Prisma.SortOrder
+  bookingMinAdvanceMinutes?: Prisma.SortOrder
+  bookingMaxAdvanceDays?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   memberships?: Prisma.MembershipOrderByRelationAggregateInput
@@ -263,6 +319,8 @@ export type TenantWhereUniqueInput = Prisma.AtLeast<{
   phone?: Prisma.StringNullableFilter<"Tenant"> | string | null
   email?: Prisma.StringNullableFilter<"Tenant"> | string | null
   timezone?: Prisma.StringFilter<"Tenant"> | string
+  bookingMinAdvanceMinutes?: Prisma.IntFilter<"Tenant"> | number
+  bookingMaxAdvanceDays?: Prisma.IntFilter<"Tenant"> | number
   createdAt?: Prisma.DateTimeFilter<"Tenant"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Tenant"> | Date | string
   memberships?: Prisma.MembershipListRelationFilter
@@ -283,11 +341,15 @@ export type TenantOrderByWithAggregationInput = {
   phone?: Prisma.SortOrderInput | Prisma.SortOrder
   email?: Prisma.SortOrderInput | Prisma.SortOrder
   timezone?: Prisma.SortOrder
+  bookingMinAdvanceMinutes?: Prisma.SortOrder
+  bookingMaxAdvanceDays?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.TenantCountOrderByAggregateInput
+  _avg?: Prisma.TenantAvgOrderByAggregateInput
   _max?: Prisma.TenantMaxOrderByAggregateInput
   _min?: Prisma.TenantMinOrderByAggregateInput
+  _sum?: Prisma.TenantSumOrderByAggregateInput
 }
 
 export type TenantScalarWhereWithAggregatesInput = {
@@ -302,6 +364,8 @@ export type TenantScalarWhereWithAggregatesInput = {
   phone?: Prisma.StringNullableWithAggregatesFilter<"Tenant"> | string | null
   email?: Prisma.StringNullableWithAggregatesFilter<"Tenant"> | string | null
   timezone?: Prisma.StringWithAggregatesFilter<"Tenant"> | string
+  bookingMinAdvanceMinutes?: Prisma.IntWithAggregatesFilter<"Tenant"> | number
+  bookingMaxAdvanceDays?: Prisma.IntWithAggregatesFilter<"Tenant"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Tenant"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Tenant"> | Date | string
 }
@@ -315,6 +379,8 @@ export type TenantCreateInput = {
   phone?: string | null
   email?: string | null
   timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
@@ -335,6 +401,8 @@ export type TenantUncheckedCreateInput = {
   phone?: string | null
   email?: string | null
   timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
@@ -355,6 +423,8 @@ export type TenantUpdateInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
@@ -375,6 +445,8 @@ export type TenantUncheckedUpdateInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
@@ -395,6 +467,8 @@ export type TenantCreateManyInput = {
   phone?: string | null
   email?: string | null
   timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -408,6 +482,8 @@ export type TenantUpdateManyMutationInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -421,6 +497,8 @@ export type TenantUncheckedUpdateManyInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -434,8 +512,15 @@ export type TenantCountOrderByAggregateInput = {
   phone?: Prisma.SortOrder
   email?: Prisma.SortOrder
   timezone?: Prisma.SortOrder
+  bookingMinAdvanceMinutes?: Prisma.SortOrder
+  bookingMaxAdvanceDays?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type TenantAvgOrderByAggregateInput = {
+  bookingMinAdvanceMinutes?: Prisma.SortOrder
+  bookingMaxAdvanceDays?: Prisma.SortOrder
 }
 
 export type TenantMaxOrderByAggregateInput = {
@@ -447,6 +532,8 @@ export type TenantMaxOrderByAggregateInput = {
   phone?: Prisma.SortOrder
   email?: Prisma.SortOrder
   timezone?: Prisma.SortOrder
+  bookingMinAdvanceMinutes?: Prisma.SortOrder
+  bookingMaxAdvanceDays?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -460,8 +547,15 @@ export type TenantMinOrderByAggregateInput = {
   phone?: Prisma.SortOrder
   email?: Prisma.SortOrder
   timezone?: Prisma.SortOrder
+  bookingMinAdvanceMinutes?: Prisma.SortOrder
+  bookingMaxAdvanceDays?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type TenantSumOrderByAggregateInput = {
+  bookingMinAdvanceMinutes?: Prisma.SortOrder
+  bookingMaxAdvanceDays?: Prisma.SortOrder
 }
 
 export type TenantScalarRelationFilter = {
@@ -475,6 +569,14 @@ export type StringFieldUpdateOperationsInput = {
 
 export type NullableStringFieldUpdateOperationsInput = {
   set?: string | null
+}
+
+export type IntFieldUpdateOperationsInput = {
+  set?: number
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
 }
 
 export type DateTimeFieldUpdateOperationsInput = {
@@ -588,6 +690,8 @@ export type TenantCreateWithoutMembershipsInput = {
   phone?: string | null
   email?: string | null
   timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   services?: Prisma.ServiceCreateNestedManyWithoutTenantInput
@@ -607,6 +711,8 @@ export type TenantUncheckedCreateWithoutMembershipsInput = {
   phone?: string | null
   email?: string | null
   timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   services?: Prisma.ServiceUncheckedCreateNestedManyWithoutTenantInput
@@ -642,6 +748,8 @@ export type TenantUpdateWithoutMembershipsInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   services?: Prisma.ServiceUpdateManyWithoutTenantNestedInput
@@ -661,6 +769,8 @@ export type TenantUncheckedUpdateWithoutMembershipsInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   services?: Prisma.ServiceUncheckedUpdateManyWithoutTenantNestedInput
@@ -680,6 +790,8 @@ export type TenantCreateWithoutServicesInput = {
   phone?: string | null
   email?: string | null
   timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
@@ -699,6 +811,8 @@ export type TenantUncheckedCreateWithoutServicesInput = {
   phone?: string | null
   email?: string | null
   timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
@@ -734,6 +848,8 @@ export type TenantUpdateWithoutServicesInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
@@ -753,6 +869,8 @@ export type TenantUncheckedUpdateWithoutServicesInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
@@ -772,6 +890,8 @@ export type TenantCreateWithoutEmployeesInput = {
   phone?: string | null
   email?: string | null
   timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
@@ -791,6 +911,8 @@ export type TenantUncheckedCreateWithoutEmployeesInput = {
   phone?: string | null
   email?: string | null
   timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
@@ -826,6 +948,8 @@ export type TenantUpdateWithoutEmployeesInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
@@ -845,6 +969,8 @@ export type TenantUncheckedUpdateWithoutEmployeesInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
@@ -864,6 +990,8 @@ export type TenantCreateWithoutClientsInput = {
   phone?: string | null
   email?: string | null
   timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
@@ -883,6 +1011,8 @@ export type TenantUncheckedCreateWithoutClientsInput = {
   phone?: string | null
   email?: string | null
   timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
@@ -918,6 +1048,8 @@ export type TenantUpdateWithoutClientsInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
@@ -937,6 +1069,8 @@ export type TenantUncheckedUpdateWithoutClientsInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
@@ -956,6 +1090,8 @@ export type TenantCreateWithoutAvailabilityRulesInput = {
   phone?: string | null
   email?: string | null
   timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
@@ -975,6 +1111,8 @@ export type TenantUncheckedCreateWithoutAvailabilityRulesInput = {
   phone?: string | null
   email?: string | null
   timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
@@ -1010,6 +1148,8 @@ export type TenantUpdateWithoutAvailabilityRulesInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
@@ -1029,6 +1169,8 @@ export type TenantUncheckedUpdateWithoutAvailabilityRulesInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
@@ -1048,6 +1190,8 @@ export type TenantCreateWithoutBlockedTimesInput = {
   phone?: string | null
   email?: string | null
   timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
@@ -1067,6 +1211,8 @@ export type TenantUncheckedCreateWithoutBlockedTimesInput = {
   phone?: string | null
   email?: string | null
   timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
@@ -1102,6 +1248,8 @@ export type TenantUpdateWithoutBlockedTimesInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
@@ -1121,6 +1269,8 @@ export type TenantUncheckedUpdateWithoutBlockedTimesInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
@@ -1140,6 +1290,8 @@ export type TenantCreateWithoutAppointmentsInput = {
   phone?: string | null
   email?: string | null
   timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
@@ -1159,6 +1311,8 @@ export type TenantUncheckedCreateWithoutAppointmentsInput = {
   phone?: string | null
   email?: string | null
   timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
@@ -1194,6 +1348,8 @@ export type TenantUpdateWithoutAppointmentsInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
@@ -1213,6 +1369,8 @@ export type TenantUncheckedUpdateWithoutAppointmentsInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
@@ -1317,6 +1475,8 @@ export type TenantSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   phone?: boolean
   email?: boolean
   timezone?: boolean
+  bookingMinAdvanceMinutes?: boolean
+  bookingMaxAdvanceDays?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   memberships?: boolean | Prisma.Tenant$membershipsArgs<ExtArgs>
@@ -1338,6 +1498,8 @@ export type TenantSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   phone?: boolean
   email?: boolean
   timezone?: boolean
+  bookingMinAdvanceMinutes?: boolean
+  bookingMaxAdvanceDays?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["tenant"]>
@@ -1351,6 +1513,8 @@ export type TenantSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   phone?: boolean
   email?: boolean
   timezone?: boolean
+  bookingMinAdvanceMinutes?: boolean
+  bookingMaxAdvanceDays?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["tenant"]>
@@ -1364,11 +1528,13 @@ export type TenantSelectScalar = {
   phone?: boolean
   email?: boolean
   timezone?: boolean
+  bookingMinAdvanceMinutes?: boolean
+  bookingMaxAdvanceDays?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type TenantOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "slug" | "logoUrl" | "primaryColor" | "phone" | "email" | "timezone" | "createdAt" | "updatedAt", ExtArgs["result"]["tenant"]>
+export type TenantOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "slug" | "logoUrl" | "primaryColor" | "phone" | "email" | "timezone" | "bookingMinAdvanceMinutes" | "bookingMaxAdvanceDays" | "createdAt" | "updatedAt", ExtArgs["result"]["tenant"]>
 export type TenantInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   memberships?: boolean | Prisma.Tenant$membershipsArgs<ExtArgs>
   services?: boolean | Prisma.Tenant$servicesArgs<ExtArgs>
@@ -1402,6 +1568,8 @@ export type $TenantPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     phone: string | null
     email: string | null
     timezone: string
+    bookingMinAdvanceMinutes: number
+    bookingMaxAdvanceDays: number
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["tenant"]>
@@ -1842,6 +2010,8 @@ export interface TenantFieldRefs {
   readonly phone: Prisma.FieldRef<"Tenant", 'String'>
   readonly email: Prisma.FieldRef<"Tenant", 'String'>
   readonly timezone: Prisma.FieldRef<"Tenant", 'String'>
+  readonly bookingMinAdvanceMinutes: Prisma.FieldRef<"Tenant", 'Int'>
+  readonly bookingMaxAdvanceDays: Prisma.FieldRef<"Tenant", 'Int'>
   readonly createdAt: Prisma.FieldRef<"Tenant", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Tenant", 'DateTime'>
 }

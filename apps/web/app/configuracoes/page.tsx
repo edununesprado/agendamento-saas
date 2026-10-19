@@ -19,6 +19,9 @@ type Tenant = {
   phone?: string | null;
   email?: string | null;
   timezone: string;
+
+  bookingMinAdvanceMinutes: number;
+  bookingMaxAdvanceDays: number;
 };
 
 type TenantForm = {
@@ -28,6 +31,9 @@ type TenantForm = {
   phone: string;
   email: string;
   timezone: string;
+
+  bookingMinAdvanceMinutes: number;
+  bookingMaxAdvanceDays: number;
 };
 
 async function readResponse<T>(
@@ -50,7 +56,8 @@ async function readResponse<T>(
 }
 
 export default function SettingsPage() {
-  const router = useRouter();
+  const router =
+    useRouter();
 
   const [
     tenant,
@@ -67,12 +74,21 @@ export default function SettingsPage() {
     useState<TenantForm>({
       name: '',
       logoUrl: '',
+
       primaryColor:
         '#18181b',
+
       phone: '',
       email: '',
+
       timezone:
         'America/Sao_Paulo',
+
+      bookingMinAdvanceMinutes:
+        60,
+
+      bookingMaxAdvanceDays:
+        7,
     });
 
   const [
@@ -120,7 +136,9 @@ export default function SettingsPage() {
       'currentUser',
     );
 
-    router.replace('/login');
+    router.replace(
+      '/login',
+    );
   }
 
   useEffect(() => {
@@ -131,7 +149,10 @@ export default function SettingsPage() {
         );
 
       if (!token) {
-        router.replace('/login');
+        router.replace(
+          '/login',
+        );
+
         return;
       }
 
@@ -142,9 +163,11 @@ export default function SettingsPage() {
           );
 
         if (
-          response.status === 401
+          response.status ===
+          401
         ) {
           handleLogout();
+
           return;
         }
 
@@ -153,7 +176,9 @@ export default function SettingsPage() {
             response,
           );
 
-        setTenant(data);
+        setTenant(
+          data,
+        );
 
         setPublicBookingUrl(
           `${window.location.origin}/agendar/${data.slug}`,
@@ -161,24 +186,36 @@ export default function SettingsPage() {
 
         setForm({
           name:
-            data.name ?? '',
+            data.name ??
+            '',
 
           logoUrl:
-            data.logoUrl ?? '',
+            data.logoUrl ??
+            '',
 
           primaryColor:
             data.primaryColor ||
             '#18181b',
 
           phone:
-            data.phone ?? '',
+            data.phone ??
+            '',
 
           email:
-            data.email ?? '',
+            data.email ??
+            '',
 
           timezone:
             data.timezone ||
             'America/Sao_Paulo',
+
+          bookingMinAdvanceMinutes:
+            data.bookingMinAdvanceMinutes ??
+            60,
+
+          bookingMaxAdvanceDays:
+            data.bookingMaxAdvanceDays ??
+            7,
         });
       } catch (err) {
         setError(
@@ -187,7 +224,9 @@ export default function SettingsPage() {
             : 'Erro ao carregar empresa',
         );
       } finally {
-        setLoading(false);
+        setLoading(
+          false,
+        );
       }
     }
 
@@ -197,7 +236,9 @@ export default function SettingsPage() {
   }, []);
 
   async function handleCopyPublicLink() {
-    if (!publicBookingUrl) {
+    if (
+      !publicBookingUrl
+    ) {
       return;
     }
 
@@ -206,11 +247,18 @@ export default function SettingsPage() {
         publicBookingUrl,
       );
 
-      setCopied(true);
+      setCopied(
+        true,
+      );
 
-      window.setTimeout(() => {
-        setCopied(false);
-      }, 2000);
+      window.setTimeout(
+        () => {
+          setCopied(
+            false,
+          );
+        },
+        2000,
+      );
     } catch {
       setError(
         'Não foi possível copiar o link automaticamente.',
@@ -219,7 +267,9 @@ export default function SettingsPage() {
   }
 
   function handleOpenPublicPage() {
-    if (!publicBookingUrl) {
+    if (
+      !publicBookingUrl
+    ) {
       return;
     }
 
@@ -235,7 +285,12 @@ export default function SettingsPage() {
   ) {
     event.preventDefault();
 
-    if (!form.name.trim()) {
+    setError('');
+    setSuccess('');
+
+    if (
+      !form.name.trim()
+    ) {
       setError(
         'Informe o nome da empresa.',
       );
@@ -243,47 +298,91 @@ export default function SettingsPage() {
       return;
     }
 
-    try {
-      setSaving(true);
+    if (
+      !Number.isInteger(
+        form.bookingMinAdvanceMinutes,
+      ) ||
+      form.bookingMinAdvanceMinutes <
+        0 ||
+      form.bookingMinAdvanceMinutes >
+        1440
+    ) {
+      setError(
+        'A antecedência mínima deve ser um número inteiro entre 0 e 1440 minutos.',
+      );
 
-      setError('');
-      setSuccess('');
+      return;
+    }
+
+    if (
+      !Number.isInteger(
+        form.bookingMaxAdvanceDays,
+      ) ||
+      form.bookingMaxAdvanceDays <
+        1 ||
+      form.bookingMaxAdvanceDays >
+        365
+    ) {
+      setError(
+        'O limite de agendamento deve ser um número inteiro entre 1 e 365 dias.',
+      );
+
+      return;
+    }
+
+    try {
+      setSaving(
+        true,
+      );
 
       const response =
         await apiFetch(
           '/tenants/current',
           {
-            method: 'PATCH',
+            method:
+              'PATCH',
 
-            body: JSON.stringify({
-              name:
-                form.name.trim(),
+            body:
+              JSON.stringify({
+                name:
+                  form.name.trim(),
 
-              logoUrl:
-                form.logoUrl.trim() ||
-                null,
+                logoUrl:
+                  form.logoUrl
+                    .trim() ||
+                  null,
 
-              primaryColor:
-                form.primaryColor,
+                primaryColor:
+                  form.primaryColor,
 
-              phone:
-                form.phone.trim() ||
-                null,
+                phone:
+                  form.phone
+                    .trim() ||
+                  null,
 
-              email:
-                form.email.trim() ||
-                null,
+                email:
+                  form.email
+                    .trim() ||
+                  null,
 
-              timezone:
-                form.timezone,
-            }),
+                timezone:
+                  form.timezone,
+
+                bookingMinAdvanceMinutes:
+                  form.bookingMinAdvanceMinutes,
+
+                bookingMaxAdvanceDays:
+                  form.bookingMaxAdvanceDays,
+              }),
           },
         );
 
       if (
-        response.status === 401
+        response.status ===
+        401
       ) {
         handleLogout();
+
         return;
       }
 
@@ -292,14 +391,18 @@ export default function SettingsPage() {
           response,
         );
 
-      setTenant(updated);
+      setTenant(
+        updated,
+      );
 
       const storedUser =
         localStorage.getItem(
           'currentUser',
         );
 
-      if (storedUser) {
+      if (
+        storedUser
+      ) {
         const parsed =
           JSON.parse(
             storedUser,
@@ -309,7 +412,9 @@ export default function SettingsPage() {
           'currentUser',
           JSON.stringify({
             ...parsed,
-            tenant: updated,
+
+            tenant:
+              updated,
           }),
         );
       }
@@ -319,12 +424,16 @@ export default function SettingsPage() {
       );
 
       /*
-       * O PanelShell busca novamente os dados
-       * quando a página é recarregada.
+       * O PanelShell busca novamente
+       * os dados quando a página
+       * é recarregada.
        */
-      window.setTimeout(() => {
-        window.location.reload();
-      }, 700);
+      window.setTimeout(
+        () => {
+          window.location.reload();
+        },
+        700,
+      );
     } catch (err) {
       setError(
         err instanceof Error
@@ -332,11 +441,15 @@ export default function SettingsPage() {
           : 'Erro ao atualizar empresa',
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false,
+      );
     }
   }
 
-  if (loading) {
+  if (
+    loading
+  ) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-100">
         <p className="text-sm text-zinc-500">
@@ -349,7 +462,7 @@ export default function SettingsPage() {
   return (
     <PanelShell
       title="Configurações"
-      subtitle="Identidade e dados da empresa"
+      subtitle="Identidade, dados e regras de agendamento"
     >
       {error && (
         <div className="mb-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -453,8 +566,10 @@ export default function SettingsPage() {
                 ) =>
                   setForm({
                     ...form,
+
                     name:
-                      event.target
+                      event
+                        .target
                         .value,
                   })
                 }
@@ -478,8 +593,10 @@ export default function SettingsPage() {
                 ) =>
                   setForm({
                     ...form,
+
                     phone:
-                      event.target
+                      event
+                        .target
                         .value,
                   })
                 }
@@ -504,8 +621,10 @@ export default function SettingsPage() {
                 ) =>
                   setForm({
                     ...form,
+
                     email:
-                      event.target
+                      event
+                        .target
                         .value,
                   })
                 }
@@ -529,8 +648,10 @@ export default function SettingsPage() {
                 ) =>
                   setForm({
                     ...form,
+
                     logoUrl:
-                      event.target
+                      event
+                        .target
                         .value,
                   })
                 }
@@ -561,8 +682,10 @@ export default function SettingsPage() {
                   ) =>
                     setForm({
                       ...form,
+
                       primaryColor:
-                        event.target
+                        event
+                          .target
                           .value,
                     })
                   }
@@ -578,8 +701,10 @@ export default function SettingsPage() {
                   ) =>
                     setForm({
                       ...form,
+
                       primaryColor:
-                        event.target
+                        event
+                          .target
                           .value,
                     })
                   }
@@ -604,8 +729,10 @@ export default function SettingsPage() {
                 ) =>
                   setForm({
                     ...form,
+
                     timezone:
-                      event.target
+                      event
+                        .target
                         .value,
                   })
                 }
@@ -631,6 +758,122 @@ export default function SettingsPage() {
                   Fernando de Noronha
                 </option>
               </select>
+            </div>
+
+            {/* REGRAS DO AGENDAMENTO */}
+            <div className="md:col-span-2 mt-2 border-t border-zinc-200 pt-6">
+              <h3 className="text-base font-semibold text-zinc-900">
+                Regras do agendamento público
+              </h3>
+
+              <p className="mt-1 text-sm text-zinc-500">
+                Defina com quanto tempo de antecedência o cliente pode reservar e até quantos dias à frente a agenda ficará disponível.
+              </p>
+            </div>
+
+            {/* ANTECEDÊNCIA */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-700">
+                Antecedência mínima
+              </label>
+
+              <div className="relative">
+                <input
+                  type="number"
+                  min={0}
+                  max={1440}
+                  step={1}
+                  value={
+                    form.bookingMinAdvanceMinutes
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      bookingMinAdvanceMinutes:
+                        Number(
+                          event
+                            .target
+                            .value,
+                        ),
+                    })
+                  }
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3 pr-24"
+                />
+
+                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-zinc-400">
+                  minutos
+                </span>
+              </div>
+
+              <p className="mt-2 text-xs text-zinc-400">
+                Exemplo: 60 significa que o cliente precisa agendar pelo menos 1 hora antes.
+              </p>
+            </div>
+
+            {/* DIAS À FRENTE */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-700">
+                Agendar até
+              </label>
+
+              <div className="relative">
+                <input
+                  type="number"
+                  min={1}
+                  max={365}
+                  step={1}
+                  value={
+                    form.bookingMaxAdvanceDays
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      bookingMaxAdvanceDays:
+                        Number(
+                          event
+                            .target
+                            .value,
+                        ),
+                    })
+                  }
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3 pr-20"
+                />
+
+                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-zinc-400">
+                  dias
+                </span>
+              </div>
+
+              <p className="mt-2 text-xs text-zinc-400">
+                Exemplo: 7 permite agendamentos de hoje até os próximos 7 dias.
+              </p>
+            </div>
+
+            {/* RESUMO */}
+            <div className="md:col-span-2 rounded-xl border border-green-200 bg-green-50 px-4 py-4">
+              <p className="text-sm font-medium text-green-900">
+                Regra atual
+              </p>
+
+              <p className="mt-1 text-sm text-green-800">
+                O cliente poderá agendar com pelo menos{' '}
+                <strong>
+                  {form.bookingMinAdvanceMinutes}{' '}
+                  minutos
+                </strong>{' '}
+                de antecedência e no máximo{' '}
+                <strong>
+                  {form.bookingMaxAdvanceDays}{' '}
+                  dias
+                </strong>{' '}
+                à frente.
+              </p>
             </div>
 
             <div className="md:col-span-2">
@@ -707,6 +950,28 @@ export default function SettingsPage() {
             >
               Item selecionado
             </div>
+          </div>
+
+          <div className="mt-5 rounded-xl bg-zinc-50 p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+              Agendamento público
+            </p>
+
+            <p className="mt-2 text-sm text-zinc-700">
+              Antecedência mínima:{' '}
+              <strong>
+                {form.bookingMinAdvanceMinutes}{' '}
+                min
+              </strong>
+            </p>
+
+            <p className="mt-1 text-sm text-zinc-700">
+              Agenda aberta por:{' '}
+              <strong>
+                {form.bookingMaxAdvanceDays}{' '}
+                dias
+              </strong>
+            </p>
           </div>
 
           {tenant && (

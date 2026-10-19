@@ -7,13 +7,9 @@ import {
   useState,
 } from 'react';
 
-import { useParams } from 'next/navigation';
-
-const PUBLIC_MIN_ADVANCE_MINUTES =
-  60;
-
-const PUBLIC_MAX_ADVANCE_DAYS =
-  7;
+import {
+  useParams,
+} from 'next/navigation';
 
 type Tenant = {
   name: string;
@@ -23,6 +19,9 @@ type Tenant = {
   phone?: string | null;
   email?: string | null;
   timezone: string;
+
+  bookingMinAdvanceMinutes: number;
+  bookingMaxAdvanceDays: number;
 };
 
 type Service = {
@@ -84,10 +83,14 @@ const emptyForm: ClientForm = {
   notes: '',
 };
 
-const API_URL = (
-  process.env.NEXT_PUBLIC_API_URL ??
-  'http://localhost:3333'
-).replace(/\/+$/, '');
+const API_URL =
+  (
+    process.env.NEXT_PUBLIC_API_URL ??
+    'http://localhost:3333'
+  ).replace(
+    /\/+$/,
+    '',
+  );
 
 class ApiError extends Error {
   status: number;
@@ -96,10 +99,15 @@ class ApiError extends Error {
     message: string,
     status: number,
   ) {
-    super(message);
+    super(
+      message,
+    );
 
-    this.name = 'ApiError';
-    this.status = status;
+    this.name =
+      'ApiError';
+
+    this.status =
+      status;
   }
 }
 
@@ -109,16 +117,23 @@ async function readResponse<T>(
   const data =
     await response
       .json()
-      .catch(() => null);
+      .catch(
+        () => null,
+      );
 
-  if (response.status === 429) {
+  if (
+    response.status ===
+    429
+  ) {
     throw new ApiError(
       'Muitas tentativas em pouco tempo. Aguarde um minuto e tente novamente.',
       429,
     );
   }
 
-  if (!response.ok) {
+  if (
+    !response.ok
+  ) {
     const message =
       Array.isArray(
         data?.message,
@@ -168,8 +183,11 @@ function formatCurrency(
   return new Intl.NumberFormat(
     'pt-BR',
     {
-      style: 'currency',
-      currency: 'BRL',
+      style:
+        'currency',
+
+      currency:
+        'BRL',
     },
   ).format(
     cents / 100,
@@ -184,10 +202,17 @@ function formatDateInTimeZone(
     new Intl.DateTimeFormat(
       'en-US',
       {
-        timeZone: timezone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
+        timeZone:
+          timezone,
+
+        year:
+          'numeric',
+
+        month:
+          '2-digit',
+
+        day:
+          '2-digit',
       },
     );
 
@@ -200,12 +225,16 @@ function formatDateInTimeZone(
     Object.fromEntries(
       parts
         .filter(
-          (part) =>
+          (
+            part,
+          ) =>
             part.type !==
             'literal',
         )
         .map(
-          (part) => [
+          (
+            part,
+          ) => [
             part.type,
             part.value,
           ],
@@ -225,8 +254,12 @@ function addDaysToDateString(
     day,
   ] =
     value
-      .split('-')
-      .map(Number);
+      .split(
+        '-',
+      )
+      .map(
+        Number,
+      );
 
   const date =
     new Date(
@@ -247,7 +280,8 @@ function addDaysToDateString(
 
   const nextMonth =
     String(
-      date.getUTCMonth() + 1,
+      date.getUTCMonth() +
+        1,
     ).padStart(
       2,
       '0',
@@ -275,16 +309,24 @@ function zonedLocalToIso(
     day,
   ] =
     date
-      .split('-')
-      .map(Number);
+      .split(
+        '-',
+      )
+      .map(
+        Number,
+      );
 
   const [
     hour,
     minute,
   ] =
     time
-      .split(':')
-      .map(Number);
+      .split(
+        ':',
+      )
+      .map(
+        Number,
+      );
 
   const utcGuess =
     new Date(
@@ -302,17 +344,29 @@ function zonedLocalToIso(
     new Intl.DateTimeFormat(
       'en-US',
       {
-        timeZone: timezone,
+        timeZone:
+          timezone,
 
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
+        year:
+          'numeric',
 
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
+        month:
+          '2-digit',
 
-        hourCycle: 'h23',
+        day:
+          '2-digit',
+
+        hour:
+          '2-digit',
+
+        minute:
+          '2-digit',
+
+        second:
+          '2-digit',
+
+        hourCycle:
+          'h23',
       },
     );
 
@@ -325,12 +379,16 @@ function zonedLocalToIso(
     Object.fromEntries(
       parts
         .filter(
-          (part) =>
+          (
+            part,
+          ) =>
             part.type !==
             'literal',
         )
         .map(
-          (part) => [
+          (
+            part,
+          ) => [
             part.type,
             part.value,
           ],
@@ -379,12 +437,19 @@ function formatAppointmentDate(
   return new Intl.DateTimeFormat(
     'pt-BR',
     {
-      timeZone: timezone,
-      dateStyle: 'long',
-      timeStyle: 'short',
+      timeZone:
+        timezone,
+
+      dateStyle:
+        'long',
+
+      timeStyle:
+        'short',
     },
   ).format(
-    new Date(value),
+    new Date(
+      value,
+    ),
   );
 }
 
@@ -440,9 +505,12 @@ function getContrastColor(
     ) /
     1000;
 
-  return brightness > 180
-    ? '#18181b'
-    : '#ffffff';
+  return (
+    brightness >
+    180
+      ? '#18181b'
+      : '#ffffff'
+  );
 }
 
 export default function PublicBookingPage() {
@@ -463,7 +531,9 @@ export default function PublicBookingPage() {
     tenant,
     setTenant,
   ] =
-    useState<Tenant | null>(
+    useState<
+      Tenant | null
+    >(
       null,
     );
 
@@ -471,7 +541,9 @@ export default function PublicBookingPage() {
     services,
     setServices,
   ] =
-    useState<Service[]>(
+    useState<
+      Service[]
+    >(
       [],
     );
 
@@ -479,7 +551,9 @@ export default function PublicBookingPage() {
     employees,
     setEmployees,
   ] =
-    useState<Employee[]>(
+    useState<
+      Employee[]
+    >(
       [],
     );
 
@@ -487,7 +561,9 @@ export default function PublicBookingPage() {
     slots,
     setSlots,
   ] =
-    useState<string[]>(
+    useState<
+      string[]
+    >(
       [],
     );
 
@@ -495,25 +571,33 @@ export default function PublicBookingPage() {
     serviceId,
     setServiceId,
   ] =
-    useState('');
+    useState(
+      '',
+    );
 
   const [
     employeeId,
     setEmployeeId,
   ] =
-    useState('');
+    useState(
+      '',
+    );
 
   const [
     date,
     setDate,
   ] =
-    useState('');
+    useState(
+      '',
+    );
 
   const [
     selectedSlot,
     setSelectedSlot,
   ] =
-    useState('');
+    useState(
+      '',
+    );
 
   const [
     form,
@@ -527,37 +611,49 @@ export default function PublicBookingPage() {
     loading,
     setLoading,
   ] =
-    useState(true);
+    useState(
+      true,
+    );
 
   const [
     loadingEmployees,
     setLoadingEmployees,
   ] =
-    useState(false);
+    useState(
+      false,
+    );
 
   const [
     loadingSlots,
     setLoadingSlots,
   ] =
-    useState(false);
+    useState(
+      false,
+    );
 
   const [
     saving,
     setSaving,
   ] =
-    useState(false);
+    useState(
+      false,
+    );
 
   const [
     error,
     setError,
   ] =
-    useState('');
+    useState(
+      '',
+    );
 
   const [
     confirmation,
     setConfirmation,
   ] =
-    useState<PublicAppointment | null>(
+    useState<
+      PublicAppointment | null
+    >(
       null,
     );
 
@@ -565,22 +661,29 @@ export default function PublicBookingPage() {
     confirmationName,
     setConfirmationName,
   ] =
-    useState('');
+    useState(
+      '',
+    );
 
   const [
     slotsVersion,
     setSlotsVersion,
   ] =
-    useState(0);
+    useState(
+      0,
+    );
 
   const selectedService =
     useMemo(
       () =>
         services.find(
-          (service) =>
+          (
+            service,
+          ) =>
             service.id ===
             serviceId,
-        ) ?? null,
+        ) ??
+        null,
       [
         services,
         serviceId,
@@ -591,10 +694,13 @@ export default function PublicBookingPage() {
     useMemo(
       () =>
         employees.find(
-          (employee) =>
+          (
+            employee,
+          ) =>
             employee.id ===
             employeeId,
-        ) ?? null,
+        ) ??
+        null,
       [
         employees,
         employeeId,
@@ -619,20 +725,23 @@ export default function PublicBookingPage() {
       : '';
 
   const maxDate =
+    tenant &&
     minDate
       ? addDaysToDateString(
           minDate,
-          PUBLIC_MAX_ADVANCE_DAYS,
+          tenant.bookingMaxAdvanceDays,
         )
       : '';
 
   /*
-   * Carrega empresa e
-   * serviços públicos.
+   * Carrega a empresa
+   * e os serviços públicos.
    */
   useEffect(
     () => {
-      if (!slug) {
+      if (
+        !slug
+      ) {
         return;
       }
 
@@ -642,7 +751,9 @@ export default function PublicBookingPage() {
             true,
           );
 
-          setError('');
+          setError(
+            '',
+          );
 
           const encodedSlug =
             encodeURIComponent(
@@ -660,7 +771,9 @@ export default function PublicBookingPage() {
                 `/public/tenants/${encodedSlug}`,
               ),
 
-              publicFetch<Service[]>(
+              publicFetch<
+                Service[]
+              >(
                 `/public/tenants/${encodedSlug}/services`,
               ),
             ]);
@@ -679,9 +792,12 @@ export default function PublicBookingPage() {
               tenantData.timezone,
             ),
           );
-        } catch (err) {
+        } catch (
+          err
+        ) {
           setError(
-            err instanceof Error
+            err instanceof
+              Error
               ? err.message
               : 'Erro ao carregar agendamento.',
           );
@@ -701,8 +817,9 @@ export default function PublicBookingPage() {
 
   /*
    * Ao escolher um serviço,
-   * carrega somente os profissionais
-   * que realizam esse serviço.
+   * carrega somente os
+   * profissionais que realizam
+   * esse serviço.
    */
   useEffect(
     () => {
@@ -738,7 +855,9 @@ export default function PublicBookingPage() {
             true,
           );
 
-          setError('');
+          setError(
+            '',
+          );
 
           setEmployeeId(
             '',
@@ -775,9 +894,12 @@ export default function PublicBookingPage() {
           setEmployees(
             data,
           );
-        } catch (err) {
+        } catch (
+          err
+        ) {
           if (
-            err instanceof DOMException &&
+            err instanceof
+              DOMException &&
             err.name ===
               'AbortError'
           ) {
@@ -785,7 +907,8 @@ export default function PublicBookingPage() {
           }
 
           setError(
-            err instanceof Error
+            err instanceof
+              Error
               ? err.message
               : 'Erro ao carregar profissionais.',
           );
@@ -815,7 +938,8 @@ export default function PublicBookingPage() {
   );
 
   /*
-   * Carrega horários disponíveis.
+   * Carrega os horários
+   * disponíveis.
    */
   useEffect(
     () => {
@@ -837,8 +961,18 @@ export default function PublicBookingPage() {
         return;
       }
 
-      const timezone =
-        tenant.timezone;
+      /*
+       * Depois da validação acima,
+       * guardamos a empresa em uma
+       * constante local.
+       *
+       * Isso também evita o erro
+       * TypeScript "tenant is
+       * possibly null" dentro da
+       * função assíncrona.
+       */
+      const currentTenant =
+        tenant;
 
       const controller =
         new AbortController();
@@ -849,7 +983,9 @@ export default function PublicBookingPage() {
             true,
           );
 
-          setError('');
+          setError(
+            '',
+          );
 
           setSelectedSlot(
             '',
@@ -881,27 +1017,30 @@ export default function PublicBookingPage() {
             );
 
           /*
-           * Proteção adicional no frontend.
+           * Proteção adicional
+           * no frontend.
            *
-           * Mesmo que o backend já filtre,
-           * não mostramos horários com menos
-           * de 60 minutos de antecedência.
+           * O backend continua
+           * sendo a autoridade.
            */
           const minimumStartTime =
             Date.now() +
-            PUBLIC_MIN_ADVANCE_MINUTES *
+            currentTenant
+              .bookingMinAdvanceMinutes *
               60 *
               1000;
 
           const futureSlots =
             data.slots.filter(
-              (slot) => {
+              (
+                slot,
+              ) => {
                 const instant =
                   new Date(
                     zonedLocalToIso(
                       date,
                       slot,
-                      timezone,
+                      currentTenant.timezone,
                     ),
                   );
 
@@ -915,9 +1054,12 @@ export default function PublicBookingPage() {
           setSlots(
             futureSlots,
           );
-        } catch (err) {
+        } catch (
+          err
+        ) {
           if (
-            err instanceof DOMException &&
+            err instanceof
+              DOMException &&
             err.name ===
               'AbortError'
           ) {
@@ -929,7 +1071,8 @@ export default function PublicBookingPage() {
           );
 
           setError(
-            err instanceof Error
+            err instanceof
+              Error
               ? err.message
               : 'Erro ao carregar horários.',
           );
@@ -963,7 +1106,9 @@ export default function PublicBookingPage() {
   );
 
   async function handleSubmit(
-    event: FormEvent<HTMLFormElement>,
+    event: FormEvent<
+      HTMLFormElement
+    >,
   ) {
     event.preventDefault();
 
@@ -1004,14 +1149,17 @@ export default function PublicBookingPage() {
 
     /*
      * Proteção do frontend
-     * contra data fora da janela.
+     * contra data fora
+     * da janela configurada.
      */
     if (
-      date < minDate ||
-      date > maxDate
+      date <
+        minDate ||
+      date >
+        maxDate
     ) {
       setError(
-        'Escolha uma data entre hoje e os próximos 7 dias.',
+        `Escolha uma data entre hoje e os próximos ${tenant.bookingMaxAdvanceDays} dias.`,
       );
 
       return;
@@ -1022,7 +1170,9 @@ export default function PublicBookingPage() {
         true,
       );
 
-      setError('');
+      setError(
+        '',
+      );
 
       const startsAt =
         zonedLocalToIso(
@@ -1031,19 +1181,22 @@ export default function PublicBookingPage() {
           tenant.timezone,
         );
 
+      /*
+       * O usuário pode passar
+       * alguns minutos preenchendo
+       * o formulário.
+       *
+       * Por isso a antecedência
+       * é verificada novamente
+       * antes do envio.
+       */
       const minimumStartTime =
         Date.now() +
-        PUBLIC_MIN_ADVANCE_MINUTES *
+        tenant
+          .bookingMinAdvanceMinutes *
           60 *
           1000;
 
-      /*
-       * O usuário pode ficar vários minutos
-       * preenchendo o formulário.
-       *
-       * Por isso verificamos novamente
-       * a antecedência no momento de enviar.
-       */
       if (
         new Date(
           startsAt,
@@ -1051,7 +1204,7 @@ export default function PublicBookingPage() {
         minimumStartTime
       ) {
         setError(
-          'Este horário ficou muito próximo. O agendamento precisa ser feito com pelo menos 60 minutos de antecedência.',
+          `Este horário ficou muito próximo. O agendamento precisa ser feito com pelo menos ${tenant.bookingMinAdvanceMinutes} minutos de antecedência.`,
         );
 
         setSelectedSlot(
@@ -1059,7 +1212,9 @@ export default function PublicBookingPage() {
         );
 
         setSlotsVersion(
-          (current) =>
+          (
+            current,
+          ) =>
             current + 1,
         );
 
@@ -1116,9 +1271,12 @@ export default function PublicBookingPage() {
       setConfirmation(
         appointment,
       );
-    } catch (err) {
+    } catch (
+      err
+    ) {
       setError(
-        err instanceof Error
+        err instanceof
+          Error
           ? err.message
           : 'Não foi possível realizar o agendamento.',
       );
@@ -1126,11 +1284,16 @@ export default function PublicBookingPage() {
       /*
        * Em HTTP 429 não fazemos
        * outra consulta automaticamente.
+       *
+       * Assim evitamos aumentar
+       * ainda mais o rate limit.
        */
       if (
         !(
-          err instanceof ApiError &&
-          err.status === 429
+          err instanceof
+            ApiError &&
+          err.status ===
+            429
         )
       ) {
         setSelectedSlot(
@@ -1138,7 +1301,9 @@ export default function PublicBookingPage() {
         );
 
         setSlotsVersion(
-          (current) =>
+          (
+            current,
+          ) =>
             current + 1,
         );
       }
@@ -1182,9 +1347,13 @@ export default function PublicBookingPage() {
       emptyForm,
     );
 
-    setError('');
+    setError(
+      '',
+    );
 
-    if (tenant) {
+    if (
+      tenant
+    ) {
       setDate(
         formatDateInTimeZone(
           new Date(),
@@ -1194,15 +1363,19 @@ export default function PublicBookingPage() {
     }
   }
 
-  if (loading) {
+  if (
+    loading
+  ) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
         <div className="text-center">
+
           <div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-zinc-200 border-t-zinc-900" />
 
           <p className="mt-4 text-sm text-zinc-500">
             Carregando agendamento...
           </p>
+
         </div>
       </main>
     );
@@ -1213,7 +1386,9 @@ export default function PublicBookingPage() {
   ) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
+
         <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-sm">
+
           <h1 className="text-xl font-semibold text-zinc-900">
             Agendamento indisponível
           </h1>
@@ -1222,7 +1397,9 @@ export default function PublicBookingPage() {
             {error ||
               'Não foi possível localizar esta empresa.'}
           </p>
+
         </div>
+
       </main>
     );
   }
@@ -1232,8 +1409,11 @@ export default function PublicBookingPage() {
   ) {
     return (
       <main className="min-h-screen bg-zinc-50 px-4 py-10">
+
         <div className="mx-auto max-w-xl">
+
           <div className="overflow-hidden rounded-3xl bg-white shadow-sm">
+
             <div
               className="px-6 py-8 text-center"
               style={{
@@ -1244,6 +1424,7 @@ export default function PublicBookingPage() {
                   buttonTextColor,
               }}
             >
+
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-2xl">
                 ✓
               </div>
@@ -1256,10 +1437,13 @@ export default function PublicBookingPage() {
                 Obrigado,{' '}
                 {confirmationName}.
               </p>
+
             </div>
 
             <div className="p-6 sm:p-8">
+
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+
                 <p className="font-medium text-amber-900">
                   Aguardando confirmação
                 </p>
@@ -1267,9 +1451,11 @@ export default function PublicBookingPage() {
                 <p className="mt-1 text-sm text-amber-700">
                   Seu agendamento foi enviado para a empresa e está com status pendente.
                 </p>
+
               </div>
 
               <div className="mt-6 space-y-4 rounded-2xl bg-zinc-50 p-5">
+
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
                     Serviço
@@ -1324,6 +1510,7 @@ export default function PublicBookingPage() {
                     )}
                   </p>
                 </div>
+
               </div>
 
               <button
@@ -1342,20 +1529,25 @@ export default function PublicBookingPage() {
               >
                 Fazer outro agendamento
               </button>
+
             </div>
+
           </div>
 
           <p className="mt-5 text-center text-xs text-zinc-400">
             Agendamento online •{' '}
             {tenant.name}
           </p>
+
         </div>
+
       </main>
     );
   }
 
   return (
     <main className="min-h-screen bg-zinc-50">
+
       <header
         style={{
           backgroundColor:
@@ -1366,6 +1558,7 @@ export default function PublicBookingPage() {
         }}
       >
         <div className="mx-auto flex max-w-4xl items-center gap-4 px-4 py-7 sm:px-6">
+
           {tenant.logoUrl ? (
             <img
               src={
@@ -1379,7 +1572,9 @@ export default function PublicBookingPage() {
           ) : (
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 text-xl font-bold">
               {tenant.name
-                .charAt(0)
+                .charAt(
+                  0,
+                )
                 .toUpperCase()}
             </div>
           )}
@@ -1393,18 +1588,23 @@ export default function PublicBookingPage() {
               Agende seu horário online
             </p>
           </div>
+
         </div>
       </header>
 
       <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+
         {error && (
           <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
             {error}
           </div>
         )}
 
+        {/* SERVIÇO */}
         <section className="rounded-3xl bg-white p-5 shadow-sm sm:p-7">
+
           <div className="flex items-center gap-3">
+
             <div
               className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold"
               style={{
@@ -1427,6 +1627,7 @@ export default function PublicBookingPage() {
                 Qual atendimento você deseja?
               </p>
             </div>
+
           </div>
 
           {services.length ===
@@ -1436,8 +1637,11 @@ export default function PublicBookingPage() {
             </p>
           ) : (
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
+
               {services.map(
-                (service) => {
+                (
+                  service,
+                ) => {
                   const selected =
                     serviceId ===
                     service.id;
@@ -1470,6 +1674,7 @@ export default function PublicBookingPage() {
                             : undefined,
                       }}
                     >
+
                       <p className="font-semibold text-zinc-900">
                         {
                           service.name
@@ -1477,6 +1682,7 @@ export default function PublicBookingPage() {
                       </p>
 
                       <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+
                         <span className="text-zinc-500">
                           {
                             service.durationMin
@@ -1489,18 +1695,25 @@ export default function PublicBookingPage() {
                             service.priceCents,
                           )}
                         </span>
+
                       </div>
+
                     </button>
                   );
                 },
               )}
+
             </div>
           )}
+
         </section>
 
+        {/* PROFISSIONAL */}
         {serviceId && (
           <section className="mt-5 rounded-3xl bg-white p-5 shadow-sm sm:p-7">
+
             <div className="flex items-center gap-3">
+
               <div
                 className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold"
                 style={{
@@ -1523,6 +1736,7 @@ export default function PublicBookingPage() {
                   Quem irá realizar o atendimento?
                 </p>
               </div>
+
             </div>
 
             {loadingEmployees ? (
@@ -1536,8 +1750,11 @@ export default function PublicBookingPage() {
               </p>
             ) : (
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
+
                 {employees.map(
-                  (employee) => {
+                  (
+                    employee,
+                  ) => {
                     const selected =
                       employeeId ===
                       employee.id;
@@ -1574,6 +1791,7 @@ export default function PublicBookingPage() {
                               : undefined,
                         }}
                       >
+
                         <div
                           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-semibold"
                           style={{
@@ -1596,18 +1814,24 @@ export default function PublicBookingPage() {
                             employee.name
                           }
                         </p>
+
                       </button>
                     );
                   },
                 )}
+
               </div>
             )}
+
           </section>
         )}
 
+        {/* DATA E HORÁRIO */}
         {employeeId && (
           <section className="mt-5 rounded-3xl bg-white p-5 shadow-sm sm:p-7">
+
             <div className="flex items-center gap-3">
+
               <div
                 className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold"
                 style={{
@@ -1630,9 +1854,11 @@ export default function PublicBookingPage() {
                   Escolha quando deseja ser atendido.
                 </p>
               </div>
+
             </div>
 
             <div className="mt-6">
+
               <label className="mb-2 block text-sm font-medium text-zinc-700">
                 Data
               </label>
@@ -1669,11 +1895,27 @@ export default function PublicBookingPage() {
               />
 
               <p className="mt-2 text-xs text-zinc-400">
-                Agendamentos com pelo menos 60 minutos de antecedência e no máximo 7 dias à frente.
+                Agendamentos com pelo menos{' '}
+                <strong>
+                  {
+                    tenant.bookingMinAdvanceMinutes
+                  }{' '}
+                  minutos
+                </strong>{' '}
+                de antecedência e no máximo{' '}
+                <strong>
+                  {
+                    tenant.bookingMaxAdvanceDays
+                  }{' '}
+                  dias
+                </strong>{' '}
+                à frente.
               </p>
+
             </div>
 
             <div className="mt-6">
+
               <p className="mb-3 text-sm font-medium text-zinc-700">
                 Horários disponíveis
               </p>
@@ -1689,8 +1931,11 @@ export default function PublicBookingPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+
                   {slots.map(
-                    (slot) => {
+                    (
+                      slot,
+                    ) => {
                       const selected =
                         selectedSlot ===
                         slot;
@@ -1733,15 +1978,21 @@ export default function PublicBookingPage() {
                       );
                     },
                   )}
+
                 </div>
               )}
+
             </div>
+
           </section>
         )}
 
+        {/* DADOS DO CLIENTE */}
         {selectedSlot && (
           <section className="mt-5 rounded-3xl bg-white p-5 shadow-sm sm:p-7">
+
             <div className="flex items-center gap-3">
+
               <div
                 className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold"
                 style={{
@@ -1764,19 +2015,23 @@ export default function PublicBookingPage() {
                   Preencha os dados para concluir.
                 </p>
               </div>
+
             </div>
 
             <div className="mt-6 rounded-2xl bg-zinc-50 p-4 text-sm">
+
               <p className="font-semibold text-zinc-900">
                 Resumo
               </p>
 
               <div className="mt-3 grid gap-2 text-zinc-600 sm:grid-cols-2">
+
                 <p>
                   Serviço:{' '}
                   <strong className="text-zinc-900">
                     {
-                      selectedService?.name
+                      selectedService
+                        ?.name
                     }
                   </strong>
                 </p>
@@ -1785,7 +2040,8 @@ export default function PublicBookingPage() {
                   Profissional:{' '}
                   <strong className="text-zinc-900">
                     {
-                      selectedEmployee?.name
+                      selectedEmployee
+                        ?.name
                     }
                   </strong>
                 </p>
@@ -1804,12 +2060,15 @@ export default function PublicBookingPage() {
                   <strong className="text-zinc-900">
                     {selectedService
                       ? formatCurrency(
-                          selectedService.priceCents,
+                          selectedService
+                            .priceCents,
                         )
                       : '-'}
                   </strong>
                 </p>
+
               </div>
+
             </div>
 
             <form
@@ -1818,7 +2077,9 @@ export default function PublicBookingPage() {
               }
               className="mt-6 grid gap-5 sm:grid-cols-2"
             >
+
               <div>
+
                 <label className="mb-2 block text-sm font-medium text-zinc-700">
                   Nome *
                 </label>
@@ -1846,9 +2107,11 @@ export default function PublicBookingPage() {
                   placeholder="Seu nome"
                   className="w-full rounded-xl border border-zinc-300 px-4 py-3 outline-none transition focus:border-zinc-500"
                 />
+
               </div>
 
               <div>
+
                 <label className="mb-2 block text-sm font-medium text-zinc-700">
                   Telefone *
                 </label>
@@ -1877,9 +2140,11 @@ export default function PublicBookingPage() {
                   placeholder="(34) 99999-9999"
                   className="w-full rounded-xl border border-zinc-300 px-4 py-3 outline-none transition focus:border-zinc-500"
                 />
+
               </div>
 
               <div className="sm:col-span-2">
+
                 <label className="mb-2 block text-sm font-medium text-zinc-700">
                   E-mail
                 </label>
@@ -1908,9 +2173,11 @@ export default function PublicBookingPage() {
                   placeholder="seuemail@exemplo.com"
                   className="w-full rounded-xl border border-zinc-300 px-4 py-3 outline-none transition focus:border-zinc-500"
                 />
+
               </div>
 
               <div className="sm:col-span-2">
+
                 <label className="mb-2 block text-sm font-medium text-zinc-700">
                   Observações
                 </label>
@@ -1935,16 +2202,20 @@ export default function PublicBookingPage() {
                       }),
                     )
                   }
-                  rows={3}
+                  rows={
+                    3
+                  }
                   maxLength={
                     500
                   }
                   placeholder="Alguma observação para o atendimento?"
                   className="w-full resize-none rounded-xl border border-zinc-300 px-4 py-3 outline-none transition focus:border-zinc-500"
                 />
+
               </div>
 
               <div className="sm:col-span-2">
+
                 <button
                   type="submit"
                   disabled={
@@ -1967,19 +2238,24 @@ export default function PublicBookingPage() {
                 <p className="mt-3 text-center text-xs text-zinc-400">
                   O horário ficará aguardando confirmação da empresa.
                 </p>
+
               </div>
+
             </form>
+
           </section>
         )}
 
         {(tenant.phone ||
           tenant.email) && (
           <section className="mt-5 text-center text-sm text-zinc-500">
+
             <p>
               Precisa falar com a empresa?
             </p>
 
             <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1">
+
               {tenant.phone && (
                 <span>
                   {
@@ -1995,7 +2271,9 @@ export default function PublicBookingPage() {
                   }
                 </span>
               )}
+
             </div>
+
           </section>
         )}
 
@@ -2003,7 +2281,9 @@ export default function PublicBookingPage() {
           Agendamento online •{' '}
           {tenant.name}
         </p>
+
       </div>
+
     </main>
   );
 }
