@@ -1,10 +1,13 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
+  Post,
   Query,
 } from '@nestjs/common';
 
+import { CreatePublicAppointmentDto } from './dto/create-public-appointment.dto.js';
 import { PublicAvailabilityQueryDto } from './dto/public-availability-query.dto.js';
 import { PublicEmployeesQueryDto } from './dto/public-employees-query.dto.js';
 import { PublicBookingService } from './public-booking.service.js';
@@ -54,6 +57,17 @@ export class PublicBookingController {
     return this.publicBookingService.findAvailability(
       slug,
       query,
+    );
+  }
+
+  @Post('appointments')
+  createAppointment(
+    @Param('slug') slug: string,
+    @Body() data: CreatePublicAppointmentDto,
+  ) {
+    return this.publicBookingService.createAppointment(
+      slug,
+      data,
     );
   }
 }
