@@ -68,14 +68,16 @@ export class EmployeesController {
   /**
    * Listar funcionários
    *
-   * Todos podem visualizar.
+   * OWNER ✅
+   * ADMIN ✅
+   * RECEPTIONIST ✅
+   * STAFF ❌
    */
   @Get()
   @Roles(
     'OWNER',
     'ADMIN',
     'RECEPTIONIST',
-    'STAFF',
   )
   findAll(
     @CurrentUser() user: JwtPayload,
@@ -91,14 +93,16 @@ export class EmployeesController {
    * Ver serviços vinculados
    * ao funcionário.
    *
-   * Todos podem visualizar.
+   * OWNER ✅
+   * ADMIN ✅
+   * RECEPTIONIST ✅
+   * STAFF ❌
    */
   @Get(':id/services')
   @Roles(
     'OWNER',
     'ADMIN',
     'RECEPTIONIST',
-    'STAFF',
   )
   findServices(
     @CurrentUser() user: JwtPayload,
@@ -111,8 +115,7 @@ export class EmployeesController {
   }
 
   /**
-   * Alterar serviços vinculados
-   * ao funcionário.
+   * Alterar serviços vinculados.
    *
    * OWNER ✅
    * ADMIN ✅
@@ -139,14 +142,16 @@ export class EmployeesController {
   /**
    * Visualizar jornada semanal.
    *
-   * Todos podem visualizar.
+   * OWNER ✅
+   * ADMIN ✅
+   * RECEPTIONIST ✅
+   * STAFF ❌
    */
   @Get(':id/availability')
   @Roles(
     'OWNER',
     'ADMIN',
     'RECEPTIONIST',
-    'STAFF',
   )
   findAvailability(
     @CurrentUser() user: JwtPayload,
@@ -184,7 +189,7 @@ export class EmployeesController {
   }
 
   /**
-   * Criar bloqueio de agenda.
+   * Criar bloqueio.
    *
    * OWNER ✅
    * ADMIN ✅
@@ -211,14 +216,16 @@ export class EmployeesController {
   /**
    * Visualizar bloqueios.
    *
-   * Todos podem visualizar.
+   * OWNER ✅
+   * ADMIN ✅
+   * RECEPTIONIST ✅
+   * STAFF ❌
    */
   @Get(':id/blocked-times')
   @Roles(
     'OWNER',
     'ADMIN',
     'RECEPTIONIST',
-    'STAFF',
   )
   findBlockedTimes(
     @CurrentUser() user: JwtPayload,
@@ -256,16 +263,18 @@ export class EmployeesController {
   }
 
   /**
-   * Visualizar um funcionário.
+   * Visualizar funcionário.
    *
-   * Todos podem visualizar.
+   * OWNER ✅
+   * ADMIN ✅
+   * RECEPTIONIST ✅
+   * STAFF ❌
    */
   @Get(':id')
   @Roles(
     'OWNER',
     'ADMIN',
     'RECEPTIONIST',
-    'STAFF',
   )
   findOne(
     @CurrentUser() user: JwtPayload,

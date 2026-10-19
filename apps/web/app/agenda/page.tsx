@@ -469,44 +469,57 @@ export default function AgendaPage() {
       'RECEPTIONIST';
 
   useEffect(() => {
-    async function initialize() {
-      const token =
-        localStorage.getItem(
-          'accessToken',
-        );
+  async function initialize() {
+    const token =
+      localStorage.getItem(
+        'accessToken',
+      );
 
-      const storedUser =
-        localStorage.getItem(
-          'currentUser',
-        );
+    const storedUser =
+      localStorage.getItem(
+        'currentUser',
+      );
 
-      if (
-        !token ||
-        !storedUser
-      ) {
-        router.replace(
-          '/login',
-        );
+    if (
+      !token ||
+      !storedUser
+    ) {
+      router.replace(
+        '/login',
+      );
 
-        return;
-      }
+      return;
+    }
 
-      try {
-        const parsed =
-          JSON.parse(
-            storedUser,
-          ) as CurrentUser;
+    try {
+      const parsed =
+        JSON.parse(
+          storedUser,
+        ) as CurrentUser;
 
-        setCurrentUser(
-          parsed,
-        );
+      setCurrentUser(
+        parsed,
+      );
 
-        setTimezone(
-          parsed.tenant
-            .timezone ??
-            'America/Sao_Paulo',
-        );
+      setTimezone(
+        parsed.tenant
+          .timezone ??
+          'America/Sao_Paulo',
+      );
 
+      /**
+       * STAFF possui somente leitura
+       * da própria agenda.
+       *
+       * Portanto não precisa carregar
+       * a lista geral de funcionários
+       * nem a lista de clientes.
+       */
+      const isStaff =
+        parsed.membership.role ===
+        'STAFF';
+
+      if (!isStaff) {
         const [
           employeesResponse,
           clientsResponse,
@@ -552,25 +565,38 @@ export default function AgendaPage() {
         setClients(
           clientsData,
         );
-
-        await loadAgenda(
-          date,
-        );
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Erro ao carregar agenda',
-        );
-      } finally {
-        setLoading(false);
+      } else {
+        /**
+         * Garantia defensiva:
+         * STAFF nunca mantém listas
+         * gerais carregadas nesta tela.
+         */
+        setEmployees([]);
+        setClients([]);
       }
+
+      /**
+       * A agenda do STAFF é filtrada
+       * pelo próprio backend.
+       */
+      await loadAgenda(
+        date,
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Erro ao carregar agenda',
+      );
+    } finally {
+      setLoading(false);
     }
+  }
 
-    initialize();
+  initialize();
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   useEffect(() => {
     if (!loading) {
@@ -1114,8 +1140,18 @@ export default function AgendaPage() {
 
   return (
     <PanelShell
-      title="Agenda"
-      subtitle="Gerenciamento de horários e atendimentos"
+      title={
+        currentUser?.membership.role ===
+        'STAFF'
+          ? 'Minha Agenda'
+          : 'Agenda'
+      }
+      subtitle={
+        currentUser?.membership.role ===
+        'STAFF'
+          ? 'Seus horários e atendimentos'
+          : 'Gerenciamento de horários e atendimentos'
+      }
     >
       {/* CABEÇALHO */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
