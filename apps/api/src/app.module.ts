@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+
 import { HealthModule } from './health/health.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { TenantsModule } from './tenants/tenants.module.js';
@@ -16,6 +17,7 @@ import { BlockedTimesModule } from './blocked-times/blocked-times.module.js';
 import { AppointmentsModule } from './appointments/appointments.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
 import { TeamMembersModule } from './team-members/team-members.module.js';
+import { PublicBookingModule } from './public-booking/public-booking.module.js';
 
 @Module({
   imports: [
@@ -36,8 +38,15 @@ import { TeamMembersModule } from './team-members/team-members.module.js';
     AppointmentsModule,
     DashboardModule,
     TeamMembersModule,
+    PublicBookingModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+
+  controllers: [
+    AppController,
+  ],
+
+  providers: [
+    AppService,
+  ],
 })
 export class AppModule {}
