@@ -889,6 +889,70 @@ export default function AgendaPage() {
     }
   }
 
+  async function handleConfirm(
+    appointment: Appointment,
+  ) {
+    if (
+      !canManageAppointments
+    ) {
+      setError(
+        'Você não possui permissão para confirmar agendamentos.',
+      );
+
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `Deseja confirmar o agendamento de ${appointment.client.name}?`,
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError('');
+      setSuccess('');
+
+      const response =
+        await apiFetch(
+          `/appointments/${appointment.id}/status`,
+          {
+            method:
+              'PATCH',
+
+            body:
+              JSON.stringify({
+                status:
+                  'CONFIRMED',
+              }),
+          },
+        );
+
+      await readResponse<Appointment>(
+        response,
+      );
+
+      setSuccess(
+        'Agendamento confirmado com sucesso.',
+      );
+
+      await loadAgenda(
+        date,
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Erro ao confirmar agendamento',
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleCancel(
     appointment: Appointment,
   ) {
@@ -1738,13 +1802,35 @@ export default function AgendaPage() {
                       ) && (
                         <div className="flex flex-wrap gap-2">
 
+                          {appointment.status ===
+                            'PENDING' && (
+                            <button
+                              onClick={() =>
+                                handleConfirm(
+                                  appointment,
+                                )
+                              }
+                              disabled={
+                                saving
+                              }
+                              className="rounded-lg border border-green-300 bg-green-50 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {saving
+                                ? 'Confirmando...'
+                                : 'Confirmar'}
+                            </button>
+                          )}
+
                           <button
                             onClick={() =>
                               openReschedule(
                                 appointment,
                               )
                             }
-                            className="rounded-lg border border-blue-300 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
+                            disabled={
+                              saving
+                            }
+                            className="rounded-lg border border-blue-300 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             Reagendar
                           </button>
@@ -1755,7 +1841,10 @@ export default function AgendaPage() {
                                 appointment,
                               )
                             }
-                            className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+                            disabled={
+                              saving
+                            }
+                            className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             Cancelar
                           </button>
