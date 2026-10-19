@@ -13,6 +13,12 @@ import { CreatePublicAppointmentDto } from './dto/create-public-appointment.dto.
 import { PublicAvailabilityQueryDto } from './dto/public-availability-query.dto.js';
 import { PublicEmployeesQueryDto } from './dto/public-employees-query.dto.js';
 
+const PUBLIC_MIN_ADVANCE_MINUTES =
+  60;
+
+const PUBLIC_MAX_ADVANCE_DAYS =
+  7;
+
 @Injectable()
 export class PublicBookingService {
   constructor(
@@ -57,6 +63,105 @@ export class PublicBookingService {
       /\D/g,
       '',
     );
+  }
+
+  /*
+   * Janela permitida para
+   * agendamento público.
+   *
+   * Mínimo:
+   * 60 minutos a partir de agora.
+   *
+   * Máximo:
+   * até 7 dias à frente.
+   */
+  private getPublicBookingWindow(
+    timezone: string,
+  ) {
+    const now =
+      DateTime.now().setZone(
+        timezone,
+      );
+
+    return {
+      now,
+
+      minimumStart:
+        now.plus({
+          minutes:
+            PUBLIC_MIN_ADVANCE_MINUTES,
+        }),
+
+      minimumDate:
+        now.startOf(
+          'day',
+        ),
+
+      maximumDate:
+        now
+          .plus({
+            days:
+              PUBLIC_MAX_ADVANCE_DAYS,
+          })
+          .startOf(
+            'day',
+          ),
+    };
+  }
+
+  private validatePublicDate(
+    date: string,
+    timezone: string,
+  ) {
+    const selectedDate =
+      DateTime.fromISO(
+        date,
+        {
+          zone:
+            timezone,
+        },
+      );
+
+    if (
+      !selectedDate.isValid
+    ) {
+      throw new BadRequestException(
+        'Data inválida',
+      );
+    }
+
+    const {
+      minimumDate,
+      maximumDate,
+    } =
+      this.getPublicBookingWindow(
+        timezone,
+      );
+
+    const selectedDay =
+      selectedDate.startOf(
+        'day',
+      );
+
+    if (
+      selectedDay.toMillis() <
+      minimumDate.toMillis()
+    ) {
+      throw new BadRequestException(
+        'Não é possível realizar agendamento público em data anterior a hoje',
+      );
+    }
+
+    if (
+      selectedDay.toMillis() >
+      maximumDate.toMillis()
+    ) {
+      throw new BadRequestException(
+        'Agendamentos públicos podem ser feitos com no máximo 7 dias de antecedência',
+      );
+    }
+
+    return selectedDay;
   }
 
   async findTenant(
@@ -178,12 +283,67 @@ export class PublicBookingService {
         slug,
       );
 
-    return this.availabilityService.getAvailableSlots(
-      tenant.id,
-      query.employeeId,
-      query.serviceId,
+    /*
+     * Impede consulta pública
+     * para datas fora da janela.
+     */
+    this.validatePublicDate(
       query.date,
+      tenant.timezone,
     );
+
+    const availability =
+      await this.availabilityService.getAvailableSlots(
+        tenant.id,
+        query.employeeId,
+        query.serviceId,
+        query.date,
+      );
+
+    const {
+      minimumStart,
+    } =
+      this.getPublicBookingWindow(
+        tenant.timezone,
+      );
+
+    /*
+     * Remove horários com menos
+     * de 60 minutos de antecedência.
+     *
+     * Isso também funciona caso
+     * o período mínimo ultrapasse
+     * a meia-noite.
+     */
+    const slots =
+      availability.slots.filter(
+        (slot) => {
+          const slotDateTime =
+            DateTime.fromISO(
+              `${query.date}T${slot}`,
+              {
+                zone:
+                  tenant.timezone,
+              },
+            );
+
+          if (
+            !slotDateTime.isValid
+          ) {
+            return false;
+          }
+
+          return (
+            slotDateTime.toMillis() >=
+            minimumStart.toMillis()
+          );
+        },
+      );
+
+    return {
+      ...availability,
+      slots,
+    };
   }
 
   async createAppointment(
@@ -211,14 +371,43 @@ export class PublicBookingService {
       );
     }
 
+    const nowUtc =
+      DateTime.utc();
+
+    const requestedUtc =
+      requestedDateTime.toUTC();
+
+    /*
+     * Mantemos a validação
+     * original de horário passado.
+     */
     if (
-      requestedDateTime
-        .toUTC()
-        .toMillis() <=
-      DateTime.utc().toMillis()
+      requestedUtc.toMillis() <=
+      nowUtc.toMillis()
     ) {
       throw new BadRequestException(
         'Não é possível realizar agendamento em horário passado',
+      );
+    }
+
+    /*
+     * Segurança do backend:
+     * mesmo que alguém tente burlar
+     * o frontend, o agendamento precisa
+     * ter no mínimo 60 minutos.
+     */
+    const minimumStartUtc =
+      nowUtc.plus({
+        minutes:
+          PUBLIC_MIN_ADVANCE_MINUTES,
+      });
+
+    if (
+      requestedUtc.toMillis() <
+      minimumStartUtc.toMillis()
+    ) {
+      throw new BadRequestException(
+        'Agendamentos públicos precisam ser feitos com pelo menos 60 minutos de antecedência',
       );
     }
 
@@ -235,6 +424,15 @@ export class PublicBookingService {
         'Data inválida',
       );
     }
+
+    /*
+     * Segurança do backend:
+     * máximo de 7 dias.
+     */
+    this.validatePublicDate(
+      date,
+      tenant.timezone,
+    );
 
     const requestedTime =
       localDateTime.toFormat(

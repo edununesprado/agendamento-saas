@@ -9,6 +9,12 @@ import {
 
 import { useParams } from 'next/navigation';
 
+const PUBLIC_MIN_ADVANCE_MINUTES =
+  60;
+
+const PUBLIC_MAX_ADVANCE_DAYS =
+  7;
+
 type Tenant = {
   name: string;
   slug: string;
@@ -105,10 +111,6 @@ async function readResponse<T>(
       .json()
       .catch(() => null);
 
-  /*
-   * Tratamento especial para o
-   * rate limiting da API pública.
-   */
   if (response.status === 429) {
     throw new ApiError(
       'Muitas tentativas em pouco tempo. Aguarde um minuto e tente novamente.',
@@ -211,6 +213,55 @@ function formatDateInTimeZone(
     );
 
   return `${values.year}-${values.month}-${values.day}`;
+}
+
+function addDaysToDateString(
+  value: string,
+  days: number,
+) {
+  const [
+    year,
+    month,
+    day,
+  ] =
+    value
+      .split('-')
+      .map(Number);
+
+  const date =
+    new Date(
+      Date.UTC(
+        year,
+        month - 1,
+        day,
+      ),
+    );
+
+  date.setUTCDate(
+    date.getUTCDate() +
+      days,
+  );
+
+  const nextYear =
+    date.getUTCFullYear();
+
+  const nextMonth =
+    String(
+      date.getUTCMonth() + 1,
+    ).padStart(
+      2,
+      '0',
+    );
+
+  const nextDay =
+    String(
+      date.getUTCDate(),
+    ).padStart(
+      2,
+      '0',
+    );
+
+  return `${nextYear}-${nextMonth}-${nextDay}`;
 }
 
 function zonedLocalToIso(
@@ -567,6 +618,14 @@ export default function PublicBookingPage() {
         )
       : '';
 
+  const maxDate =
+    minDate
+      ? addDaysToDateString(
+          minDate,
+          PUBLIC_MAX_ADVANCE_DAYS,
+        )
+      : '';
+
   /*
    * Carrega empresa e
    * serviços públicos.
@@ -822,9 +881,18 @@ export default function PublicBookingPage() {
             );
 
           /*
-           * Não mostramos horários
-           * que já passaram.
+           * Proteção adicional no frontend.
+           *
+           * Mesmo que o backend já filtre,
+           * não mostramos horários com menos
+           * de 60 minutos de antecedência.
            */
+          const minimumStartTime =
+            Date.now() +
+            PUBLIC_MIN_ADVANCE_MINUTES *
+              60 *
+              1000;
+
           const futureSlots =
             data.slots.filter(
               (slot) => {
@@ -838,8 +906,8 @@ export default function PublicBookingPage() {
                   );
 
                 return (
-                  instant.getTime() >
-                  Date.now()
+                  instant.getTime() >=
+                  minimumStartTime
                 );
               },
             );
@@ -934,6 +1002,21 @@ export default function PublicBookingPage() {
       return;
     }
 
+    /*
+     * Proteção do frontend
+     * contra data fora da janela.
+     */
+    if (
+      date < minDate ||
+      date > maxDate
+    ) {
+      setError(
+        'Escolha uma data entre hoje e os próximos 7 dias.',
+      );
+
+      return;
+    }
+
     try {
       setSaving(
         true,
@@ -947,6 +1030,41 @@ export default function PublicBookingPage() {
           selectedSlot,
           tenant.timezone,
         );
+
+      const minimumStartTime =
+        Date.now() +
+        PUBLIC_MIN_ADVANCE_MINUTES *
+          60 *
+          1000;
+
+      /*
+       * O usuário pode ficar vários minutos
+       * preenchendo o formulário.
+       *
+       * Por isso verificamos novamente
+       * a antecedência no momento de enviar.
+       */
+      if (
+        new Date(
+          startsAt,
+        ).getTime() <
+        minimumStartTime
+      ) {
+        setError(
+          'Este horário ficou muito próximo. O agendamento precisa ser feito com pelo menos 60 minutos de antecedência.',
+        );
+
+        setSelectedSlot(
+          '',
+        );
+
+        setSlotsVersion(
+          (current) =>
+            current + 1,
+        );
+
+        return;
+      }
 
       const encodedSlug =
         encodeURIComponent(
@@ -999,11 +1117,6 @@ export default function PublicBookingPage() {
         appointment,
       );
     } catch (err) {
-      /*
-       * O ApiError com status 429
-       * já chega aqui com a mensagem
-       * amigável definida no readResponse.
-       */
       setError(
         err instanceof Error
           ? err.message
@@ -1011,12 +1124,8 @@ export default function PublicBookingPage() {
       );
 
       /*
-       * Em erros normais atualizamos
-       * os horários, pois outra pessoa
-       * pode ter reservado o mesmo horário.
-       *
-       * Em HTTP 429 não fazemos nova
-       * requisição automaticamente.
+       * Em HTTP 429 não fazemos
+       * outra consulta automaticamente.
        */
       if (
         !(
@@ -1294,7 +1403,6 @@ export default function PublicBookingPage() {
           </div>
         )}
 
-        {/* SERVIÇO */}
         <section className="rounded-3xl bg-white p-5 shadow-sm sm:p-7">
           <div className="flex items-center gap-3">
             <div
@@ -1390,7 +1498,6 @@ export default function PublicBookingPage() {
           )}
         </section>
 
-        {/* PROFISSIONAL */}
         {serviceId && (
           <section className="mt-5 rounded-3xl bg-white p-5 shadow-sm sm:p-7">
             <div className="flex items-center gap-3">
@@ -1498,7 +1605,6 @@ export default function PublicBookingPage() {
           </section>
         )}
 
-        {/* DATA E HORÁRIO */}
         {employeeId && (
           <section className="mt-5 rounded-3xl bg-white p-5 shadow-sm sm:p-7">
             <div className="flex items-center gap-3">
@@ -1539,6 +1645,9 @@ export default function PublicBookingPage() {
                 min={
                   minDate
                 }
+                max={
+                  maxDate
+                }
                 onChange={(
                   event,
                 ) => {
@@ -1551,9 +1660,17 @@ export default function PublicBookingPage() {
                   setSelectedSlot(
                     '',
                   );
+
+                  setError(
+                    '',
+                  );
                 }}
                 className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition focus:border-zinc-500 sm:max-w-xs"
               />
+
+              <p className="mt-2 text-xs text-zinc-400">
+                Agendamentos com pelo menos 60 minutos de antecedência e no máximo 7 dias à frente.
+              </p>
             </div>
 
             <div className="mt-6">
@@ -1622,7 +1739,6 @@ export default function PublicBookingPage() {
           </section>
         )}
 
-        {/* DADOS DO CLIENTE */}
         {selectedSlot && (
           <section className="mt-5 rounded-3xl bg-white p-5 shadow-sm sm:p-7">
             <div className="flex items-center gap-3">

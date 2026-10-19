@@ -3,6 +3,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { DateTime } from 'luxon';
 import request from 'supertest';
 import {
   afterAll,
@@ -34,18 +35,76 @@ describe(
     let employeeId: string;
     let unrelatedEmployeeId: string;
 
+    let bookingDate: string;
+
+    const timezone =
+      'America/Sao_Paulo';
+
     const password =
       'Teste@12345';
 
     const ownerEmail =
       'owner.public.create.e2e@teste.com';
 
+    /*
+     * Retorna um horário ISO válido
+     * para o dia preparado nos testes.
+     */
+    function bookingStartsAt(
+      time: string,
+    ) {
+      const value =
+        DateTime.fromISO(
+          `${bookingDate}T${time}`,
+          {
+            zone:
+              timezone,
+          },
+        ).toISO();
+
+      if (!value) {
+        throw new Error(
+          'Não foi possível gerar a data do teste',
+        );
+      }
+
+      return value;
+    }
+
+    /*
+     * Retorna uma data futura
+     * considerando o fuso da empresa.
+     */
+    function futureDate(
+      days: number,
+    ) {
+      const value =
+        DateTime.now()
+          .setZone(
+            timezone,
+          )
+          .plus({
+            days,
+          })
+          .toISODate();
+
+      if (!value) {
+        throw new Error(
+          'Não foi possível gerar a data futura do teste',
+        );
+      }
+
+      return value;
+    }
+
     async function login() {
       const response =
         await request(
           app.getHttpServer(),
         )
-          .post('/auth/login')
+          .post(
+            '/auth/login',
+          )
           .send({
             email:
               ownerEmail,
@@ -54,13 +113,17 @@ describe(
           });
 
       expect(
-        [200, 201],
+        [
+          200,
+          201,
+        ],
       ).toContain(
         response.status,
       );
 
       expect(
-        response.body.accessToken,
+        response.body
+          .accessToken,
       ).toBeTruthy();
 
       return (
@@ -80,6 +143,61 @@ describe(
           );
         }
 
+        /*
+         * Escolhe sempre a próxima
+         * terça-feira.
+         *
+         * Assim:
+         * - permanece dentro dos 7 dias;
+         * - fica no futuro;
+         * - combina com a disponibilidade
+         *   TUESDAY criada abaixo.
+         */
+        const now =
+          DateTime.now()
+            .setZone(
+              timezone,
+            );
+
+        let daysUntilTuesday =
+          (
+            2 -
+            now.weekday +
+            7
+          ) %
+          7;
+
+        /*
+         * Se hoje já for terça,
+         * usamos a terça seguinte.
+         */
+        if (
+          daysUntilTuesday ===
+          0
+        ) {
+          daysUntilTuesday =
+            7;
+        }
+
+        const calculatedBookingDate =
+          now
+            .plus({
+              days:
+                daysUntilTuesday,
+            })
+            .toISODate();
+
+        if (
+          !calculatedBookingDate
+        ) {
+          throw new Error(
+            'Não foi possível calcular a data de agendamento dos testes',
+          );
+        }
+
+        bookingDate =
+          calculatedBookingDate;
+
         const moduleRef =
           await Test.createTestingModule({
             imports: [
@@ -92,8 +210,11 @@ describe(
 
         app.useGlobalPipes(
           new ValidationPipe({
-            whitelist: true,
-            transform: true,
+            whitelist:
+              true,
+
+            transform:
+              true,
           }),
         );
 
@@ -132,13 +253,16 @@ describe(
 
         expect(
           registerResponse.status,
-        ).toBe(201);
+        ).toBe(
+          201,
+        );
 
         ownerToken =
           await login();
 
         /*
-         * Descobre o slug da empresa.
+         * Descobre o slug
+         * da empresa.
          */
         const tenantResponse =
           await request(
@@ -154,22 +278,29 @@ describe(
 
         expect(
           tenantResponse.status,
-        ).toBe(200);
+        ).toBe(
+          200,
+        );
 
         tenantSlug =
-          tenantResponse.body.slug;
+          tenantResponse
+            .body
+            .slug;
 
         const tenant =
-          await prisma.tenant.findUnique({
-            where: {
-              slug:
-                tenantSlug,
-            },
+          await prisma
+            .tenant
+            .findUnique({
+              where: {
+                slug:
+                  tenantSlug,
+              },
 
-            select: {
-              id: true,
-            },
-          });
+              select: {
+                id:
+                  true,
+              },
+            });
 
         expect(
           tenant,
@@ -185,7 +316,9 @@ describe(
           await request(
             app.getHttpServer(),
           )
-            .post('/services')
+            .post(
+              '/services',
+            )
             .set(
               'Authorization',
               `Bearer ${ownerToken}`,
@@ -203,20 +336,26 @@ describe(
 
         expect(
           serviceResponse.status,
-        ).toBe(201);
+        ).toBe(
+          201,
+        );
 
         serviceId =
-          serviceResponse.body.id;
+          serviceResponse
+            .body
+            .id;
 
         /*
-         * Profissional que realiza
-         * o serviço.
+         * Profissional que
+         * realiza o serviço.
          */
         const employeeResponse =
           await request(
             app.getHttpServer(),
           )
-            .post('/employees')
+            .post(
+              '/employees',
+            )
             .set(
               'Authorization',
               `Bearer ${ownerToken}`,
@@ -234,20 +373,27 @@ describe(
 
         expect(
           employeeResponse.status,
-        ).toBe(201);
+        ).toBe(
+          201,
+        );
 
         employeeId =
-          employeeResponse.body.id;
+          employeeResponse
+            .body
+            .id;
 
         /*
-         * Profissional ativo, mas que
-         * NÃO realiza esse serviço.
+         * Profissional ativo,
+         * mas que NÃO realiza
+         * esse serviço.
          */
         const unrelatedEmployeeResponse =
           await request(
             app.getHttpServer(),
           )
-            .post('/employees')
+            .post(
+              '/employees',
+            )
             .set(
               'Authorization',
               `Bearer ${ownerToken}`,
@@ -264,14 +410,20 @@ describe(
             });
 
         expect(
-          unrelatedEmployeeResponse.status,
-        ).toBe(201);
+          unrelatedEmployeeResponse
+            .status,
+        ).toBe(
+          201,
+        );
 
         unrelatedEmployeeId =
-          unrelatedEmployeeResponse.body.id;
+          unrelatedEmployeeResponse
+            .body
+            .id;
 
         /*
-         * Vincula o serviço ao Carlos.
+         * Vincula o serviço
+         * ao Carlos.
          */
         const linkServiceResponse =
           await request(
@@ -292,12 +444,15 @@ describe(
 
         expect(
           linkServiceResponse.status,
-        ).toBe(200);
+        ).toBe(
+          200,
+        );
 
         /*
-         * 20/10/2026 = terça-feira.
-         *
          * Disponibilidade:
+         *
+         * terça-feira
+         *
          * 08:00
          * 08:30
          * 09:00
@@ -335,7 +490,9 @@ describe(
 
         expect(
           availabilityResponse.status,
-        ).toBe(200);
+        ).toBe(
+          200,
+        );
       },
       30000,
     );
@@ -343,8 +500,13 @@ describe(
     afterAll(
       async () => {
         if (prisma) {
-          await prisma.tenant.deleteMany();
-          await prisma.user.deleteMany();
+          await prisma
+            .tenant
+            .deleteMany();
+
+          await prisma
+            .user
+            .deleteMany();
         }
 
         if (app) {
@@ -369,7 +531,9 @@ describe(
               serviceId,
 
               startsAt:
-                '2026-10-20T08:00:00-03:00',
+                bookingStartsAt(
+                  '08:00',
+                ),
 
               client: {
                 name:
@@ -388,7 +552,9 @@ describe(
 
         expect(
           response.status,
-        ).toBe(201);
+        ).toBe(
+          201,
+        );
 
         expect(
           response.body.status,
@@ -397,20 +563,25 @@ describe(
         );
 
         expect(
-          response.body.employee.id,
+          response.body
+            .employee
+            .id,
         ).toBe(
           employeeId,
         );
 
         expect(
-          response.body.service.id,
+          response.body
+            .service
+            .id,
         ).toBe(
           serviceId,
         );
 
         /*
          * Dados pessoais do cliente
-         * não devem voltar publicamente.
+         * não devem voltar
+         * publicamente.
          */
         expect(
           response.body.client,
@@ -421,14 +592,16 @@ describe(
         ).toBeUndefined();
 
         const client =
-          await prisma.client.findFirst({
-            where: {
-              tenantId,
+          await prisma
+            .client
+            .findFirst({
+              where: {
+                tenantId,
 
-              phone:
-                '34999993333',
-            },
-          });
+                phone:
+                  '34999993333',
+              },
+            });
 
         expect(
           client,
@@ -448,15 +621,21 @@ describe(
 
         expect(
           client!.active,
-        ).toBe(true);
+        ).toBe(
+          true,
+        );
 
         const appointment =
-          await prisma.appointment.findUnique({
-            where: {
-              id:
-                response.body.id,
-            },
-          });
+          await prisma
+            .appointment
+            .findUnique({
+              where: {
+                id:
+                  response
+                    .body
+                    .id,
+              },
+            });
 
         expect(
           appointment,
@@ -480,18 +659,22 @@ describe(
       'reutiliza cliente ativo pelo telefone sem sobrescrever seus dados',
       async () => {
         const before =
-          await prisma.client.findMany({
-            where: {
-              tenantId,
+          await prisma
+            .client
+            .findMany({
+              where: {
+                tenantId,
 
-              phone:
-                '34999993333',
-            },
-          });
+                phone:
+                  '34999993333',
+              },
+            });
 
         expect(
           before,
-        ).toHaveLength(1);
+        ).toHaveLength(
+          1,
+        );
 
         const originalClient =
           before[0];
@@ -508,7 +691,9 @@ describe(
               serviceId,
 
               startsAt:
-                '2026-10-20T08:30:00-03:00',
+                bookingStartsAt(
+                  '08:30',
+                ),
 
               client: {
                 name:
@@ -524,21 +709,27 @@ describe(
 
         expect(
           response.status,
-        ).toBe(201);
+        ).toBe(
+          201,
+        );
 
         const clients =
-          await prisma.client.findMany({
-            where: {
-              tenantId,
+          await prisma
+            .client
+            .findMany({
+              where: {
+                tenantId,
 
-              phone:
-                '34999993333',
-            },
-          });
+                phone:
+                  '34999993333',
+              },
+            });
 
         expect(
           clients,
-        ).toHaveLength(1);
+        ).toHaveLength(
+          1,
+        );
 
         expect(
           clients[0].id,
@@ -559,18 +750,22 @@ describe(
         );
 
         const appointments =
-          await prisma.appointment.findMany({
-            where: {
-              tenantId,
+          await prisma
+            .appointment
+            .findMany({
+              where: {
+                tenantId,
 
-              clientId:
-                originalClient.id,
-            },
-          });
+                clientId:
+                  originalClient.id,
+              },
+            });
 
         expect(
           appointments,
-        ).toHaveLength(2);
+        ).toHaveLength(
+          2,
+        );
       },
     );
 
@@ -589,7 +784,9 @@ describe(
               serviceId,
 
               startsAt:
-                '2026-10-20T08:00:00-03:00',
+                bookingStartsAt(
+                  '08:00',
+                ),
 
               client: {
                 name:
@@ -602,19 +799,24 @@ describe(
 
         expect(
           response.status,
-        ).toBe(409);
+        ).toBe(
+          409,
+        );
       },
     );
 
     it(
       'impede duas reservas simultâneas para o mesmo horário',
       async () => {
+        const startsAt =
+          bookingStartsAt(
+            '09:00',
+          );
+
         const bodyA = {
           employeeId,
           serviceId,
-
-          startsAt:
-            '2026-10-20T09:00:00-03:00',
+          startsAt,
 
           client: {
             name:
@@ -628,9 +830,7 @@ describe(
         const bodyB = {
           employeeId,
           serviceId,
-
-          startsAt:
-            '2026-10-20T09:00:00-03:00',
+          startsAt,
 
           client: {
             name:
@@ -671,7 +871,10 @@ describe(
           responseA.status,
           responseB.status,
         ].sort(
-          (a, b) =>
+          (
+            a,
+            b,
+          ) =>
             a - b,
         );
 
@@ -687,26 +890,30 @@ describe(
         ]);
 
         const appointments =
-          await prisma.appointment.findMany({
-            where: {
-              tenantId,
-              employeeId,
+          await prisma
+            .appointment
+            .findMany({
+              where: {
+                tenantId,
+                employeeId,
 
-              startsAt:
-                new Date(
-                  '2026-10-20T12:00:00.000Z',
-                ),
+                startsAt:
+                  new Date(
+                    startsAt,
+                  ),
 
-              status: {
-                not:
-                  'CANCELED',
+                status: {
+                  not:
+                    'CANCELED',
+                },
               },
-            },
-          });
+            });
 
         expect(
           appointments,
-        ).toHaveLength(1);
+        ).toHaveLength(
+          1,
+        );
       },
       10000,
     );
@@ -726,7 +933,9 @@ describe(
               serviceId,
 
               startsAt:
-                '2026-10-20T09:30:00-03:00',
+                bookingStartsAt(
+                  '09:30',
+                ),
 
               client: {
                 name:
@@ -739,7 +948,9 @@ describe(
 
         expect(
           response.status,
-        ).toBe(400);
+        ).toBe(
+          400,
+        );
       },
     );
 
@@ -747,10 +958,16 @@ describe(
       'rejeita agendamento em horário passado',
       async () => {
         const pastDate =
-          new Date(
-            Date.now() -
-              60 * 60 * 1000,
-          ).toISOString();
+          DateTime.now()
+            .minus({
+              hours:
+                1,
+            })
+            .toISO();
+
+        expect(
+          pastDate,
+        ).toBeTruthy();
 
         const response =
           await request(
@@ -777,7 +994,9 @@ describe(
 
         expect(
           response.status,
-        ).toBe(400);
+        ).toBe(
+          400,
+        );
       },
     );
 
@@ -798,7 +1017,9 @@ describe(
               serviceId,
 
               startsAt:
-                '2026-10-20T09:30:00-03:00',
+                bookingStartsAt(
+                  '09:30',
+                ),
 
               client: {
                 name:
@@ -811,7 +1032,9 @@ describe(
 
         expect(
           response.status,
-        ).toBe(400);
+        ).toBe(
+          400,
+        );
       },
     );
 
@@ -830,7 +1053,9 @@ describe(
               serviceId,
 
               startsAt:
-                '2026-10-20T09:30:00-03:00',
+                bookingStartsAt(
+                  '09:30',
+                ),
 
               client: {
                 name:
@@ -843,7 +1068,273 @@ describe(
 
         expect(
           response.status,
-        ).toBe(404);
+        ).toBe(
+          404,
+        );
+      },
+    );
+
+    /*
+     * NOVOS TESTES:
+     * antecedência mínima
+     * e janela máxima.
+     */
+
+    it(
+      'rejeita agendamento público com menos de 60 minutos de antecedência',
+      async () => {
+        const tooSoon =
+          DateTime.now()
+            .setZone(
+              timezone,
+            )
+            .plus({
+              minutes:
+                30,
+            })
+            .toISO();
+
+        expect(
+          tooSoon,
+        ).toBeTruthy();
+
+        const response =
+          await request(
+            app.getHttpServer(),
+          )
+            .post(
+              `/public/tenants/${tenantSlug}/appointments`,
+            )
+            .send({
+              employeeId,
+              serviceId,
+
+              startsAt:
+                tooSoon,
+
+              client: {
+                name:
+                  'Cliente Antecedência E2E',
+
+                phone:
+                  '34999991111',
+              },
+            });
+
+        expect(
+          response.status,
+        ).toBe(
+          400,
+        );
+
+        expect(
+          response.body.message,
+        ).toContain(
+          '60 minutos',
+        );
+      },
+    );
+
+    it(
+      'rejeita agendamento público acima de 7 dias',
+      async () => {
+        const tooFar =
+          DateTime.now()
+            .setZone(
+              timezone,
+            )
+            .plus({
+              days:
+                8,
+            })
+            .set({
+              hour:
+                9,
+
+              minute:
+                0,
+
+              second:
+                0,
+
+              millisecond:
+                0,
+            })
+            .toISO();
+
+        expect(
+          tooFar,
+        ).toBeTruthy();
+
+        const response =
+          await request(
+            app.getHttpServer(),
+          )
+            .post(
+              `/public/tenants/${tenantSlug}/appointments`,
+            )
+            .send({
+              employeeId,
+              serviceId,
+
+              startsAt:
+                tooFar,
+
+              client: {
+                name:
+                  'Cliente Data Distante E2E',
+
+                phone:
+                  '34999992222',
+              },
+            });
+
+        expect(
+          response.status,
+        ).toBe(
+          400,
+        );
+
+        expect(
+          response.body.message,
+        ).toContain(
+          'no máximo 7 dias',
+        );
+      },
+    );
+
+    it(
+      'rejeita consulta pública de disponibilidade acima de 7 dias',
+      async () => {
+        const dateOutsideWindow =
+          futureDate(
+            8,
+          );
+
+        const response =
+          await request(
+            app.getHttpServer(),
+          )
+            .get(
+              `/public/tenants/${tenantSlug}/availability`,
+            )
+            .query({
+              employeeId,
+              serviceId,
+
+              date:
+                dateOutsideWindow,
+            });
+
+        expect(
+          response.status,
+        ).toBe(
+          400,
+        );
+
+        expect(
+          response.body.message,
+        ).toContain(
+          'no máximo 7 dias',
+        );
+      },
+    );
+
+    it(
+      'permite consultar disponibilidade dentro dos 7 dias',
+      async () => {
+        const response =
+          await request(
+            app.getHttpServer(),
+          )
+            .get(
+              `/public/tenants/${tenantSlug}/availability`,
+            )
+            .query({
+              employeeId,
+              serviceId,
+
+              date:
+                bookingDate,
+            });
+
+        expect(
+          response.status,
+        ).toBe(
+          200,
+        );
+
+        expect(
+          response.body.date,
+        ).toBe(
+          bookingDate,
+        );
+
+        expect(
+          Array.isArray(
+            response.body.slots,
+          ),
+        ).toBe(
+          true,
+        );
+      },
+    );
+
+    it(
+      'permite agendamento dentro de 7 dias e com mais de 60 minutos de antecedência',
+      async () => {
+        const response =
+          await request(
+            app.getHttpServer(),
+          )
+            .post(
+              `/public/tenants/${tenantSlug}/appointments`,
+            )
+            .send({
+              employeeId,
+              serviceId,
+
+              startsAt:
+                bookingStartsAt(
+                  '09:30',
+                ),
+
+              client: {
+                name:
+                  'Cliente Dentro da Janela E2E',
+
+                phone:
+                  '34999993399',
+              },
+            });
+
+        expect(
+          response.status,
+        ).toBe(
+          201,
+        );
+
+        expect(
+          response.body.status,
+        ).toBe(
+          'PENDING',
+        );
+
+        expect(
+          response.body
+            .employee
+            .id,
+        ).toBe(
+          employeeId,
+        );
+
+        expect(
+          response.body
+            .service
+            .id,
+        ).toBe(
+          serviceId,
+        );
       },
     );
   },
