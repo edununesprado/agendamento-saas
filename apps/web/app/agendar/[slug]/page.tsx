@@ -6,6 +6,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+
 import { useParams } from 'next/navigation';
 
 type Tenant = {
@@ -77,11 +78,24 @@ const emptyForm: ClientForm = {
   notes: '',
 };
 
-const API_URL =
-  (
-    process.env.NEXT_PUBLIC_API_URL ??
-    'http://localhost:3333'
-  ).replace(/\/$/, '');
+const API_URL = (
+  process.env.NEXT_PUBLIC_API_URL ??
+  'http://localhost:3333'
+).replace(/\/+$/, '');
+
+class ApiError extends Error {
+  status: number;
+
+  constructor(
+    message: string,
+    status: number,
+  ) {
+    super(message);
+
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
 
 async function readResponse<T>(
   response: Response,
@@ -91,14 +105,32 @@ async function readResponse<T>(
       .json()
       .catch(() => null);
 
+  /*
+   * Tratamento especial para o
+   * rate limiting da API pública.
+   */
+  if (response.status === 429) {
+    throw new ApiError(
+      'Muitas tentativas em pouco tempo. Aguarde um minuto e tente novamente.',
+      429,
+    );
+  }
+
   if (!response.ok) {
     const message =
-      Array.isArray(data?.message)
-        ? data.message.join(', ')
+      Array.isArray(
+        data?.message,
+      )
+        ? data.message.join(
+            ', ',
+          )
         : data?.message ??
           'Não foi possível concluir a solicitação.';
 
-    throw new Error(message);
+    throw new ApiError(
+      message,
+      response.status,
+    );
   }
 
   return data as T;
@@ -309,7 +341,10 @@ function getContrastColor(
   hex: string,
 ) {
   const normalized =
-    hex.replace('#', '');
+    hex.replace(
+      '#',
+      '',
+    );
 
   if (
     !/^[0-9a-fA-F]{6}$/.test(
@@ -354,8 +389,7 @@ function getContrastColor(
     ) /
     1000;
 
-  return brightness >
-    180
+  return brightness > 180
     ? '#18181b'
     : '#ffffff';
 }
@@ -545,7 +579,10 @@ export default function PublicBookingPage() {
 
       async function initialize() {
         try {
-          setLoading(true);
+          setLoading(
+            true,
+          );
+
           setError('');
 
           const encodedSlug =
@@ -785,9 +822,8 @@ export default function PublicBookingPage() {
             );
 
           /*
-           * Se o cliente estiver agendando
-           * para hoje, não mostramos
-           * horários que já passaram.
+           * Não mostramos horários
+           * que já passaram.
            */
           const futureSlots =
             data.slots.filter(
@@ -797,7 +833,7 @@ export default function PublicBookingPage() {
                     zonedLocalToIso(
                       date,
                       slot,
-                      timezone
+                      timezone,
                     ),
                   );
 
@@ -963,6 +999,11 @@ export default function PublicBookingPage() {
         appointment,
       );
     } catch (err) {
+      /*
+       * O ApiError com status 429
+       * já chega aqui com a mensagem
+       * amigável definida no readResponse.
+       */
       setError(
         err instanceof Error
           ? err.message
@@ -970,18 +1011,28 @@ export default function PublicBookingPage() {
       );
 
       /*
-       * Atualiza os horários caso
-       * outra pessoa tenha reservado
-       * exatamente nesse momento.
+       * Em erros normais atualizamos
+       * os horários, pois outra pessoa
+       * pode ter reservado o mesmo horário.
+       *
+       * Em HTTP 429 não fazemos nova
+       * requisição automaticamente.
        */
-      setSelectedSlot(
-        '',
-      );
+      if (
+        !(
+          err instanceof ApiError &&
+          err.status === 429
+        )
+      ) {
+        setSelectedSlot(
+          '',
+        );
 
-      setSlotsVersion(
-        (current) =>
-          current + 1,
-      );
+        setSlotsVersion(
+          (current) =>
+            current + 1,
+        );
+      }
     } finally {
       setSaving(
         false,
@@ -1243,6 +1294,7 @@ export default function PublicBookingPage() {
           </div>
         )}
 
+        {/* SERVIÇO */}
         <section className="rounded-3xl bg-white p-5 shadow-sm sm:p-7">
           <div className="flex items-center gap-3">
             <div
@@ -1338,6 +1390,7 @@ export default function PublicBookingPage() {
           )}
         </section>
 
+        {/* PROFISSIONAL */}
         {serviceId && (
           <section className="mt-5 rounded-3xl bg-white p-5 shadow-sm sm:p-7">
             <div className="flex items-center gap-3">
@@ -1445,6 +1498,7 @@ export default function PublicBookingPage() {
           </section>
         )}
 
+        {/* DATA E HORÁRIO */}
         {employeeId && (
           <section className="mt-5 rounded-3xl bg-white p-5 shadow-sm sm:p-7">
             <div className="flex items-center gap-3">
@@ -1568,6 +1622,7 @@ export default function PublicBookingPage() {
           </section>
         )}
 
+        {/* DADOS DO CLIENTE */}
         {selectedSlot && (
           <section className="mt-5 rounded-3xl bg-white p-5 shadow-sm sm:p-7">
             <div className="flex items-center gap-3">
