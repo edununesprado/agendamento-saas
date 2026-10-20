@@ -497,6 +497,14 @@ export class PublicBookingService {
     const appointment =
       await this.prisma.$transaction(
         async (tx) => {
+          /*
+           * Serializa qualquer operação pública
+           * envolvendo este telefone dentro da
+           * mesma empresa.
+           *
+           * Isso também protege contra dois cliques
+           * simultâneos no botão de confirmar.
+           */
           await tx.$queryRaw<
             Array<{
               lock_value: number;
@@ -509,23 +517,42 @@ export class PublicBookingService {
             )
           `;
 
-          let client =
-            await tx.client.findFirst({
+          /*
+           * Buscamos todos os clientes que tenham
+           * o mesmo telefone dentro da empresa.
+           *
+           * Normalmente haverá apenas um, mas assim
+           * a proteção continua funcionando mesmo
+           * caso existam registros antigos duplicados.
+           */
+          const clientsWithPhone =
+            await tx.client.findMany({
               where: {
                 tenantId:
                   tenant.id,
 
                 phone,
-
-                active:
-                  true,
               },
 
               select: {
                 id:
                   true,
+
+                active:
+                  true,
+              },
+
+              orderBy: {
+                createdAt:
+                  'asc',
               },
             });
+
+          let client =
+            clientsWithPhone.find(
+              (existingClient) =>
+                existingClient.active,
+            );
 
           if (!client) {
             client =
@@ -545,10 +572,97 @@ export class PublicBookingService {
                 select: {
                   id:
                     true,
+
+                  active:
+                    true,
                 },
               });
           }
 
+          /*
+           * Identifica todos os registros de cliente
+           * associados ao mesmo telefone.
+           *
+           * Isso evita que um cliente consiga criar
+           * reservas sobrepostas caso existam dois
+           * cadastros antigos com o mesmo número.
+           */
+          const clientIds = [
+            ...clientsWithPhone.map(
+              (existingClient) =>
+                existingClient.id,
+            ),
+
+            client.id,
+          ].filter(
+            (
+              id,
+              index,
+              values,
+            ) =>
+              values.indexOf(id) ===
+              index,
+          );
+
+          /*
+           * O mesmo cliente não pode manter dois
+           * agendamentos ativos que se sobreponham,
+           * mesmo que sejam com profissionais
+           * diferentes.
+           *
+           * PENDING e CONFIRMED são considerados
+           * compromissos ativos.
+           */
+          const clientConflict =
+            await tx.appointment.findFirst({
+              where: {
+                tenantId:
+                  tenant.id,
+
+                clientId: {
+                  in:
+                    clientIds,
+                },
+
+                status: {
+                  in: [
+                    'PENDING',
+                    'CONFIRMED',
+                  ],
+                },
+
+                startsAt: {
+                  lt:
+                    endsAt,
+                },
+
+                endsAt: {
+                  gt:
+                    startsAt,
+                },
+              },
+
+              select: {
+                id:
+                  true,
+              },
+            });
+
+          if (
+            clientConflict
+          ) {
+            throw new ConflictException(
+              'Você já possui um agendamento neste horário',
+            );
+          }
+
+          /*
+           * Serializa as reservas do profissional.
+           *
+           * Mesmo que duas pessoas tenham escolhido
+           * o mesmo horário antes de confirmar,
+           * apenas uma poderá gravá-lo.
+           */
           await tx.$queryRaw<
             Array<{
               lock_value: number;
