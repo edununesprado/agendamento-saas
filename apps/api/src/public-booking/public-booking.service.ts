@@ -59,10 +59,76 @@ export class PublicBookingService {
   private normalizePhone(
     value: string,
   ) {
-    return value.replace(
-      /\D/g,
-      '',
-    );
+    const digits =
+      value.replace(
+        /\D/g,
+        '',
+      );
+
+    /*
+     * Telefones brasileiros podem chegar
+     * com o código internacional 55.
+     *
+     * Exemplos:
+     *
+     * 5534999993333 -> 34999993333
+     * 553432343434  -> 3432343434
+     */
+    const phone =
+      digits.startsWith(
+        '55',
+      ) &&
+      (
+        digits.length ===
+          12 ||
+        digits.length ===
+          13
+      )
+        ? digits.slice(
+            2,
+          )
+        : digits;
+
+    /*
+     * Formato nacional brasileiro:
+     *
+     * 10 dígitos:
+     * DDD + telefone fixo
+     *
+     * 11 dígitos:
+     * DDD + celular
+     *
+     * Também rejeitamos números
+     * iniciados por zero.
+     */
+    if (
+      !/^[1-9]\d{9,10}$/.test(
+        phone,
+      )
+    ) {
+      throw new BadRequestException(
+        'Telefone inválido',
+      );
+    }
+
+    return phone;
+  }
+
+  private getPhoneLookupValues(
+    phone: string,
+  ) {
+    /*
+     * Mantém compatibilidade com clientes
+     * antigos que possam ter sido gravados
+     * com o código internacional 55.
+     *
+     * Novos cadastros serão sempre
+     * armazenados no formato nacional.
+     */
+    return [
+      phone,
+      `55${phone}`,
+    ];
   }
 
   private getPublicBookingWindow(
@@ -469,19 +535,20 @@ export class PublicBookingService {
         .toUTC()
         .toJSDate();
 
+    /*
+     * A partir daqui trabalhamos sempre
+     * com o telefone brasileiro canônico,
+     * sem +55 e sem formatação.
+     */
     const phone =
       this.normalizePhone(
         data.client.phone,
       );
 
-    if (
-      phone.length < 10 ||
-      phone.length > 13
-    ) {
-      throw new BadRequestException(
-        'Telefone inválido',
+    const phoneLookupValues =
+      this.getPhoneLookupValues(
+        phone,
       );
-    }
 
     const clientName =
       data.client.name.trim();
@@ -498,12 +565,14 @@ export class PublicBookingService {
       await this.prisma.$transaction(
         async (tx) => {
           /*
-           * Serializa qualquer operação pública
-           * envolvendo este telefone dentro da
-           * mesma empresa.
+           * A chave usa o telefone canônico.
            *
-           * Isso também protege contra dois cliques
-           * simultâneos no botão de confirmar.
+           * Portanto:
+           *
+           * 34999993333
+           * +55 34 99999-3333
+           *
+           * disputam o mesmo advisory lock.
            */
           await tx.$queryRaw<
             Array<{
@@ -518,12 +587,12 @@ export class PublicBookingService {
           `;
 
           /*
-           * Buscamos todos os clientes que tenham
-           * o mesmo telefone dentro da empresa.
+           * Procura tanto o formato novo
+           * quanto o formato antigo com 55.
            *
-           * Normalmente haverá apenas um, mas assim
-           * a proteção continua funcionando mesmo
-           * caso existam registros antigos duplicados.
+           * Isso impede a criação de um
+           * segundo cliente apenas porque o
+           * telefone foi informado com +55.
            */
           const clientsWithPhone =
             await tx.client.findMany({
@@ -531,7 +600,10 @@ export class PublicBookingService {
                 tenantId:
                   tenant.id,
 
-                phone,
+                phone: {
+                  in:
+                    phoneLookupValues,
+                },
               },
 
               select: {
@@ -554,6 +626,10 @@ export class PublicBookingService {
                 existingClient.active,
             );
 
+          /*
+           * Novos clientes são sempre
+           * gravados no formato nacional.
+           */
           if (!client) {
             client =
               await tx.client.create({
@@ -580,12 +656,12 @@ export class PublicBookingService {
           }
 
           /*
-           * Identifica todos os registros de cliente
-           * associados ao mesmo telefone.
+           * Inclui todos os possíveis registros
+           * antigos do mesmo telefone.
            *
-           * Isso evita que um cliente consiga criar
-           * reservas sobrepostas caso existam dois
-           * cadastros antigos com o mesmo número.
+           * Assim a proteção contra conflito
+           * continua funcionando caso já existam
+           * registros duplicados históricos.
            */
           const clientIds = [
             ...clientsWithPhone.map(

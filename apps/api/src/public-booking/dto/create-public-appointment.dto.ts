@@ -21,10 +21,10 @@ export class PublicClientDto {
   @IsString()
   @IsNotEmpty()
   @Matches(
-    /^[0-9()+\-\s]{8,20}$/,
+    /^[0-9()+\s-]{8,20}$/,
     {
       message:
-        'phone deve conter um telefone válido',
+        'phone deve conter apenas números, espaços, parênteses, + ou -',
     },
   )
   phone!: string;
