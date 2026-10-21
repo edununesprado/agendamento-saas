@@ -14,6 +14,7 @@ import {
 
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { DateTime } from 'luxon';
 
 type LoginResponse = {
   accessToken: string;
@@ -580,17 +581,56 @@ describe(
     it(
       'consulta disponibilidade pública sem token',
       async () => {
+        /*
+        * A disponibilidade cadastrada para
+        * este profissional é às terças-feiras.
+        *
+        * Procuramos sempre a próxima terça,
+        * evitando uma data fixa que fique
+        * inválida com o passar do tempo.
+        */
+        const today =
+          DateTime.now()
+            .setZone(
+              'America/Sao_Paulo',
+            )
+            .startOf(
+              'day',
+            );
+
+        const daysUntilTuesday =
+          (
+            2 -
+            today.weekday +
+            7
+          ) %
+            7 ||
+          7;
+
+        const availabilityDate =
+          today
+            .plus({
+              days:
+                daysUntilTuesday,
+            })
+            .toISODate();
+
+        expect(
+          availabilityDate,
+        ).toBeTruthy();
+
         const response =
           await request(
             app.getHttpServer(),
-          ).get(
-            `/public/tenants/${tenantSlug}/availability`,
           )
+            .get(
+              `/public/tenants/${tenantSlug}/availability`,
+            )
             .query({
               employeeId,
               serviceId,
               date:
-                '2026-10-20',
+                availabilityDate!,
             });
 
         expect(
