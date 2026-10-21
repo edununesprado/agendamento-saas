@@ -2,11 +2,13 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { DateTime } from 'luxon';
 
 import { AvailabilityService } from '../availability/availability.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 import { CreatePublicAppointmentDto } from './dto/create-public-appointment.dto.js';
@@ -15,9 +17,15 @@ import { PublicEmployeesQueryDto } from './dto/public-employees-query.dto.js';
 
 @Injectable()
 export class PublicBookingService {
+  private readonly logger =
+    new Logger(
+      PublicBookingService.name,
+    );
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly availabilityService: AvailabilityService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private async findTenantBySlug(
@@ -561,7 +569,7 @@ export class PublicBookingService {
     const notes =
       data.notes?.trim();
 
-    const appointment =
+    const result =
       await this.prisma.$transaction(
         async (tx) => {
           /*
@@ -610,6 +618,12 @@ export class PublicBookingService {
                 id:
                   true,
 
+                name:
+                  true,
+
+                email:
+                  true,
+
                 active:
                   true,
               },
@@ -647,6 +661,12 @@ export class PublicBookingService {
 
                 select: {
                   id:
+                    true,
+
+                  name:
+                    true,
+
+                  email:
                     true,
 
                   active:
@@ -790,80 +810,136 @@ export class PublicBookingService {
             );
           }
 
-          return tx.appointment.create({
-            data: {
-              tenantId:
-                tenant.id,
+          const appointment =
+            await tx.appointment.create({
+              data: {
+                tenantId:
+                  tenant.id,
 
-              employeeId:
-                data.employeeId,
+                employeeId:
+                  data.employeeId,
 
-              serviceId:
-                data.serviceId,
+                serviceId:
+                  data.serviceId,
 
-              clientId:
-                client.id,
+                clientId:
+                  client.id,
 
-              startsAt,
-              endsAt,
+                startsAt,
+                endsAt,
 
-              durationMin:
-                availability.service.durationMin,
+                durationMin:
+                  availability.service.durationMin,
 
-              priceCents:
-                availability.service.priceCents,
+                priceCents:
+                  availability.service.priceCents,
 
-              status:
-                'PENDING',
+                status:
+                  'PENDING',
 
-              notes:
-                notes ||
-                undefined,
-            },
-
-            select: {
-              id:
-                true,
-
-              startsAt:
-                true,
-
-              endsAt:
-                true,
-
-              status:
-                true,
-
-              employee: {
-                select: {
-                  id:
-                    true,
-
-                  name:
-                    true,
-                },
+                notes:
+                  notes ||
+                  undefined,
               },
 
-              service: {
-                select: {
-                  id:
-                    true,
+              select: {
+                id:
+                  true,
 
-                  name:
-                    true,
+                startsAt:
+                  true,
 
-                  durationMin:
-                    true,
+                endsAt:
+                  true,
 
-                  priceCents:
-                    true,
+                status:
+                  true,
+
+                employee: {
+                  select: {
+                    id:
+                      true,
+
+                    name:
+                      true,
+                  },
+                },
+
+                service: {
+                  select: {
+                    id:
+                      true,
+
+                    name:
+                      true,
+
+                    durationMin:
+                      true,
+
+                    priceCents:
+                      true,
+                  },
                 },
               },
+            });
+
+          return {
+            appointment,
+
+            client: {
+              name:
+                client.name,
+
+              email:
+                client.email,
             },
-          });
+          };
         },
       );
 
-    return appointment;
+    /*
+     * A notificação acontece somente depois
+     * que a transação foi concluída.
+     *
+     * Portanto, uma falha de SMTP não desfaz
+     * o agendamento que já foi salvo.
+     */
+    try {
+      await this.notificationsService.notifyAppointmentRequested({
+        clientName:
+          result.client.name,
+
+        clientEmail:
+          result.client.email,
+
+        tenantName:
+          tenant.name,
+
+        serviceName:
+          result.appointment.service.name,
+
+        employeeName:
+          result.appointment.employee.name,
+
+        startsAt:
+          result.appointment.startsAt,
+
+        timezone:
+          tenant.timezone,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(
+              error,
+            );
+
+      this.logger.error(
+        `Falha inesperada ao preparar notificação do agendamento ${result.appointment.id}: ${message}`,
+      );
+    }
+
+    return result.appointment;
   }
 }

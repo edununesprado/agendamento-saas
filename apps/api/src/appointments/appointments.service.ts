@@ -3,11 +3,13 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { DateTime } from 'luxon';
 
 import { AvailabilityService } from '../availability/availability.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 import { CancelAppointmentDto } from './dto/cancel-appointment.dto.js';
@@ -18,10 +20,186 @@ import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto.
 
 @Injectable()
 export class AppointmentsService {
+  private readonly logger =
+    new Logger(
+      AppointmentsService.name,
+    );
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly availabilityService: AvailabilityService,
+    private readonly notificationsService: NotificationsService,
   ) {}
+
+  private async getNotificationTenant(
+    tenantId: string,
+  ) {
+    return this.prisma.tenant.findUnique({
+      where: {
+        id:
+          tenantId,
+      },
+
+      select: {
+        name:
+          true,
+
+        timezone:
+          true,
+      },
+    });
+  }
+
+  private async notifyAppointmentConfirmed(
+    tenantId: string,
+    appointment: {
+      id: string;
+      startsAt: Date;
+
+      employee: {
+        name: string;
+      };
+
+      service: {
+        name: string;
+      };
+
+      client: {
+        name: string;
+        email:
+          | string
+          | null;
+      };
+    },
+  ) {
+    try {
+      const tenant =
+        await this.getNotificationTenant(
+          tenantId,
+        );
+
+      if (!tenant) {
+        this.logger.warn(
+          `Empresa não encontrada ao preparar notificação do agendamento ${appointment.id}`,
+        );
+
+        return;
+      }
+
+      await this.notificationsService.notifyAppointmentConfirmed({
+        clientName:
+          appointment.client.name,
+
+        clientEmail:
+          appointment.client.email,
+
+        tenantName:
+          tenant.name,
+
+        serviceName:
+          appointment.service.name,
+
+        employeeName:
+          appointment.employee.name,
+
+        startsAt:
+          appointment.startsAt,
+
+        timezone:
+          tenant.timezone,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(
+              error,
+            );
+
+      this.logger.error(
+        `Falha inesperada ao preparar notificação de confirmação do agendamento ${appointment.id}: ${message}`,
+      );
+    }
+  }
+
+  private async notifyAppointmentCanceled(
+    tenantId: string,
+    appointment: {
+      id: string;
+      startsAt: Date;
+
+      cancelReason:
+        | string
+        | null;
+
+      employee: {
+        name: string;
+      };
+
+      service: {
+        name: string;
+      };
+
+      client: {
+        name: string;
+        email:
+          | string
+          | null;
+      };
+    },
+  ) {
+    try {
+      const tenant =
+        await this.getNotificationTenant(
+          tenantId,
+        );
+
+      if (!tenant) {
+        this.logger.warn(
+          `Empresa não encontrada ao preparar notificação do agendamento ${appointment.id}`,
+        );
+
+        return;
+      }
+
+      await this.notificationsService.notifyAppointmentCanceled({
+        clientName:
+          appointment.client.name,
+
+        clientEmail:
+          appointment.client.email,
+
+        tenantName:
+          tenant.name,
+
+        serviceName:
+          appointment.service.name,
+
+        employeeName:
+          appointment.employee.name,
+
+        startsAt:
+          appointment.startsAt,
+
+        timezone:
+          tenant.timezone,
+
+        cancelReason:
+          appointment.cancelReason,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(
+              error,
+            );
+
+      this.logger.error(
+        `Falha inesperada ao preparar notificação de cancelamento do agendamento ${appointment.id}: ${message}`,
+      );
+    }
+  }
 
   /**
    * Descobre qual Employee está vinculado
@@ -585,22 +763,42 @@ export class AppointmentsService {
       );
     }
 
-    return this.prisma.appointment.update({
-      where: {
-        id,
-      },
+    const updatedAppointment =
+      await this.prisma.appointment.update({
+        where: {
+          id,
+        },
 
-      data: {
-        status:
-          data.status,
-      },
+        data: {
+          status:
+            data.status,
+        },
 
-      include: {
-        employee: true,
-        service: true,
-        client: true,
-      },
-    });
+        include: {
+          employee: true,
+          service: true,
+          client: true,
+        },
+      });
+
+    /*
+     * Somente a transição PENDING -> CONFIRMED
+     * dispara o e-mail de confirmação.
+     *
+     * COMPLETED e NO_SHOW não enviam esse
+     * mesmo e-mail novamente.
+     */
+    if (
+      data.status ===
+      'CONFIRMED'
+    ) {
+      await this.notifyAppointmentConfirmed(
+        tenantId,
+        updatedAppointment,
+      );
+    }
+
+    return updatedAppointment;
   }
 
   async cancel(
@@ -614,6 +812,10 @@ export class AppointmentsService {
         id,
       );
 
+    /*
+     * Se já estava cancelado, devolvemos o
+     * agendamento sem mandar outro e-mail.
+     */
     if (
       appointment.status ===
       'CANCELED'
@@ -632,28 +834,41 @@ export class AppointmentsService {
       );
     }
 
-    return this.prisma.appointment.update({
-      where: {
-        id,
-      },
+    const updatedAppointment =
+      await this.prisma.appointment.update({
+        where: {
+          id,
+        },
 
-      data: {
-        status:
-          'CANCELED',
+        data: {
+          status:
+            'CANCELED',
 
-        canceledAt:
-          new Date(),
+          canceledAt:
+            new Date(),
 
-        cancelReason:
-          data.reason?.trim(),
-      },
+          cancelReason:
+            data.reason?.trim(),
+        },
 
-      include: {
-        employee: true,
-        service: true,
-        client: true,
-      },
-    });
+        include: {
+          employee: true,
+          service: true,
+          client: true,
+        },
+      });
+
+    /*
+     * O agendamento já está salvo como
+     * CANCELED antes de tentarmos enviar
+     * a notificação.
+     */
+    await this.notifyAppointmentCanceled(
+      tenantId,
+      updatedAppointment,
+    );
+
+    return updatedAppointment;
   }
 
   async reschedule(
