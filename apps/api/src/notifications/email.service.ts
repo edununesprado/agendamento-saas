@@ -35,12 +35,26 @@ export class EmailService {
       | undefined,
   ) {
     return (
-      value?.trim().toLowerCase() ===
+      value
+        ?.trim()
+        .toLowerCase() ===
       'true'
     );
   }
 
+  private isEnabled() {
+    return this.getBoolean(
+      this.configService.get<string>(
+        'SMTP_ENABLED',
+      ),
+    );
+  }
+
   private isConfigured() {
+    if (!this.isEnabled()) {
+      return false;
+    }
+
     const host =
       this.configService.get<string>(
         'SMTP_HOST',
@@ -70,6 +84,10 @@ export class EmailService {
   }
 
   private getTransporter() {
+    if (!this.isEnabled()) {
+      return null;
+    }
+
     if (this.transporter) {
       return this.transporter;
     }
@@ -129,9 +147,7 @@ export class EmailService {
   async sendMail(
     data: SendEmailData,
   ) {
-    if (
-      !this.isConfigured()
-    ) {
+    if (!this.isConfigured()) {
       return false;
     }
 
@@ -161,6 +177,7 @@ export class EmailService {
       from: {
         name:
           fromName,
+
         address:
           fromEmail,
       },
