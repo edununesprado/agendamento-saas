@@ -41,3 +41,32 @@ export const AppointmentStatus = {
 } as const
 
 export type AppointmentStatus = (typeof AppointmentStatus)[keyof typeof AppointmentStatus]
+
+
+export const NotificationChannel = {
+  EMAIL: 'EMAIL'
+} as const
+
+export type NotificationChannel = (typeof NotificationChannel)[keyof typeof NotificationChannel]
+
+
+export const NotificationType = {
+  APPOINTMENT_REQUESTED: 'APPOINTMENT_REQUESTED',
+  APPOINTMENT_CONFIRMED: 'APPOINTMENT_CONFIRMED',
+  APPOINTMENT_CANCELED: 'APPOINTMENT_CANCELED',
+  APPOINTMENT_RESCHEDULED: 'APPOINTMENT_RESCHEDULED',
+  APPOINTMENT_REMINDER: 'APPOINTMENT_REMINDER'
+} as const
+
+export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType]
+
+
+export const NotificationStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  SENT: 'SENT',
+  FAILED: 'FAILED',
+  CANCELED: 'CANCELED'
+} as const
+
+export type NotificationStatus = (typeof NotificationStatus)[keyof typeof NotificationStatus]

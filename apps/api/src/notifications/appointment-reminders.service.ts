@@ -13,7 +13,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { NotificationsService } from './notifications.service.js';
 
 type ReminderResult =
-  | 'sent'
+  | 'queued'
   | 'failed'
   | 'skipped';
 
@@ -87,12 +87,12 @@ export class AppointmentRemindersService {
         await this.processDueReminders();
 
       if (
-        result.sent > 0 ||
+        result.queued > 0 ||
         result.failed > 0 ||
         result.skipped > 0
       ) {
         this.logger.log(
-          `Lembretes processados: ${result.sent} enviado(s), ${result.failed} falha(s), ${result.skipped} ignorado(s)`,
+          `Lembretes processados: ${result.queued} enfileirado(s), ${result.failed} falha(s), ${result.skipped} ignorado(s)`,
         );
       }
     } catch (error) {
@@ -112,7 +112,7 @@ export class AppointmentRemindersService {
   async processDueReminders(
     now = new Date(),
   ) {
-    let sent = 0;
+    let queued = 0;
     let failed = 0;
     let skipped = 0;
 
@@ -228,9 +228,9 @@ export class AppointmentRemindersService {
           );
 
         if (
-          result === 'sent'
+          result === 'queued'
         ) {
-          sent += 1;
+          queued += 1;
         }
 
         if (
@@ -248,7 +248,7 @@ export class AppointmentRemindersService {
     }
 
     return {
-      sent,
+      queued,
       failed,
       skipped,
     };
@@ -260,154 +260,163 @@ export class AppointmentRemindersService {
     now: Date,
   ): Promise<ReminderResult> {
     try {
-      return await this.prisma.$transaction(
-        async (tx) => {
-          /*
-           * Evita que duas instâncias da API
-           * processem o mesmo lembrete ao
-           * mesmo tempo.
-           *
-           * pg_try_advisory_xact_lock não
-           * fica esperando: se outro processo
-           * já possuir o lock, ignoramos esta
-           * execução e tentamos novamente
-           * futuramente.
-           */
-          const lockResult =
-            await tx.$queryRaw<
-              Array<{
-                locked: boolean;
-              }>
-            >`
-              SELECT pg_try_advisory_xact_lock(
-                hashtext('appointment-reminder'),
-                hashtext(${appointmentId})
-              ) AS locked
-            `;
+      /*
+       * A transação abaixo serve somente para:
+       *
+       * 1. adquirir o lock;
+       * 2. revalidar tenant e agendamento;
+       * 3. preparar os dados do lembrete.
+       *
+       * Nenhum SMTP e nenhuma operação da
+       * NotificationQueueService acontece
+       * dentro desta transação.
+       */
+      const notificationData =
+        await this.prisma.$transaction(
+          async (tx) => {
+            /*
+             * Evita que duas instâncias da API
+             * processem o mesmo lembrete ao
+             * mesmo tempo.
+             *
+             * pg_try_advisory_xact_lock não
+             * fica esperando: se outro processo
+             * já possuir o lock, ignoramos esta
+             * execução e tentamos novamente
+             * futuramente.
+             */
+            const lockResult =
+              await tx.$queryRaw<
+                Array<{
+                  locked: boolean;
+                }>
+              >`
+                SELECT pg_try_advisory_xact_lock(
+                  hashtext('appointment-reminder'),
+                  hashtext(${appointmentId})
+                ) AS locked
+              `;
 
-          if (
-            !lockResult[0]?.locked
-          ) {
-            return 'skipped';
-          }
+            if (
+              !lockResult[0]?.locked
+            ) {
+              return null;
+            }
 
-          /*
-           * Buscamos novamente a configuração
-           * dentro da transação.
-           *
-           * A empresa pode ter desativado os
-           * lembretes entre a consulta inicial
-           * e este processamento.
-           */
-          const tenant =
-            await tx.tenant.findUnique({
-              where: {
-                id:
-                  tenantId,
-              },
-
-              select: {
-                name:
-                  true,
-
-                timezone:
-                  true,
-
-                appointmentRemindersEnabled:
-                  true,
-
-                appointmentReminderHoursBefore:
-                  true,
-              },
-            });
-
-          if (
-            !tenant ||
-            !tenant.appointmentRemindersEnabled
-          ) {
-            return 'skipped';
-          }
-
-          const reminderHours =
-            this.normalizeReminderHours(
-              tenant.appointmentReminderHoursBefore,
-            );
-
-          const windowEnd =
-            new Date(
-              now.getTime() +
-                reminderHours *
-                  60 *
-                  60 *
-                  1000,
-            );
-
-          /*
-           * Revalidamos todas as condições
-           * depois de adquirir o lock.
-           *
-           * Isso protege contra mudanças
-           * ocorridas desde a primeira busca.
-           */
-          const appointment =
-            await tx.appointment.findFirst({
-              where: {
-                id:
-                  appointmentId,
-
-                tenantId,
-
-                status:
-                  'CONFIRMED',
-
-                reminderSentAt:
-                  null,
-
-                startsAt: {
-                  gt:
-                    now,
-
-                  lte:
-                    windowEnd,
+            /*
+             * Buscamos novamente a configuração
+             * dentro da transação.
+             *
+             * A empresa pode ter desativado os
+             * lembretes entre a consulta inicial
+             * e este processamento.
+             */
+            const tenant =
+              await tx.tenant.findUnique({
+                where: {
+                  id:
+                    tenantId,
                 },
 
-                client: {
-                  email: {
-                    not:
-                      null,
+                select: {
+                  name:
+                    true,
+
+                  timezone:
+                    true,
+
+                  appointmentRemindersEnabled:
+                    true,
+
+                  appointmentReminderHoursBefore:
+                    true,
+                },
+              });
+
+            if (
+              !tenant ||
+              !tenant.appointmentRemindersEnabled
+            ) {
+              return null;
+            }
+
+            const reminderHours =
+              this.normalizeReminderHours(
+                tenant.appointmentReminderHoursBefore,
+              );
+
+            const windowEnd =
+              new Date(
+                now.getTime() +
+                  reminderHours *
+                    60 *
+                    60 *
+                    1000,
+              );
+
+            /*
+             * Revalidamos todas as condições
+             * depois de adquirir o lock.
+             *
+             * reminderSentAt continua NULL até
+             * o worker confirmar que o e-mail
+             * foi realmente enviado.
+             */
+            const appointment =
+              await tx.appointment.findFirst({
+                where: {
+                  id:
+                    appointmentId,
+
+                  tenantId,
+
+                  status:
+                    'CONFIRMED',
+
+                  reminderSentAt:
+                    null,
+
+                  startsAt: {
+                    gt:
+                      now,
+
+                    lte:
+                      windowEnd,
+                  },
+
+                  client: {
+                    email: {
+                      not:
+                        null,
+                    },
                   },
                 },
-              },
 
-              include: {
-                employee:
-                  true,
+                include: {
+                  employee:
+                    true,
 
-                service:
-                  true,
+                  service:
+                    true,
 
-                client:
-                  true,
-              },
-            });
+                  client:
+                    true,
+                },
+              });
 
-          if (
-            !appointment ||
-            !appointment.client.email
-          ) {
-            return 'skipped';
-          }
+            if (
+              !appointment ||
+              !appointment.client.email
+            ) {
+              return null;
+            }
 
-          /*
-           * O e-mail é enviado antes de
-           * preencher reminderSentAt.
-           *
-           * Se o SMTP falhar, o campo fica
-           * NULL e o scheduler poderá tentar
-           * novamente futuramente.
-           */
-          const emailSent =
-            await this.notificationsService.notifyAppointmentReminder({
+            return {
+              tenantId,
+
+              appointmentId:
+                appointment.id,
+
               clientName:
                 appointment.client.name,
 
@@ -428,49 +437,42 @@ export class AppointmentRemindersService {
 
               timezone:
                 tenant.timezone,
-            });
+            };
+          },
+        );
 
-          if (
-            !emailSent
-          ) {
-            return 'failed';
-          }
+      if (
+        !notificationData
+      ) {
+        return 'skipped';
+      }
 
-          /*
-           * updateMany adiciona mais uma
-           * proteção contra duplicidade.
-           *
-           * Só atualizamos se o lembrete
-           * continuar sem marcação.
-           */
-          const updated =
-            await tx.appointment.updateMany({
-              where: {
-                id:
-                  appointment.id,
+      /*
+       * A partir daqui a transação já terminou.
+       *
+       * NotificationsService apenas registra
+       * NotificationDelivery PENDING.
+       * O SMTP será executado posteriormente
+       * pelo NotificationWorkerService.
+       */
+      const queued =
+        await this.notificationsService.notifyAppointmentReminder(
+          notificationData,
+        );
 
-                status:
-                  'CONFIRMED',
+      if (
+        !queued
+      ) {
+        return 'failed';
+      }
 
-                reminderSentAt:
-                  null,
-              },
-
-              data: {
-                reminderSentAt:
-                  new Date(),
-              },
-            });
-
-          if (
-            updated.count !== 1
-          ) {
-            return 'skipped';
-          }
-
-          return 'sent';
-        },
-      );
+      /*
+       * Não preenchemos reminderSentAt aqui.
+       *
+       * O worker fará isso somente depois de
+       * confirmar o envio com sucesso.
+       */
+      return 'queued';
     } catch (error) {
       const message =
         error instanceof Error

@@ -901,11 +901,18 @@ export class PublicBookingService {
      * A notificação acontece somente depois
      * que a transação foi concluída.
      *
-     * Portanto, uma falha de SMTP não desfaz
-     * o agendamento que já foi salvo.
+     * Neste ponto apenas registramos a entrega
+     * na fila persistida. O SMTP será executado
+     * posteriormente pelo worker.
      */
     try {
       await this.notificationsService.notifyAppointmentRequested({
+        tenantId:
+          tenant.id,
+
+        appointmentId:
+          result.appointment.id,
+
         clientName:
           result.client.name,
 

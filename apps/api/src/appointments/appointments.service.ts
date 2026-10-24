@@ -87,6 +87,11 @@ export class AppointmentsService {
       }
 
       await this.notificationsService.notifyAppointmentConfirmed({
+        tenantId,
+
+        appointmentId:
+          appointment.id,
+
         clientName:
           appointment.client.name,
 
@@ -160,6 +165,11 @@ export class AppointmentsService {
       }
 
       await this.notificationsService.notifyAppointmentRescheduled({
+        tenantId,
+
+        appointmentId:
+          appointment.id,
+
         clientName:
           appointment.client.name,
 
@@ -238,6 +248,11 @@ export class AppointmentsService {
       }
 
       await this.notificationsService.notifyAppointmentCanceled({
+        tenantId,
+
+        appointmentId:
+          appointment.id,
+
         clientName:
           appointment.client.name,
 

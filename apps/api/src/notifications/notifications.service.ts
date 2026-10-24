@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 
 import { EmailService } from './email.service.js';
+import { NotificationQueueService } from './notification-queue.service.js';
 
 type AppointmentNotificationData = {
   clientName: string;
@@ -29,8 +30,35 @@ type AppointmentNotificationData = {
     | null;
 };
 
+type RequestedAppointmentNotificationData =
+  AppointmentNotificationData & {
+    tenantId: string;
+    appointmentId: string;
+  };
+
+type ConfirmedAppointmentNotificationData =
+  AppointmentNotificationData & {
+    tenantId: string;
+    appointmentId: string;
+  };
+
+type ReminderAppointmentNotificationData =
+  AppointmentNotificationData & {
+    tenantId: string;
+    appointmentId: string;
+  };
+
+type CanceledAppointmentNotificationData =
+  AppointmentNotificationData & {
+    tenantId: string;
+    appointmentId: string;
+  };
+
 type RescheduledAppointmentNotificationData =
   AppointmentNotificationData & {
+    tenantId: string;
+    appointmentId: string;
+
     previousStartsAt:
       | Date
       | string;
@@ -45,6 +73,7 @@ export class NotificationsService {
 
   constructor(
     private readonly emailService: EmailService,
+    private readonly notificationQueueService: NotificationQueueService,
   ) {}
 
   private escapeHtml(
@@ -159,8 +188,309 @@ export class NotificationsService {
     }
   }
 
+  private async safeEnqueueRequested(
+    data: {
+      tenantId: string;
+      appointmentId: string;
+      recipient: string;
+      subject: string;
+      text: string;
+      html: string;
+    },
+  ) {
+    try {
+      const delivery =
+        await this.notificationQueueService.enqueueEmail({
+          tenantId:
+            data.tenantId,
+
+          appointmentId:
+            data.appointmentId,
+
+          type:
+            'APPOINTMENT_REQUESTED',
+
+          recipient:
+            data.recipient,
+
+          subject:
+            data.subject,
+
+          text:
+            data.text,
+
+          html:
+            data.html,
+
+          dedupeKey:
+            `appointment:${data.appointmentId}:requested`,
+        });
+
+      return Boolean(
+        delivery,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(
+              error,
+            );
+
+      this.logger.error(
+        `Falha ao enfileirar notificação de solicitação: ${message}`,
+      );
+
+      return false;
+    }
+  }
+
+  private async safeEnqueueConfirmed(
+    data: {
+      tenantId: string;
+      appointmentId: string;
+      recipient: string;
+      subject: string;
+      text: string;
+      html: string;
+    },
+  ) {
+    try {
+      const delivery =
+        await this.notificationQueueService.enqueueEmail({
+          tenantId:
+            data.tenantId,
+
+          appointmentId:
+            data.appointmentId,
+
+          type:
+            'APPOINTMENT_CONFIRMED',
+
+          recipient:
+            data.recipient,
+
+          subject:
+            data.subject,
+
+          text:
+            data.text,
+
+          html:
+            data.html,
+
+          dedupeKey:
+            `appointment:${data.appointmentId}:confirmed`,
+        });
+
+      return Boolean(
+        delivery,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(
+              error,
+            );
+
+      this.logger.error(
+        `Falha ao enfileirar notificação de confirmação: ${message}`,
+      );
+
+      return false;
+    }
+  }
+
+  private async safeEnqueueReminder(
+    data: {
+      tenantId: string;
+      appointmentId: string;
+      startsAt:
+        | Date
+        | string;
+      recipient: string;
+      subject: string;
+      text: string;
+      html: string;
+    },
+  ) {
+    try {
+      const startsAt =
+        new Date(
+          data.startsAt,
+        ).toISOString();
+
+      const delivery =
+        await this.notificationQueueService.enqueueEmail({
+          tenantId:
+            data.tenantId,
+
+          appointmentId:
+            data.appointmentId,
+
+          type:
+            'APPOINTMENT_REMINDER',
+
+          recipient:
+            data.recipient,
+
+          subject:
+            data.subject,
+
+          text:
+            data.text,
+
+          html:
+            data.html,
+
+          dedupeKey:
+            `appointment:${data.appointmentId}:reminder:${startsAt}`,
+        });
+
+      return Boolean(
+        delivery,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(
+              error,
+            );
+
+      this.logger.error(
+        `Falha ao enfileirar lembrete de agendamento: ${message}`,
+      );
+
+      return false;
+    }
+  }
+
+  private async safeEnqueueCanceled(
+    data: {
+      tenantId: string;
+      appointmentId: string;
+      recipient: string;
+      subject: string;
+      text: string;
+      html: string;
+    },
+  ) {
+    try {
+      const delivery =
+        await this.notificationQueueService.enqueueEmail({
+          tenantId:
+            data.tenantId,
+
+          appointmentId:
+            data.appointmentId,
+
+          type:
+            'APPOINTMENT_CANCELED',
+
+          recipient:
+            data.recipient,
+
+          subject:
+            data.subject,
+
+          text:
+            data.text,
+
+          html:
+            data.html,
+
+          dedupeKey:
+            `appointment:${data.appointmentId}:canceled`,
+        });
+
+      return Boolean(
+        delivery,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(
+              error,
+            );
+
+      this.logger.error(
+        `Falha ao enfileirar notificação de cancelamento: ${message}`,
+      );
+
+      return false;
+    }
+  }
+
+  private async safeEnqueueRescheduled(
+    data: {
+      tenantId: string;
+      appointmentId: string;
+      startsAt:
+        | Date
+        | string;
+      recipient: string;
+      subject: string;
+      text: string;
+      html: string;
+    },
+  ) {
+    try {
+      const startsAt =
+        new Date(
+          data.startsAt,
+        ).toISOString();
+
+      const delivery =
+        await this.notificationQueueService.enqueueEmail({
+          tenantId:
+            data.tenantId,
+
+          appointmentId:
+            data.appointmentId,
+
+          type:
+            'APPOINTMENT_RESCHEDULED',
+
+          recipient:
+            data.recipient,
+
+          subject:
+            data.subject,
+
+          text:
+            data.text,
+
+          html:
+            data.html,
+
+          dedupeKey:
+            `appointment:${data.appointmentId}:rescheduled:${startsAt}`,
+        });
+
+      return Boolean(
+        delivery,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(
+              error,
+            );
+
+      this.logger.error(
+        `Falha ao enfileirar notificação de reagendamento: ${message}`,
+      );
+
+      return false;
+    }
+  }
+
   async notifyAppointmentRequested(
-    data: AppointmentNotificationData,
+    data: RequestedAppointmentNotificationData,
   ) {
     if (
       !data.clientEmail
@@ -200,77 +530,89 @@ export class NotificationsService {
         data.employeeName,
       );
 
-    return this.safeSend({
-      to:
+    const subject =
+      `Recebemos seu agendamento - ${data.tenantName}`;
+
+    const text = [
+      `Olá, ${data.clientName}.`,
+      '',
+      `Recebemos sua solicitação de agendamento em ${data.tenantName}.`,
+      '',
+      `Serviço: ${data.serviceName}`,
+      `Profissional: ${data.employeeName}`,
+      `Data: ${date}`,
+      `Horário: ${time}`,
+      '',
+      'Seu agendamento está aguardando confirmação.',
+    ].join(
+      '\n',
+    );
+
+    const html = `
+      <div
+        style="
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          color: #27272a;
+        "
+      >
+        <h2>
+          Solicitação de agendamento recebida
+        </h2>
+
+        <p>
+          Olá, <strong>${clientName}</strong>.
+        </p>
+
+        <p>
+          Recebemos sua solicitação de agendamento em
+          <strong>${tenantName}</strong>.
+        </p>
+
+        <p>
+          <strong>Serviço:</strong>
+          ${serviceName}
+          <br />
+
+          <strong>Profissional:</strong>
+          ${employeeName}
+          <br />
+
+          <strong>Data:</strong>
+          ${date}
+          <br />
+
+          <strong>Horário:</strong>
+          ${time}
+        </p>
+
+        <p>
+          Seu agendamento está
+          <strong>aguardando confirmação</strong>.
+        </p>
+      </div>
+    `;
+
+    return this.safeEnqueueRequested({
+      tenantId:
+        data.tenantId,
+
+      appointmentId:
+        data.appointmentId,
+
+      recipient:
         data.clientEmail,
 
-      subject:
-        `Recebemos seu agendamento - ${data.tenantName}`,
+      subject,
 
-      text: [
-        `Olá, ${data.clientName}.`,
-        '',
-        `Recebemos sua solicitação de agendamento em ${data.tenantName}.`,
-        '',
-        `Serviço: ${data.serviceName}`,
-        `Profissional: ${data.employeeName}`,
-        `Data: ${date}`,
-        `Horário: ${time}`,
-        '',
-        'Seu agendamento está aguardando confirmação.',
-      ].join(
-        '\n',
-      ),
+      text,
 
-      html: `
-        <div
-          style="
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #27272a;
-          "
-        >
-          <h2>
-            Solicitação de agendamento recebida
-          </h2>
-
-          <p>
-            Olá, <strong>${clientName}</strong>.
-          </p>
-
-          <p>
-            Recebemos sua solicitação de agendamento em
-            <strong>${tenantName}</strong>.
-          </p>
-
-          <p>
-            <strong>Serviço:</strong>
-            ${serviceName}
-            <br />
-
-            <strong>Profissional:</strong>
-            ${employeeName}
-            <br />
-
-            <strong>Data:</strong>
-            ${date}
-            <br />
-
-            <strong>Horário:</strong>
-            ${time}
-          </p>
-
-          <p>
-            Seu agendamento está
-            <strong>aguardando confirmação</strong>.
-          </p>
-        </div>
-      `,
+      html,
     });
   }
 
   async notifyAppointmentConfirmed(
-    data: AppointmentNotificationData,
+    data: ConfirmedAppointmentNotificationData,
   ) {
     if (
       !data.clientEmail
@@ -310,71 +652,83 @@ export class NotificationsService {
         data.employeeName,
       );
 
-    return this.safeSend({
-      to:
+    const subject =
+      `Agendamento confirmado - ${data.tenantName}`;
+
+    const text = [
+      `Olá, ${data.clientName}.`,
+      '',
+      `Seu agendamento em ${data.tenantName} foi confirmado.`,
+      '',
+      `Serviço: ${data.serviceName}`,
+      `Profissional: ${data.employeeName}`,
+      `Data: ${date}`,
+      `Horário: ${time}`,
+    ].join(
+      '\n',
+    );
+
+    const html = `
+      <div
+        style="
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          color: #27272a;
+        "
+      >
+        <h2>
+          Agendamento confirmado
+        </h2>
+
+        <p>
+          Olá, <strong>${clientName}</strong>.
+        </p>
+
+        <p>
+          Seu agendamento em
+          <strong>${tenantName}</strong>
+          foi confirmado.
+        </p>
+
+        <p>
+          <strong>Serviço:</strong>
+          ${serviceName}
+          <br />
+
+          <strong>Profissional:</strong>
+          ${employeeName}
+          <br />
+
+          <strong>Data:</strong>
+          ${date}
+          <br />
+
+          <strong>Horário:</strong>
+          ${time}
+        </p>
+      </div>
+    `;
+
+    return this.safeEnqueueConfirmed({
+      tenantId:
+        data.tenantId,
+
+      appointmentId:
+        data.appointmentId,
+
+      recipient:
         data.clientEmail,
 
-      subject:
-        `Agendamento confirmado - ${data.tenantName}`,
+      subject,
 
-      text: [
-        `Olá, ${data.clientName}.`,
-        '',
-        `Seu agendamento em ${data.tenantName} foi confirmado.`,
-        '',
-        `Serviço: ${data.serviceName}`,
-        `Profissional: ${data.employeeName}`,
-        `Data: ${date}`,
-        `Horário: ${time}`,
-      ].join(
-        '\n',
-      ),
+      text,
 
-      html: `
-        <div
-          style="
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #27272a;
-          "
-        >
-          <h2>
-            Agendamento confirmado
-          </h2>
-
-          <p>
-            Olá, <strong>${clientName}</strong>.
-          </p>
-
-          <p>
-            Seu agendamento em
-            <strong>${tenantName}</strong>
-            foi confirmado.
-          </p>
-
-          <p>
-            <strong>Serviço:</strong>
-            ${serviceName}
-            <br />
-
-            <strong>Profissional:</strong>
-            ${employeeName}
-            <br />
-
-            <strong>Data:</strong>
-            ${date}
-            <br />
-
-            <strong>Horário:</strong>
-            ${time}
-          </p>
-        </div>
-      `,
+      html,
     });
   }
 
   async notifyAppointmentReminder(
-    data: AppointmentNotificationData,
+    data: ReminderAppointmentNotificationData,
   ) {
     if (
       !data.clientEmail
@@ -414,73 +768,88 @@ export class NotificationsService {
         data.employeeName,
       );
 
-    return this.safeSend({
-      to:
+    const subject =
+      `Lembrete do seu agendamento - ${data.tenantName}`;
+
+    const text = [
+      `Olá, ${data.clientName}.`,
+      '',
+      `Este é um lembrete do seu agendamento em ${data.tenantName}.`,
+      '',
+      `Serviço: ${data.serviceName}`,
+      `Profissional: ${data.employeeName}`,
+      `Data: ${date}`,
+      `Horário: ${time}`,
+      '',
+      'Seu horário está confirmado. Esperamos por você!',
+    ].join(
+      '\\n',
+    );
+
+    const html = `
+      <div
+        style="
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          color: #27272a;
+        "
+      >
+        <h2>
+          Lembrete de agendamento
+        </h2>
+
+        <p>
+          Olá, <strong>${clientName}</strong>.
+        </p>
+
+        <p>
+          Este é um lembrete do seu agendamento em
+          <strong>${tenantName}</strong>.
+        </p>
+
+        <p>
+          <strong>Serviço:</strong>
+          ${serviceName}
+          <br />
+
+          <strong>Profissional:</strong>
+          ${employeeName}
+          <br />
+
+          <strong>Data:</strong>
+          ${date}
+          <br />
+
+          <strong>Horário:</strong>
+          ${time}
+        </p>
+
+        <p>
+          Seu horário está
+          <strong>confirmado</strong>.
+          Esperamos por você!
+        </p>
+      </div>
+    `;
+
+    return this.safeEnqueueReminder({
+      tenantId:
+        data.tenantId,
+
+      appointmentId:
+        data.appointmentId,
+
+      startsAt:
+        data.startsAt,
+
+      recipient:
         data.clientEmail,
 
-      subject:
-        `Lembrete do seu agendamento - ${data.tenantName}`,
+      subject,
 
-      text: [
-        `Olá, ${data.clientName}.`,
-        '',
-        `Este é um lembrete do seu agendamento em ${data.tenantName}.`,
-        '',
-        `Serviço: ${data.serviceName}`,
-        `Profissional: ${data.employeeName}`,
-        `Data: ${date}`,
-        `Horário: ${time}`,
-        '',
-        'Seu horário está confirmado. Esperamos por você!',
-      ].join(
-        '\n',
-      ),
+      text,
 
-      html: `
-        <div
-          style="
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #27272a;
-          "
-        >
-          <h2>
-            Lembrete de agendamento
-          </h2>
-
-          <p>
-            Olá, <strong>${clientName}</strong>.
-          </p>
-
-          <p>
-            Este é um lembrete do seu agendamento em
-            <strong>${tenantName}</strong>.
-          </p>
-
-          <p>
-            <strong>Serviço:</strong>
-            ${serviceName}
-            <br />
-
-            <strong>Profissional:</strong>
-            ${employeeName}
-            <br />
-
-            <strong>Data:</strong>
-            ${date}
-            <br />
-
-            <strong>Horário:</strong>
-            ${time}
-          </p>
-
-          <p>
-            Seu horário está
-            <strong>confirmado</strong>.
-            Esperamos por você!
-          </p>
-        </div>
-      `,
+      html,
     });
   }
 
@@ -537,85 +906,100 @@ export class NotificationsService {
         data.employeeName,
       );
 
-    return this.safeSend({
-      to:
+    const subject =
+      `Agendamento reagendado - ${data.tenantName}`;
+
+    const text = [
+      `Olá, ${data.clientName}.`,
+      '',
+      `Seu agendamento em ${data.tenantName} foi reagendado.`,
+      '',
+      `Serviço: ${data.serviceName}`,
+      `Profissional: ${data.employeeName}`,
+      '',
+      `Data anterior: ${previousDate}`,
+      `Horário anterior: ${previousTime}`,
+      '',
+      `Nova data: ${newDate}`,
+      `Novo horário: ${newTime}`,
+    ].join(
+      '\n',
+    );
+
+    const html = `
+      <div
+        style="
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          color: #27272a;
+        "
+      >
+        <h2>
+          Agendamento reagendado
+        </h2>
+
+        <p>
+          Olá, <strong>${clientName}</strong>.
+        </p>
+
+        <p>
+          Seu agendamento em
+          <strong>${tenantName}</strong>
+          foi reagendado.
+        </p>
+
+        <p>
+          <strong>Serviço:</strong>
+          ${serviceName}
+          <br />
+
+          <strong>Profissional:</strong>
+          ${employeeName}
+        </p>
+
+        <p>
+          <strong>Data anterior:</strong>
+          ${previousDate}
+          <br />
+
+          <strong>Horário anterior:</strong>
+          ${previousTime}
+        </p>
+
+        <p>
+          <strong>Nova data:</strong>
+          ${newDate}
+          <br />
+
+          <strong>Novo horário:</strong>
+          ${newTime}
+        </p>
+      </div>
+    `;
+
+    return this.safeEnqueueRescheduled({
+      tenantId:
+        data.tenantId,
+
+      appointmentId:
+        data.appointmentId,
+
+      startsAt:
+        data.startsAt,
+
+      recipient:
         data.clientEmail,
 
-      subject:
-        `Agendamento reagendado - ${data.tenantName}`,
+      subject,
 
-      text: [
-        `Olá, ${data.clientName}.`,
-        '',
-        `Seu agendamento em ${data.tenantName} foi reagendado.`,
-        '',
-        `Serviço: ${data.serviceName}`,
-        `Profissional: ${data.employeeName}`,
-        '',
-        `Data anterior: ${previousDate}`,
-        `Horário anterior: ${previousTime}`,
-        '',
-        `Nova data: ${newDate}`,
-        `Novo horário: ${newTime}`,
-      ].join(
-        '\n',
-      ),
+      text,
 
-      html: `
-        <div
-          style="
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #27272a;
-          "
-        >
-          <h2>
-            Agendamento reagendado
-          </h2>
-
-          <p>
-            Olá, <strong>${clientName}</strong>.
-          </p>
-
-          <p>
-            Seu agendamento em
-            <strong>${tenantName}</strong>
-            foi reagendado.
-          </p>
-
-          <p>
-            <strong>Serviço:</strong>
-            ${serviceName}
-            <br />
-
-            <strong>Profissional:</strong>
-            ${employeeName}
-          </p>
-
-          <p>
-            <strong>Data anterior:</strong>
-            ${previousDate}
-            <br />
-
-            <strong>Horário anterior:</strong>
-            ${previousTime}
-          </p>
-
-          <p>
-            <strong>Nova data:</strong>
-            ${newDate}
-            <br />
-
-            <strong>Novo horário:</strong>
-            ${newTime}
-          </p>
-        </div>
-      `,
+      html,
     });
   }
 
   async notifyAppointmentCanceled(
-    data: AppointmentNotificationData,
+    data: CanceledAppointmentNotificationData,
   ) {
     if (
       !data.clientEmail
@@ -680,69 +1064,81 @@ export class NotificationsService {
         `
         : '';
 
-    return this.safeSend({
-      to:
+    const subject =
+      `Agendamento cancelado - ${data.tenantName}`;
+
+    const text = [
+      `Olá, ${data.clientName}.`,
+      '',
+      `Seu agendamento em ${data.tenantName} foi cancelado.`,
+      '',
+      `Serviço: ${data.serviceName}`,
+      `Profissional: ${data.employeeName}`,
+      `Data: ${date}`,
+      `Horário: ${time}`,
+      ...reasonText,
+    ].join(
+      '\n',
+    );
+
+    const html = `
+      <div
+        style="
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          color: #27272a;
+        "
+      >
+        <h2>
+          Agendamento cancelado
+        </h2>
+
+        <p>
+          Olá, <strong>${clientName}</strong>.
+        </p>
+
+        <p>
+          Seu agendamento em
+          <strong>${tenantName}</strong>
+          foi cancelado.
+        </p>
+
+        <p>
+          <strong>Serviço:</strong>
+          ${serviceName}
+          <br />
+
+          <strong>Profissional:</strong>
+          ${employeeName}
+          <br />
+
+          <strong>Data:</strong>
+          ${date}
+          <br />
+
+          <strong>Horário:</strong>
+          ${time}
+        </p>
+
+        ${reasonHtml}
+      </div>
+    `;
+
+    return this.safeEnqueueCanceled({
+      tenantId:
+        data.tenantId,
+
+      appointmentId:
+        data.appointmentId,
+
+      recipient:
         data.clientEmail,
 
-      subject:
-        `Agendamento cancelado - ${data.tenantName}`,
+      subject,
 
-      text: [
-        `Olá, ${data.clientName}.`,
-        '',
-        `Seu agendamento em ${data.tenantName} foi cancelado.`,
-        '',
-        `Serviço: ${data.serviceName}`,
-        `Profissional: ${data.employeeName}`,
-        `Data: ${date}`,
-        `Horário: ${time}`,
-        ...reasonText,
-      ].join(
-        '\n',
-      ),
+      text,
 
-      html: `
-        <div
-          style="
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #27272a;
-          "
-        >
-          <h2>
-            Agendamento cancelado
-          </h2>
-
-          <p>
-            Olá, <strong>${clientName}</strong>.
-          </p>
-
-          <p>
-            Seu agendamento em
-            <strong>${tenantName}</strong>
-            foi cancelado.
-          </p>
-
-          <p>
-            <strong>Serviço:</strong>
-            ${serviceName}
-            <br />
-
-            <strong>Profissional:</strong>
-            ${employeeName}
-            <br />
-
-            <strong>Data:</strong>
-            ${date}
-            <br />
-
-            <strong>Horário:</strong>
-            ${time}
-          </p>
-
-          ${reasonHtml}
-        </div>
-      `,
+      html,
     });
   }
 }

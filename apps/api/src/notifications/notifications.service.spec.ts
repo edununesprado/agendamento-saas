@@ -7,6 +7,7 @@ import {
 } from 'vitest';
 
 import { EmailService } from './email.service.js';
+import { NotificationQueueService } from './notification-queue.service.js';
 import { NotificationsService } from './notifications.service.js';
 
 describe(
@@ -15,10 +16,19 @@ describe(
     const sendMail =
       vi.fn();
 
+    const enqueueEmail =
+      vi.fn();
+
     let service:
       NotificationsService;
 
     const appointment = {
+      tenantId:
+        'tenant-1',
+
+      appointmentId:
+        'appointment-1',
+
       clientName:
         'Maria Silva',
 
@@ -50,18 +60,28 @@ describe(
         true,
       );
 
+      enqueueEmail.mockResolvedValue({
+        id:
+          'delivery-1',
+      });
+
       const emailService = {
         sendMail,
       } as unknown as EmailService;
 
+      const notificationQueueService = {
+        enqueueEmail,
+      } as unknown as NotificationQueueService;
+
       service =
         new NotificationsService(
           emailService,
+          notificationQueueService,
         );
     });
 
     it(
-      'envia e-mail quando o agendamento público é solicitado',
+      'enfileira a solicitação pública sem enviar SMTP diretamente',
       async () => {
         const result =
           await service.notifyAppointmentRequested(
@@ -74,55 +94,78 @@ describe(
 
         expect(
           sendMail,
+        ).not.toHaveBeenCalled();
+
+        expect(
+          enqueueEmail,
         ).toHaveBeenCalledTimes(
           1,
         );
 
         expect(
-          sendMail,
+          enqueueEmail,
         ).toHaveBeenCalledWith(
           expect.objectContaining({
-            to:
+            tenantId:
+              'tenant-1',
+
+            appointmentId:
+              'appointment-1',
+
+            type:
+              'APPOINTMENT_REQUESTED',
+
+            recipient:
               'maria@teste.com',
 
-            subject:
-              expect.stringContaining(
-                'Recebemos seu agendamento',
-              ),
+            dedupeKey:
+              'appointment:appointment-1:requested',
           }),
         );
 
-        const email =
-          sendMail.mock.calls[0][0];
+        const notification =
+          enqueueEmail.mock.calls[0][0];
 
         expect(
-          email.subject,
+          notification.subject,
+        ).toContain(
+          'Recebemos seu agendamento',
+        );
+
+        expect(
+          notification.subject,
         ).toContain(
           'Barbearia Alpha',
         );
 
         expect(
-          email.text,
+          notification.text,
         ).toContain(
           'Maria Silva',
         );
 
         expect(
-          email.text,
+          notification.text,
         ).toContain(
           'Corte',
         );
 
         expect(
-          email.text,
+          notification.text,
         ).toContain(
           'Carlos Souza',
+        );
+
+        expect(
+          notification.html,
+        ).toContain(
+          'Solicitação de agendamento recebida',
         );
       },
     );
 
     it(
-      'envia e-mail quando o agendamento é confirmado',
+      'enfileira a confirmação sem enviar SMTP diretamente',
       async () => {
         const result =
           await service.notifyAppointmentConfirmed(
@@ -135,139 +178,39 @@ describe(
 
         expect(
           sendMail,
+        ).not.toHaveBeenCalled();
+
+        expect(
+          enqueueEmail,
         ).toHaveBeenCalledTimes(
           1,
         );
 
         expect(
-          sendMail,
+          enqueueEmail,
         ).toHaveBeenCalledWith(
           expect.objectContaining({
-            to:
+            tenantId:
+              'tenant-1',
+
+            appointmentId:
+              'appointment-1',
+
+            type:
+              'APPOINTMENT_CONFIRMED',
+
+            recipient:
               'maria@teste.com',
 
-            subject:
-              expect.stringContaining(
-                'Agendamento confirmado',
-              ),
+            dedupeKey:
+              'appointment:appointment-1:confirmed',
           }),
-        );
-
-        const email =
-          sendMail.mock.calls[0][0];
-
-        expect(
-          email.subject,
-        ).toContain(
-          'Barbearia Alpha',
-        );
-
-        expect(
-          email.text,
-        ).toContain(
-          'Corte',
-        );
-
-        expect(
-          email.text,
-        ).toContain(
-          'Carlos Souza',
         );
       },
     );
 
     it(
-      'envia e-mail com horário anterior e novo quando o agendamento é reagendado',
-      async () => {
-        const result =
-          await service.notifyAppointmentRescheduled({
-            ...appointment,
-
-            previousStartsAt:
-              new Date(
-                '2026-10-27T11:00:00.000Z',
-              ),
-          });
-
-        expect(
-          result,
-        ).toBe(true);
-
-        expect(
-          sendMail,
-        ).toHaveBeenCalledTimes(
-          1,
-        );
-
-        expect(
-          sendMail,
-        ).toHaveBeenCalledWith(
-          expect.objectContaining({
-            to:
-              'maria@teste.com',
-
-            subject:
-              expect.stringContaining(
-                'Agendamento reagendado',
-              ),
-          }),
-        );
-
-        const email =
-          sendMail.mock.calls[0][0];
-
-        expect(
-          email.subject,
-        ).toContain(
-          'Barbearia Alpha',
-        );
-
-        expect(
-          email.text,
-        ).toContain(
-          'Maria Silva',
-        );
-
-        expect(
-          email.text,
-        ).toContain(
-          'Corte',
-        );
-
-        expect(
-          email.text,
-        ).toContain(
-          'Carlos Souza',
-        );
-
-        expect(
-          email.text,
-        ).toContain(
-          'Data anterior: 27/10/2026',
-        );
-
-        expect(
-          email.text,
-        ).toContain(
-          'Horário anterior: 08:00',
-        );
-
-        expect(
-          email.text,
-        ).toContain(
-          'Nova data: 27/10/2026',
-        );
-
-        expect(
-          email.text,
-        ).toContain(
-          'Novo horário: 09:00',
-        );
-      },
-    );
-
-    it(
-      'envia e-mail quando o agendamento é cancelado',
+      'enfileira o cancelamento sem enviar SMTP diretamente',
       async () => {
         const result =
           await service.notifyAppointmentCanceled({
@@ -283,29 +226,40 @@ describe(
 
         expect(
           sendMail,
+        ).not.toHaveBeenCalled();
+
+        expect(
+          enqueueEmail,
         ).toHaveBeenCalledTimes(
           1,
         );
 
         expect(
-          sendMail,
+          enqueueEmail,
         ).toHaveBeenCalledWith(
           expect.objectContaining({
-            to:
+            tenantId:
+              'tenant-1',
+
+            appointmentId:
+              'appointment-1',
+
+            type:
+              'APPOINTMENT_CANCELED',
+
+            recipient:
               'maria@teste.com',
 
-            subject:
-              expect.stringContaining(
-                'Agendamento cancelado',
-              ),
+            dedupeKey:
+              'appointment:appointment-1:canceled',
           }),
         );
 
-        const email =
-          sendMail.mock.calls[0][0];
+        const notification =
+          enqueueEmail.mock.calls[0][0];
 
         expect(
-          email.text,
+          notification.text,
         ).toContain(
           'Cliente solicitou cancelamento',
         );
@@ -313,7 +267,118 @@ describe(
     );
 
     it(
-      'não tenta enviar e-mail quando o cliente não possui e-mail',
+      'enfileira o reagendamento com o novo horário no dedupeKey sem enviar SMTP diretamente',
+      async () => {
+        const previousStartsAt =
+          new Date(
+            '2026-10-27T12:00:00.000Z',
+          );
+
+        const newStartsAt =
+          new Date(
+            '2026-10-27T13:00:00.000Z',
+          );
+
+        const result =
+          await service.notifyAppointmentRescheduled({
+            ...appointment,
+
+            previousStartsAt,
+
+            startsAt:
+              newStartsAt,
+          });
+
+        expect(
+          result,
+        ).toBe(true);
+
+        expect(
+          sendMail,
+        ).not.toHaveBeenCalled();
+
+        expect(
+          enqueueEmail,
+        ).toHaveBeenCalledTimes(
+          1,
+        );
+
+        expect(
+          enqueueEmail,
+        ).toHaveBeenCalledWith(
+          expect.objectContaining({
+            tenantId:
+              'tenant-1',
+
+            appointmentId:
+              'appointment-1',
+
+            type:
+              'APPOINTMENT_RESCHEDULED',
+
+            recipient:
+              'maria@teste.com',
+
+            dedupeKey:
+              'appointment:appointment-1:rescheduled:2026-10-27T13:00:00.000Z',
+          }),
+        );
+      },
+    );
+
+    it(
+      'gera dedupeKey diferente quando o mesmo agendamento é reagendado novamente',
+      async () => {
+        await service.notifyAppointmentRescheduled({
+          ...appointment,
+
+          previousStartsAt:
+            new Date(
+              '2026-10-27T12:00:00.000Z',
+            ),
+
+          startsAt:
+            new Date(
+              '2026-10-27T13:00:00.000Z',
+            ),
+        });
+
+        await service.notifyAppointmentRescheduled({
+          ...appointment,
+
+          previousStartsAt:
+            new Date(
+              '2026-10-27T13:00:00.000Z',
+            ),
+
+          startsAt:
+            new Date(
+              '2026-10-27T14:00:00.000Z',
+            ),
+        });
+
+        expect(
+          enqueueEmail,
+        ).toHaveBeenCalledTimes(
+          2,
+        );
+
+        expect(
+          enqueueEmail.mock.calls[0][0].dedupeKey,
+        ).toBe(
+          'appointment:appointment-1:rescheduled:2026-10-27T13:00:00.000Z',
+        );
+
+        expect(
+          enqueueEmail.mock.calls[1][0].dedupeKey,
+        ).toBe(
+          'appointment:appointment-1:rescheduled:2026-10-27T14:00:00.000Z',
+        );
+      },
+    );
+
+    it(
+      'não enfileira solicitação pública quando o cliente não possui e-mail',
       async () => {
         const result =
           await service.notifyAppointmentRequested({
@@ -330,15 +395,137 @@ describe(
         expect(
           sendMail,
         ).not.toHaveBeenCalled();
+
+        expect(
+          enqueueEmail,
+        ).not.toHaveBeenCalled();
       },
     );
 
     it(
-      'não deixa uma falha no serviço de e-mail quebrar a notificação',
+      'não enfileira confirmação quando o cliente não possui e-mail',
       async () => {
-        sendMail.mockRejectedValueOnce(
+        const result =
+          await service.notifyAppointmentConfirmed({
+            ...appointment,
+
+            clientEmail:
+              null,
+          });
+
+        expect(
+          result,
+        ).toBe(false);
+
+        expect(
+          sendMail,
+        ).not.toHaveBeenCalled();
+
+        expect(
+          enqueueEmail,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it(
+      'não enfileira cancelamento quando o cliente não possui e-mail',
+      async () => {
+        const result =
+          await service.notifyAppointmentCanceled({
+            ...appointment,
+
+            clientEmail:
+              null,
+
+            cancelReason:
+              'Teste',
+          });
+
+        expect(
+          result,
+        ).toBe(false);
+
+        expect(
+          sendMail,
+        ).not.toHaveBeenCalled();
+
+        expect(
+          enqueueEmail,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it(
+      'não enfileira reagendamento quando o cliente não possui e-mail',
+      async () => {
+        const result =
+          await service.notifyAppointmentRescheduled({
+            ...appointment,
+
+            clientEmail:
+              null,
+
+            previousStartsAt:
+              new Date(
+                '2026-10-27T12:00:00.000Z',
+              ),
+
+            startsAt:
+              new Date(
+                '2026-10-27T13:00:00.000Z',
+              ),
+          });
+
+        expect(
+          result,
+        ).toBe(false);
+
+        expect(
+          sendMail,
+        ).not.toHaveBeenCalled();
+
+        expect(
+          enqueueEmail,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it(
+      'não deixa falha ao enfileirar solicitação pública quebrar a notificação',
+      async () => {
+        enqueueEmail.mockRejectedValueOnce(
           new Error(
-            'SMTP indisponível',
+            'Banco indisponível',
+          ),
+        );
+
+        const result =
+          await service.notifyAppointmentRequested(
+            appointment,
+          );
+
+        expect(
+          result,
+        ).toBe(false);
+
+        expect(
+          enqueueEmail,
+        ).toHaveBeenCalledTimes(
+          1,
+        );
+
+        expect(
+          sendMail,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it(
+      'não deixa falha ao enfileirar confirmação quebrar a notificação',
+      async () => {
+        enqueueEmail.mockRejectedValueOnce(
+          new Error(
+            'Banco indisponível',
           ),
         );
 
@@ -352,10 +539,195 @@ describe(
         ).toBe(false);
 
         expect(
-          sendMail,
+          enqueueEmail,
         ).toHaveBeenCalledTimes(
           1,
         );
+
+        expect(
+          sendMail,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it(
+      'não deixa falha ao enfileirar cancelamento quebrar a notificação',
+      async () => {
+        enqueueEmail.mockRejectedValueOnce(
+          new Error(
+            'Banco indisponível',
+          ),
+        );
+
+        const result =
+          await service.notifyAppointmentCanceled({
+            ...appointment,
+
+            cancelReason:
+              'Cliente solicitou cancelamento',
+          });
+
+        expect(
+          result,
+        ).toBe(false);
+
+        expect(
+          enqueueEmail,
+        ).toHaveBeenCalledTimes(
+          1,
+        );
+
+        expect(
+          sendMail,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it(
+      'não deixa falha ao enfileirar reagendamento quebrar a notificação',
+      async () => {
+        enqueueEmail.mockRejectedValueOnce(
+          new Error(
+            'Banco indisponível',
+          ),
+        );
+
+        const result =
+          await service.notifyAppointmentRescheduled({
+            ...appointment,
+
+            previousStartsAt:
+              new Date(
+                '2026-10-27T12:00:00.000Z',
+              ),
+
+            startsAt:
+              new Date(
+                '2026-10-27T13:00:00.000Z',
+              ),
+          });
+
+        expect(
+          result,
+        ).toBe(false);
+
+        expect(
+          enqueueEmail,
+        ).toHaveBeenCalledTimes(
+          1,
+        );
+
+        expect(
+          sendMail,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it(
+      'enfileira o lembrete sem enviar SMTP diretamente',
+      async () => {
+        const result =
+          await service.notifyAppointmentReminder(
+            appointment,
+          );
+
+        expect(
+          result,
+        ).toBe(true);
+
+        expect(
+          sendMail,
+        ).not.toHaveBeenCalled();
+
+        expect(
+          enqueueEmail,
+        ).toHaveBeenCalledTimes(
+          1,
+        );
+
+        expect(
+          enqueueEmail,
+        ).toHaveBeenCalledWith(
+          expect.objectContaining({
+            tenantId:
+              'tenant-1',
+
+            appointmentId:
+              'appointment-1',
+
+            type:
+              'APPOINTMENT_REMINDER',
+
+            recipient:
+              'maria@teste.com',
+
+            dedupeKey:
+              'appointment:appointment-1:reminder:2026-10-27T12:00:00.000Z',
+          }),
+        );
+
+        const notification =
+          enqueueEmail.mock.calls[0][0];
+
+        expect(
+          notification.subject,
+        ).toContain(
+          'Lembrete do seu agendamento',
+        );
+
+        expect(
+          notification.text,
+        ).toContain(
+          'Maria Silva',
+        );
+
+        expect(
+          notification.text,
+        ).toContain(
+          'Corte',
+        );
+
+        expect(
+          notification.text,
+        ).toContain(
+          'Carlos Souza',
+        );
+
+        expect(
+          notification.html,
+        ).toContain(
+          'Lembrete de agendamento',
+        );
+      },
+    );
+
+    it(
+      'não deixa falha ao enfileirar lembrete quebrar a notificação',
+      async () => {
+        enqueueEmail.mockRejectedValueOnce(
+          new Error(
+            'Banco indisponível',
+          ),
+        );
+
+        const result =
+          await service.notifyAppointmentReminder(
+            appointment,
+          );
+
+        expect(
+          result,
+        ).toBe(false);
+
+        expect(
+          enqueueEmail,
+        ).toHaveBeenCalledTimes(
+          1,
+        );
+
+        expect(
+          sendMail,
+        ).not.toHaveBeenCalled();
       },
     );
   },

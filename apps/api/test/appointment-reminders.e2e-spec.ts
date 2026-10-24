@@ -22,6 +22,7 @@ describe(
   () => {
     let app: INestApplication;
     let prisma: PrismaService;
+
     let remindersService:
       AppointmentRemindersService;
 
@@ -137,7 +138,8 @@ describe(
     beforeAll(
       async () => {
         /*
-         * Segurança: este teste apaga dados.
+         * Segurança:
+         * este teste apaga dados.
          *
          * Ele nunca deve executar usando
          * o banco normal de desenvolvimento.
@@ -194,10 +196,9 @@ describe(
         /*
          * Empresa usada pelos testes.
          *
-         * Os valores padrão também são os
-         * valores atuais do sistema:
+         * Valores padrão:
          *
-         * lembrete ativo
+         * lembretes habilitados
          * 24 horas antes
          */
         const tenant =
@@ -314,9 +315,8 @@ describe(
         });
 
         /*
-         * Também restauramos o cliente.
-         *
          * Um dos testes remove o e-mail.
+         * Restauramos antes de cada cenário.
          */
         await prisma.client.update({
           where: {
@@ -331,8 +331,8 @@ describe(
         });
 
         /*
-         * E restauramos a configuração padrão
-         * da empresa antes de cada cenário.
+         * Restauramos as configurações
+         * padrão antes de cada teste.
          */
         await prisma.tenant.update({
           where: {
@@ -366,7 +366,7 @@ describe(
     );
 
     it(
-      'envia lembrete para agendamento confirmado dentro da janela padrão de 24 horas',
+      'enfileira lembrete para agendamento confirmado dentro da janela padrão de 24 horas',
       async () => {
         const appointment =
           await createAppointment({
@@ -385,7 +385,7 @@ describe(
         expect(
           result,
         ).toEqual({
-          sent:
+          queued:
             1,
 
           failed:
@@ -405,6 +405,11 @@ describe(
           notifyAppointmentReminder,
         ).toHaveBeenCalledWith(
           expect.objectContaining({
+            tenantId,
+
+            appointmentId:
+              appointment.id,
+
             clientName:
               'Maria Reminder E2E',
 
@@ -441,16 +446,21 @@ describe(
           savedAppointment,
         ).not.toBeNull();
 
+        /*
+         * O scheduler apenas enfileira.
+         *
+         * reminderSentAt só será preenchido
+         * depois que o worker confirmar que
+         * o SMTP enviou o e-mail.
+         */
         expect(
           savedAppointment?.reminderSentAt,
-        ).toBeInstanceOf(
-          Date,
-        );
+        ).toBeNull();
       },
     );
 
     it(
-      'não envia novamente quando reminderSentAt já está preenchido',
+      'não enfileira novamente quando reminderSentAt já está preenchido',
       async () => {
         const reminderSentAt =
           new Date(
@@ -474,7 +484,7 @@ describe(
           );
 
         expect(
-          result.sent,
+          result.queued,
         ).toBe(
           0,
         );
@@ -508,7 +518,7 @@ describe(
     );
 
     it(
-      'não envia lembrete para agendamento PENDING',
+      'não enfileira lembrete para agendamento PENDING',
       async () => {
         const appointment =
           await createAppointment({
@@ -528,7 +538,13 @@ describe(
           );
 
         expect(
-          result.sent,
+          result.queued,
+        ).toBe(
+          0,
+        );
+
+        expect(
+          result.failed,
         ).toBe(
           0,
         );
@@ -552,7 +568,7 @@ describe(
     );
 
     it(
-      'não envia lembrete para agendamento além da janela padrão de 24 horas',
+      'não enfileira lembrete para agendamento além da janela padrão de 24 horas',
       async () => {
         const appointment =
           await createAppointment({
@@ -569,7 +585,13 @@ describe(
           );
 
         expect(
-          result.sent,
+          result.queued,
+        ).toBe(
+          0,
+        );
+
+        expect(
+          result.failed,
         ).toBe(
           0,
         );
@@ -593,7 +615,7 @@ describe(
     );
 
     it(
-      'não envia lembrete para horário que já passou',
+      'não enfileira lembrete para horário que já passou',
       async () => {
         const appointment =
           await createAppointment({
@@ -610,7 +632,13 @@ describe(
           );
 
         expect(
-          result.sent,
+          result.queued,
+        ).toBe(
+          0,
+        );
+
+        expect(
+          result.failed,
         ).toBe(
           0,
         );
@@ -634,8 +662,13 @@ describe(
     );
 
     it(
-      'não marca reminderSentAt quando o envio do e-mail falha',
+      'não marca reminderSentAt quando o enfileiramento do lembrete falha',
       async () => {
+        /*
+         * false agora significa que a
+         * notificação não conseguiu ser
+         * registrada na fila.
+         */
         notifyAppointmentReminder.mockResolvedValueOnce(
           false,
         );
@@ -655,7 +688,7 @@ describe(
           );
 
         expect(
-          result.sent,
+          result.queued,
         ).toBe(
           0,
         );
@@ -687,7 +720,7 @@ describe(
     );
 
     it(
-      'não seleciona cliente sem e-mail para envio de lembrete',
+      'não seleciona cliente sem e-mail para enfileirar lembrete',
       async () => {
         await prisma.client.update({
           where: {
@@ -716,7 +749,7 @@ describe(
           );
 
         expect(
-          result.sent,
+          result.queued,
         ).toBe(
           0,
         );
@@ -746,7 +779,7 @@ describe(
     );
 
     it(
-      'não envia lembretes quando a empresa desativa a funcionalidade',
+      'não enfileira lembretes quando a empresa desativa a funcionalidade',
       async () => {
         await prisma.tenant.update({
           where: {
@@ -777,7 +810,7 @@ describe(
         expect(
           result,
         ).toEqual({
-          sent:
+          queued:
             0,
 
           failed:
@@ -821,7 +854,7 @@ describe(
         });
 
         /*
-         * Este está fora da janela:
+         * Fora da janela:
          * faltam 2 horas.
          */
         const outsideWindow =
@@ -834,8 +867,8 @@ describe(
           });
 
         /*
-         * Este está dentro da janela:
-         * faltam apenas 30 minutos.
+         * Dentro da janela:
+         * faltam 30 minutos.
          */
         const insideWindow =
           await createAppointment({
@@ -852,7 +885,7 @@ describe(
           );
 
         expect(
-          result.sent,
+          result.queued,
         ).toBe(
           1,
         );
@@ -867,6 +900,17 @@ describe(
           notifyAppointmentReminder,
         ).toHaveBeenCalledTimes(
           1,
+        );
+
+        expect(
+          notifyAppointmentReminder,
+        ).toHaveBeenCalledWith(
+          expect.objectContaining({
+            appointmentId:
+              insideWindow.id,
+
+            tenantId,
+          }),
         );
 
         const outsideSaved =
@@ -889,11 +933,12 @@ describe(
           outsideSaved?.reminderSentAt,
         ).toBeNull();
 
+        /*
+         * Ainda não houve SMTP.
+         */
         expect(
           insideSaved?.reminderSentAt,
-        ).toBeInstanceOf(
-          Date,
-        );
+        ).toBeNull();
       },
     );
 
@@ -913,11 +958,12 @@ describe(
         });
 
         /*
-         * Com a antiga regra fixa de 24 horas
-         * este agendamento não seria enviado.
+         * Com a antiga regra fixa de
+         * 24 horas este agendamento
+         * não seria elegível.
          *
-         * Com 48 horas configuradas pela
-         * empresa, ele deve ser elegível.
+         * Com 48 horas configuradas,
+         * ele deve ser enfileirado.
          */
         const appointment =
           await createAppointment({
@@ -934,7 +980,7 @@ describe(
           );
 
         expect(
-          result.sent,
+          result.queued,
         ).toBe(
           1,
         );
@@ -951,6 +997,17 @@ describe(
           1,
         );
 
+        expect(
+          notifyAppointmentReminder,
+        ).toHaveBeenCalledWith(
+          expect.objectContaining({
+            appointmentId:
+              appointment.id,
+
+            tenantId,
+          }),
+        );
+
         const savedAppointment =
           await prisma.appointment.findUnique({
             where: {
@@ -959,11 +1016,13 @@ describe(
             },
           });
 
+        /*
+         * O scheduler apenas colocou
+         * a notificação na fila.
+         */
         expect(
           savedAppointment?.reminderSentAt,
-        ).toBeInstanceOf(
-          Date,
-        );
+        ).toBeNull();
       },
     );
   },

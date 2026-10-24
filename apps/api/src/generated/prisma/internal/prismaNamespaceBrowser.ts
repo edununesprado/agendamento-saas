@@ -60,7 +60,8 @@ export const ModelName = {
   Client: 'Client',
   AvailabilityRule: 'AvailabilityRule',
   BlockedTime: 'BlockedTime',
-  Appointment: 'Appointment'
+  Appointment: 'Appointment',
+  NotificationDelivery: 'NotificationDelivery'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -228,6 +229,34 @@ export const AppointmentScalarFieldEnum = {
 } as const
 
 export type AppointmentScalarFieldEnum = (typeof AppointmentScalarFieldEnum)[keyof typeof AppointmentScalarFieldEnum]
+
+
+export const NotificationDeliveryScalarFieldEnum = {
+  id: 'id',
+  tenantId: 'tenantId',
+  appointmentId: 'appointmentId',
+  channel: 'channel',
+  type: 'type',
+  status: 'status',
+  recipient: 'recipient',
+  subject: 'subject',
+  text: 'text',
+  html: 'html',
+  dedupeKey: 'dedupeKey',
+  attempts: 'attempts',
+  maxAttempts: 'maxAttempts',
+  nextAttemptAt: 'nextAttemptAt',
+  processingStartedAt: 'processingStartedAt',
+  lastAttemptAt: 'lastAttemptAt',
+  sentAt: 'sentAt',
+  failedAt: 'failedAt',
+  lastError: 'lastError',
+  providerMessageId: 'providerMessageId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type NotificationDeliveryScalarFieldEnum = (typeof NotificationDeliveryScalarFieldEnum)[keyof typeof NotificationDeliveryScalarFieldEnum]
 
 
 export const SortOrder = {
