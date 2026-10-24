@@ -1,10 +1,12 @@
 # Agendamento SaaS
 
-Sistema SaaS multiempresa para gerenciamento de agendamentos, desenvolvido como projeto de portfólio.
+Sistema SaaS multiempresa para gerenciamento de agendamentos, desenvolvido como projeto de portfólio Full Stack.
 
 A aplicação permite que diferentes empresas utilizem a mesma plataforma de forma isolada, cada uma com seus próprios usuários, funcionários, serviços, clientes, horários, bloqueios, agendamentos e configurações.
 
-O projeto possui painel administrativo, controle de acesso por função, página pública de agendamento, proteção contra conflitos de horários, notificações por e-mail e lembretes automáticos.
+O projeto possui painel administrativo, controle de acesso por função, página pública de agendamento, proteção contra conflitos de horários, notificações por e-mail, lembretes automáticos e processamento assíncrono de notificações com persistência em PostgreSQL.
+
+A arquitetura de notificações utiliza **Transactional Outbox**, garantindo que as alterações dos agendamentos e a criação das respectivas notificações sejam realizadas dentro da mesma transação de banco de dados.
 
 ---
 
@@ -19,9 +21,9 @@ O projeto possui painel administrativo, controle de acesso por função, página
 
 ### Backend
 
-- NestJS
+- NestJS 12
 - TypeScript
-- Prisma ORM
+- Prisma ORM 7
 - JWT
 - bcrypt
 - Luxon
@@ -32,12 +34,17 @@ O projeto possui painel administrativo, controle de acesso por função, página
 ### Banco de dados
 
 - PostgreSQL
+- Transações ACID
+- PostgreSQL Advisory Locks
 
 ### Testes
 
 - Vitest
 - Supertest
 - Testes E2E
+- Testes de concorrência
+- Testes de rollback transacional
+- Testes da fila de notificações
 
 ### Infraestrutura
 
@@ -65,6 +72,10 @@ agendamento-saas/
 ```
 
 A aplicação segue uma arquitetura multi-tenant, onde os registros são associados a uma empresa (`tenant`) e as operações da API respeitam esse isolamento.
+
+O backend concentra as regras de negócio, validações, autorização, controle de concorrência e persistência.
+
+As notificações são processadas de forma assíncrona por um worker, utilizando o PostgreSQL como armazenamento persistente da fila.
 
 ---
 
@@ -94,10 +105,13 @@ Cada empresa possui seus próprios:
 - agendamentos
 - configurações
 - regras de agendamento público
+- notificações
 
 Os dados de uma empresa não podem ser acessados por outra.
 
 O `tenantId` do usuário autenticado é utilizado no backend para limitar o acesso aos recursos pertencentes à empresa correta.
+
+O isolamento também é considerado na criação e no processamento das notificações.
 
 ---
 
@@ -296,9 +310,11 @@ Exemplo:
 
 ```text
 PENDING
-   ↓
+   |
+   v
 CONFIRMED
-   ↓
+   |
+   v
 COMPLETED
 ```
 
@@ -309,6 +325,8 @@ NO_SHOW
 ```
 
 Agendamentos cancelados não voltam para estados ativos.
+
+As operações que geram notificações utilizam transações PostgreSQL para manter a consistência entre os dados do agendamento e a fila de notificações.
 
 ---
 
@@ -369,6 +387,10 @@ PENDING
 
 aguardando confirmação da empresa.
 
+A criação do cliente, quando necessária, o agendamento e a notificação de solicitação são realizados na mesma transação PostgreSQL.
+
+Caso a criação obrigatória da notificação falhe, a transação é revertida, evitando que o agendamento seja persistido sem o respectivo registro de notificação.
+
 ---
 
 ## Regras configuráveis de agendamento público
@@ -426,64 +448,321 @@ No painel é possível configurar:
 - timezone
 - antecedência mínima do agendamento público
 - quantidade máxima de dias disponíveis para agendamento
+- ativação dos lembretes automáticos
+- antecedência dos lembretes
 
 Também é possível copiar ou abrir diretamente o link público da empresa.
+
+As configurações de lembretes são armazenadas individualmente para cada empresa.
 
 ---
 
 ## Notificações por e-mail
 
-O sistema possui suporte a notificações por e-mail utilizando:
+O sistema utiliza:
 
-```text
-Nodemailer
-SMTP
-```
+- Nodemailer
+- SMTP
+- PostgreSQL
+- Fila persistente de notificações
+- Worker para processamento assíncrono
+- Transactional Outbox
 
-Atualmente são enviados e-mails nos seguintes eventos:
+Atualmente existem notificações para os seguintes eventos:
 
 ### Solicitação de agendamento público
 
-Quando o cliente realiza um agendamento pela página pública:
+Quando o cliente realiza um agendamento pela página pública, recebe uma notificação informando que a solicitação foi recebida.
+
+Tipo:
 
 ```text
-PENDING
+APPOINTMENT_REQUESTED
 ```
-
-ele recebe uma mensagem informando que a solicitação foi recebida.
 
 ### Confirmação
 
-Quando a empresa altera o agendamento de:
+Quando um agendamento é confirmado, o cliente recebe uma notificação de confirmação.
+
+Tipo:
 
 ```text
-PENDING
+APPOINTMENT_CONFIRMED
 ```
-
-para:
-
-```text
-CONFIRMED
-```
-
-o cliente recebe um e-mail de confirmação.
 
 ### Cancelamento
 
 Quando um agendamento é cancelado, o cliente recebe uma notificação contendo também o motivo do cancelamento, quando informado.
 
-### Reagendamento
-
-Quando a data ou horário realmente é alterado, o cliente recebe um e-mail contendo:
+Tipo:
 
 ```text
-data anterior
-horário anterior
-nova data
-novo horário
+APPOINTMENT_CANCELED
 ```
 
-Caso o mesmo horário seja enviado novamente, nenhum e-mail redundante de reagendamento é disparado.
+### Reagendamento
+
+Quando a data ou o horário realmente é alterado, o cliente recebe uma notificação contendo:
+
+- data anterior
+- horário anterior
+- nova data
+- novo horário
+
+Tipo:
+
+```text
+APPOINTMENT_RESCHEDULED
+```
+
+Caso o mesmo horário seja informado novamente, nenhuma notificação redundante de reagendamento é criada.
+
+### Lembrete automático
+
+Quando um agendamento confirmado entra na janela configurada de lembrete, uma notificação é preparada para envio.
+
+Tipo:
+
+```text
+APPOINTMENT_REMINDER
+```
+
+O envio efetivo é responsabilidade do worker.
+
+---
+
+## Fila persistente de notificações
+
+O sistema possui uma fila persistente no PostgreSQL por meio do modelo:
+
+```text
+NotificationDelivery
+```
+
+Cada registro contém informações necessárias para acompanhar o processamento da notificação, incluindo:
+
+- empresa
+- agendamento relacionado
+- canal
+- tipo
+- destinatário
+- assunto
+- conteúdo
+- chave de deduplicação
+- status
+- quantidade de tentativas
+- limite de tentativas
+- data da próxima tentativa
+- início do processamento
+- data de envio
+- data de falha
+- último erro
+- identificador retornado pelo provedor
+
+### Estados da fila
+
+Os estados existentes são:
+
+```text
+PENDING
+PROCESSING
+SENT
+FAILED
+CANCELED
+```
+
+Fluxo principal:
+
+```text
+PENDING
+   |
+   v
+PROCESSING
+   |
+   +---- sucesso SMTP ----> SENT
+   |
+   +---- falha recuperável ----> PENDING
+   |
+   +---- limite de tentativas -> FAILED
+```
+
+O estado `CANCELED` também está disponível para notificações que não devem mais ser enviadas.
+
+### Responsabilidade do worker
+
+O worker é responsável por:
+
+1. identificar notificações pendentes e elegíveis;
+2. reservar a notificação para processamento;
+3. executar o envio através do serviço SMTP;
+4. registrar o resultado;
+5. programar novas tentativas quando necessário;
+6. marcar falhas definitivas quando o limite de tentativas for atingido.
+
+O envio SMTP é realizado fora das transações responsáveis pela criação ou alteração dos agendamentos.
+
+Isso evita manter uma transação de banco aberta durante uma operação de rede.
+
+### Tentativas automáticas
+
+O sistema possui política de novas tentativas com intervalos progressivos.
+
+Intervalos utilizados:
+
+```text
+1 minuto
+5 minutos
+15 minutos
+60 minutos
+180 minutos
+```
+
+O modelo registra `attempts`, `maxAttempts` e `nextAttemptAt`.
+
+O worker utiliza essas informações para controlar quando uma notificação deve voltar a ser processada.
+
+### Deduplicação
+
+Cada notificação possui uma chave única:
+
+```text
+dedupeKey
+```
+
+Essa chave ajuda a impedir a criação duplicada do mesmo evento de notificação.
+
+Exemplos conceituais:
+
+```text
+appointment:{id}:requested
+
+appointment:{id}:confirmed
+
+appointment:{id}:canceled
+
+appointment:{id}:rescheduled:{startsAtISO}
+
+appointment:{id}:reminder:{startsAtISO}
+```
+
+A deduplicação ocorre na persistência dos eventos.
+
+É importante observar que a deduplicação no banco não garante, isoladamente, entrega exatamente uma vez pelo SMTP. Em cenários de falha após o aceite do provedor, uma tentativa posterior pode provocar uma entrega duplicada.
+
+---
+
+## Transactional Outbox
+
+A aplicação implementa o padrão **Transactional Outbox** para tornar atômica a persistência dos agendamentos e das notificações relacionadas.
+
+O objetivo é evitar a seguinte situação:
+
+```text
+Agendamento salvo no banco
+           |
+           v
+Falha antes de criar a notificação
+           |
+           v
+Agendamento sem registro de envio
+```
+
+Com o Transactional Outbox, as alterações do agendamento e a criação do registro `NotificationDelivery` fazem parte da mesma transação PostgreSQL.
+
+### Fluxo transacional
+
+```text
+Requisição
+    |
+    v
+Início da transação PostgreSQL
+    |
+    v
+Criar ou alterar Appointment
+    |
+    v
+Criar NotificationDelivery
+    |
+    v
+Commit da transação
+    |
+    v
+Worker encontra a notificação
+    |
+    v
+Envio SMTP
+    |
+    v
+Atualização do status da entrega
+```
+
+Se uma operação obrigatória de persistência falhar antes do commit, a transação é revertida.
+
+Dessa forma, evita-se que apenas parte das alterações transacionais seja gravada.
+
+### Fluxos protegidos
+
+A implementação contempla:
+
+**1. Agendamento público**
+
+- criação ou associação do cliente;
+- criação do agendamento PENDING;
+- criação de APPOINTMENT_REQUESTED.
+
+**2. Criação interna**
+
+- criação do agendamento CONFIRMED;
+- criação de APPOINTMENT_CONFIRMED.
+
+**3. Confirmação**
+
+- alteração para CONFIRMED;
+- criação de APPOINTMENT_CONFIRMED.
+
+**4. Cancelamento**
+
+- alteração para CANCELED;
+- atualização dos dados de cancelamento;
+- criação de APPOINTMENT_CANCELED.
+
+**5. Reagendamento**
+
+- alteração de `startsAt`;
+- alteração de `endsAt`;
+- reinicialização de `reminderSentAt` quando o horário muda;
+- criação de APPOINTMENT_RESCHEDULED.
+
+**6. Lembretes automáticos**
+
+- obtenção de lock;
+- revalidação das condições do agendamento;
+- criação de APPOINTMENT_REMINDER dentro da transação.
+
+### Separação entre persistência e envio
+
+O Transactional Outbox garante a consistência da gravação entre as operações de negócio e os registros de notificação.
+
+Ele não significa que o e-mail será entregue imediatamente ou que o provedor SMTP nunca falhará.
+
+Depois do commit, a notificação permanece disponível para processamento pelo worker.
+
+Falhas de SMTP são tratadas pela fila, sem desfazer um agendamento já confirmado no banco.
+
+### Testes de rollback
+
+Foram implementados testes E2E específicos para verificar que falhas simuladas na criação da notificação provocam rollback das alterações transacionais correspondentes.
+
+Os testes cobrem:
+
+- criação pública
+- criação interna
+- confirmação
+- cancelamento
+- reagendamento
+- preparação de lembretes
+
+Esses cenários fazem parte da suíte E2E aprovada.
 
 ---
 
@@ -497,53 +776,83 @@ O sistema possui um processo automático de lembretes utilizando:
 
 O scheduler verifica periodicamente os agendamentos elegíveis.
 
-Atualmente o lembrete é enviado para agendamentos:
+Os lembretes podem ser configurados individualmente por empresa.
 
-```text
-CONFIRMED
-```
-
-que estejam dentro das próximas:
+Valor padrão de antecedência:
 
 ```text
 24 horas
 ```
 
-e cujo cliente possua e-mail cadastrado.
-
-A verificação é executada periodicamente pelo backend.
-
-Cada agendamento possui o campo:
+Também existem testes para configurações de:
 
 ```text
-reminderSentAt
+1 hora
+24 horas
+48 horas
 ```
 
-Esse campo registra quando o lembrete foi enviado e impede o envio duplicado.
+Para ser elegível, o agendamento precisa atender às regras de negócio, incluindo:
 
-Fluxo:
+- estar confirmado;
+- possuir cliente com e-mail;
+- estar dentro da janela de lembrete;
+- não possuir registro de envio do lembrete correspondente;
+- pertencer a uma empresa com lembretes habilitados.
+
+### Fluxo atual
 
 ```text
-CONFIRMED
-    ↓
-entra na janela das próximas 24 horas
-    ↓
-scheduler encontra o agendamento
-    ↓
-e-mail de lembrete é enviado
-    ↓
-reminderSentAt é preenchido
-    ↓
-agendamento não é selecionado novamente
+Appointment CONFIRMED
+          |
+          v
+Entra na janela de lembrete
+          |
+          v
+Scheduler encontra o agendamento
+          |
+          v
+Transação PostgreSQL
+          |
+          v
+Revalidação + Advisory Lock
+          |
+          v
+NotificationDelivery PENDING
+          |
+          v
+Commit
+          |
+          v
+Worker processa a entrega
+          |
+          v
+SMTP confirma o envio
+          |
+          v
+NotificationDelivery SENT
+          |
+          v
+reminderSentAt preenchido
 ```
 
-Se o envio do e-mail falhar:
+O scheduler não preenche `reminderSentAt` apenas porque conseguiu colocar o lembrete na fila.
+
+O campo deve ser preenchido somente após o envio SMTP ter sido confirmado.
+
+### Falhas
+
+Se houver falha na criação do registro da notificação, a transação é revertida.
+
+Se houver falha no SMTP, o worker controla as tentativas da notificação.
+
+Enquanto não houver confirmação de envio:
 
 ```text
-reminderSentAt permanece NULL
+reminderSentAt = NULL
 ```
 
-permitindo uma nova tentativa em uma execução futura.
+### Reagendamento
 
 Se um agendamento for realmente reagendado:
 
@@ -551,9 +860,11 @@ Se um agendamento for realmente reagendado:
 reminderSentAt = NULL
 ```
 
-permitindo que um novo lembrete seja enviado para o novo horário.
+Isso permite preparar um novo lembrete para o novo horário.
 
 Caso o horário não tenha sido alterado, o valor existente é preservado.
+
+Notificações de lembrete que já não correspondem ao estado atual do agendamento são tratadas pelas validações do processamento, evitando o envio de lembretes desatualizados.
 
 ---
 
@@ -588,7 +899,9 @@ Os lembretes automáticos também podem ser desativados:
 APPOINTMENT_REMINDERS_ENABLED=false
 ```
 
-Falhas no SMTP não desfazem operações importantes como confirmação, cancelamento ou reagendamento.
+Falhas de envio SMTP são tratadas pelo worker.
+
+Como o SMTP é executado fora da transação do agendamento, um erro de comunicação com o servidor de e-mail não desfaz operações de negócio já persistidas.
 
 ---
 
@@ -623,6 +936,8 @@ Depois acesse:
 ```text
 http://localhost:8025
 ```
+
+O Mailpit permite visualizar os e-mails gerados pelo sistema durante os testes manuais.
 
 ---
 
@@ -674,6 +989,10 @@ Algumas proteções atualmente implementadas:
 - validação das regras de agendamento público no backend
 - proteção contra agendamento público duplicado
 - normalização de telefone
+- fila persistente de notificações
+- chaves de deduplicação
+- Transactional Outbox
+- testes de rollback transacional
 - banco separado para testes E2E
 - proteção dos testes contra execução no banco de desenvolvimento
 
@@ -748,8 +1067,8 @@ GET /availability?employeeId=...&serviceId=...&date=2026-10-20
 ### Agendamentos
 
 ```http
-GET  /appointments
-POST /appointments
+GET   /appointments
+POST  /appointments
 
 GET   /appointments/:id
 PATCH /appointments/:id/status
@@ -781,7 +1100,7 @@ Exemplo:
 }
 ```
 
-ou:
+Ou:
 
 ```json
 {
@@ -811,14 +1130,18 @@ POST /public/tenants/:slug/appointments
 
 Tenha instalado:
 
-```text
-Node.js
-pnpm
-Docker
-Docker Compose
-```
+- Node.js
+- pnpm
+- Docker
+- Docker Compose
 
----
+Ambiente utilizado durante o desenvolvimento:
+
+```text
+Node.js 24
+pnpm 10
+PostgreSQL
+```
 
 ### 1. Clone o projeto
 
@@ -832,15 +1155,11 @@ Entre na pasta:
 cd agendamento-saas
 ```
 
----
-
 ### 2. Instale as dependências
 
 ```bash
 pnpm install
 ```
-
----
 
 ### 3. Inicie os containers
 
@@ -858,8 +1177,6 @@ Para conferir:
 docker compose ps
 ```
 
----
-
 ### 4. Configure a API
 
 Crie o arquivo:
@@ -873,7 +1190,7 @@ Exemplo:
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/agendamento"
 
-JWT_ACCESS_SECRET="sua-chave-secreta"
+JWT_ACCESS_SECRET="substitua-por-uma-chave-secreta-forte"
 
 JWT_ACCESS_EXPIRES_IN="15m"
 
@@ -889,7 +1206,9 @@ SMTP_FROM_EMAIL=nao-responda@agendamento.local
 APPOINTMENT_REMINDERS_ENABLED=true
 ```
 
----
+Os valores acima são exemplos de desenvolvimento local.
+
+Não utilize credenciais de desenvolvimento em produção.
 
 ### 5. Execute as migrations
 
@@ -903,8 +1222,6 @@ Gere o Prisma Client:
 ```bash
 pnpm prisma generate
 ```
-
----
 
 ### 6. Inicie a API
 
@@ -926,8 +1243,6 @@ A API será executada em:
 http://localhost:3333
 ```
 
----
-
 ### 7. Configure o frontend
 
 Crie:
@@ -941,8 +1256,6 @@ Com:
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3333
 ```
-
----
 
 ### 8. Inicie o frontend
 
@@ -996,9 +1309,13 @@ APPOINTMENT_REMINDERS_ENABLED=false
 
 Os lembretes automáticos permanecem desativados durante os testes E2E para evitar interferência do scheduler nos cenários automatizados.
 
+Os serviços de lembrete podem ser chamados diretamente pelos testes para validar seu comportamento.
+
+**Atenção:** os testes E2E realizam operações de limpeza de dados. Utilize exclusivamente o banco de testes.
+
 ### Aplicando migrations no banco de testes
 
-No PowerShell:
+No PowerShell, dentro de `apps/api`:
 
 ```powershell
 $env:DATABASE_URL = ((Get-Content .env.test | Where-Object { $_ -match '^DATABASE_URL=' } | Select-Object -First 1) -replace '^DATABASE_URL=', '').Trim('"').Trim("'")
@@ -1008,11 +1325,13 @@ pnpm prisma migrate deploy
 Remove-Item Env:DATABASE_URL
 ```
 
-Antes de executar migrations manualmente, é possível conferir o banco selecionado:
+Antes de executar migrations manualmente, confira o banco selecionado:
 
 ```powershell
 node -e "console.log(new URL(process.env.DATABASE_URL).pathname)"
 ```
+
+Execute essa verificação enquanto `DATABASE_URL` estiver definida no terminal.
 
 O esperado para E2E é:
 
@@ -1034,14 +1353,22 @@ execute:
 pnpm test:e2e
 ```
 
-Estado atual da suíte:
+Para salvar o resultado em arquivo, no Git Bash:
 
-```text
-Test Files: 17 passed
-Tests:      147 passed
+```bash
+pnpm test:e2e 2>&1 | tee resultado-e2e.txt
 ```
 
-Entre os testes existem verificações para:
+### Resultado validado em 24/10/2026
+
+```text
+Test Files  34 passed (34)
+Tests       185 passed (185)
+```
+
+A suíte passou integralmente após a implementação do Transactional Outbox.
+
+Entre os cenários de teste estão:
 
 - autenticação
 - permissões
@@ -1059,7 +1386,19 @@ Entre os testes existem verificações para:
 - regras configuráveis de agendamento público
 - reagendamento
 - notificações
+- fila persistente
+- worker de notificações
+- tentativas e falhas de entrega
 - lembretes automáticos
+- proteção contra lembretes desatualizados
+- rollback da criação pública
+- rollback da criação interna
+- rollback da confirmação
+- rollback do cancelamento
+- rollback do reagendamento
+- rollback da preparação de lembretes
+
+Os testes de Transactional Outbox simulam falhas no enfileiramento e verificam se o banco permanece consistente.
 
 ---
 
@@ -1072,6 +1411,8 @@ cd apps/api
 pnpm build
 ```
 
+O build da API foi validado após a implementação do Transactional Outbox.
+
 ### Frontend
 
 ```bash
@@ -1079,45 +1420,71 @@ cd apps/web
 pnpm build
 ```
 
-Atualmente os builds da API e do frontend passam sem erros.
+O frontend utiliza Next.js e possui processo de build independente da API.
 
 ---
 
 ## Estado atual do projeto
 
-O projeto já possui o fluxo principal de um sistema SaaS de agendamentos funcionando:
+O projeto possui o fluxo principal de um sistema SaaS de agendamentos implementado.
+
+Fluxo de negócio:
 
 ```text
 Empresa
-   ↓
+   |
+   v
 Usuários e permissões
-   ↓
+   |
+   v
 Serviços
-   ↓
+   |
+   v
 Funcionários
-   ↓
+   |
+   v
 Horários de trabalho
-   ↓
+   |
+   v
 Clientes
-   ↓
+   |
+   v
 Disponibilidade
-   ↓
-Agenda interna
-   ↓
-Página pública
-   ↓
+   |
+   v
+Agenda interna / Página pública
+   |
+   v
 Solicitação de agendamento
-   ↓
+   |
+   v
 PENDING
-   ↓
+   |
+   v
 Confirmação pela empresa
-   ↓
+   |
+   v
 CONFIRMED
-   ↓
-Notificação por e-mail
-   ↓
+   |
+   v
+Transactional Outbox
+   |
+   v
+NotificationDelivery
+   |
+   v
+Worker
+   |
+   v
+SMTP
+   |
+   v
+Notificação enviada
+   |
+   v
 Lembrete automático
-   ↓
+   |
+   v
 Atendimento
 ```
 
@@ -1127,18 +1494,84 @@ Também estão implementados:
 Multi-tenancy
 RBAC
 Conflito de horários
-Advisory Locks
+PostgreSQL Advisory Locks
 Rate Limit
 Agendamento público
 Reagendamento
 SMTP
 Mailpit
-Notificações
+Notificações por e-mail
+Fila persistente de notificações
+Retry automático
+Deduplicação
+Transactional Outbox
 Lembretes automáticos
 Testes E2E
+Testes de rollback
 ```
 
-O desenvolvimento continua com novas funcionalidades sendo adicionadas gradualmente.
+O desenvolvimento continua com melhorias incrementais de confiabilidade, observabilidade e usabilidade.
+
+---
+
+## Próximas etapas
+
+### Etapa 1 — Transactional Outbox
+
+**Implementação e validações concluídas.**
+
+- Atomicidade na criação pública
+- Atomicidade na criação interna
+- Atomicidade na confirmação
+- Atomicidade no cancelamento
+- Atomicidade no reagendamento
+- Preparação transacional dos lembretes
+- Testes E2E de rollback
+- Build da API aprovado
+- 185 testes E2E aprovados
+
+### Etapa 2 — Hardening do Worker
+
+**Próxima etapa planejada.**
+
+Objetivos:
+
+- reforçar a recuperação de notificações presas em PROCESSING;
+- revisar o comportamento de idempotência;
+- fortalecer o tratamento de FAILED;
+- implementar reprocessamento manual;
+- revisar a política de novas tentativas;
+- minimizar entregas duplicadas;
+- ampliar os testes de falhas e concorrência.
+
+A arquitetura de entrega considera a possibilidade de processamento repetido em situações de falha, sem prometer uma garantia de exatamente um envio SMTP.
+
+### Etapa 3 — Painel de Notificações
+
+**Planejada, ainda não implementada.**
+
+Criar uma área administrativa para acompanhamento das notificações com:
+
+- notificações enviadas
+- notificações pendentes
+- notificações com falha
+- quantidade de tentativas
+- destinatário
+- tipo da notificação
+- data de criação
+- data do envio
+- mensagem do último erro
+- botão de reenvio
+
+A página deverá respeitar o isolamento multi-tenant e as permissões definidas pelo backend.
+
+### Melhorias técnicas futuras
+
+- investigar avisos de depreciação do driver PostgreSQL;
+- ampliar a observabilidade do worker;
+- aprimorar o diagnóstico de falhas;
+- fortalecer testes de concorrência;
+- revisar estratégias de recuperação de entregas.
 
 ---
 
@@ -1153,7 +1586,11 @@ Este projeto está sendo desenvolvido com foco em:
 - APIs REST
 - integridade de dados
 - concorrência
-- transações
+- transações PostgreSQL
+- Transactional Outbox
+- processamento assíncrono
+- filas persistentes
+- idempotência
 - testes automatizados
 - boas práticas de backend
 - frontend administrativo
@@ -1171,6 +1608,4 @@ Também faz parte do meu portfólio para demonstrar conhecimentos em desenvolvim
 
 GitHub:
 
-```text
 https://github.com/edununesprado
-```

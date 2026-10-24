@@ -4,7 +4,10 @@ import {
 } from '@nestjs/common';
 
 import { EmailService } from './email.service.js';
-import { NotificationQueueService } from './notification-queue.service.js';
+import {
+  NotificationQueueService,
+  type NotificationQueueClient,
+} from './notification-queue.service.js';
 
 type AppointmentNotificationData = {
   clientName: string;
@@ -63,6 +66,33 @@ type RescheduledAppointmentNotificationData =
       | Date
       | string;
   };
+
+type NotificationType =
+  | 'APPOINTMENT_REQUESTED'
+  | 'APPOINTMENT_CONFIRMED'
+  | 'APPOINTMENT_CANCELED'
+  | 'APPOINTMENT_RESCHEDULED'
+  | 'APPOINTMENT_REMINDER';
+
+/*
+ * Fora de uma transação, o comportamento
+ * permanece igual ao anterior:
+ *
+ * uma falha ao registrar a notificação é
+ * capturada, registrada no log e retorna false.
+ *
+ * Dentro de uma transação atômica:
+ *
+ * client = tx
+ * throwOnError = true
+ *
+ * A falha é relançada e o Prisma executa
+ * rollback de toda a operação.
+ */
+export type NotificationEnqueueOptions = {
+  client?: NotificationQueueClient;
+  throwOnError?: boolean;
+};
 
 @Injectable()
 export class NotificationsService {
@@ -155,6 +185,15 @@ export class NotificationsService {
     );
   }
 
+  /*
+   * Mantemos este método porque EmailService
+   * continua sendo uma dependência deste serviço
+   * e poderá ser útil para notificações que não
+   * passem pela fila.
+   *
+   * As notificações de agendamento atuais usam
+   * a fila persistente.
+   */
   private async safeSend(
     data: {
       to: string;
@@ -175,11 +214,6 @@ export class NotificationsService {
               error,
             );
 
-      /*
-       * Uma falha no servidor SMTP
-       * nunca deve desfazer um
-       * agendamento já salvo.
-       */
       this.logger.error(
         `Falha ao enviar notificação por e-mail: ${message}`,
       );
@@ -188,43 +222,62 @@ export class NotificationsService {
     }
   }
 
-  private async safeEnqueueRequested(
+  /*
+   * Ponto único para registrar todas as
+   * NotificationDelivery.
+   *
+   * Isso evita que cada tipo de notificação
+   * tenha uma implementação diferente para
+   * tratamento de erro/transação.
+   */
+  private async enqueueNotification(
     data: {
       tenantId: string;
       appointmentId: string;
+
+      type: NotificationType;
+
       recipient: string;
       subject: string;
       text: string;
       html: string;
+
+      dedupeKey: string;
+
+      errorDescription: string;
     },
+    options?: NotificationEnqueueOptions,
   ) {
     try {
       const delivery =
-        await this.notificationQueueService.enqueueEmail({
-          tenantId:
-            data.tenantId,
+        await this.notificationQueueService.enqueueEmail(
+          {
+            tenantId:
+              data.tenantId,
 
-          appointmentId:
-            data.appointmentId,
+            appointmentId:
+              data.appointmentId,
 
-          type:
-            'APPOINTMENT_REQUESTED',
+            type:
+              data.type,
 
-          recipient:
-            data.recipient,
+            recipient:
+              data.recipient,
 
-          subject:
-            data.subject,
+            subject:
+              data.subject,
 
-          text:
-            data.text,
+            text:
+              data.text,
 
-          html:
-            data.html,
+            html:
+              data.html,
 
-          dedupeKey:
-            `appointment:${data.appointmentId}:requested`,
-        });
+            dedupeKey:
+              data.dedupeKey,
+          },
+          options?.client,
+        );
 
       return Boolean(
         delivery,
@@ -238,259 +291,37 @@ export class NotificationsService {
             );
 
       this.logger.error(
-        `Falha ao enfileirar notificação de solicitação: ${message}`,
+        `${data.errorDescription}: ${message}`,
       );
 
-      return false;
-    }
-  }
+      /*
+       * Modo transacional:
+       *
+       * não podemos esconder o erro.
+       * Ele precisa chegar ao callback do
+       * prisma.$transaction para provocar
+       * rollback.
+       */
+      if (
+        options?.throwOnError
+      ) {
+        throw error;
+      }
 
-  private async safeEnqueueConfirmed(
-    data: {
-      tenantId: string;
-      appointmentId: string;
-      recipient: string;
-      subject: string;
-      text: string;
-      html: string;
-    },
-  ) {
-    try {
-      const delivery =
-        await this.notificationQueueService.enqueueEmail({
-          tenantId:
-            data.tenantId,
-
-          appointmentId:
-            data.appointmentId,
-
-          type:
-            'APPOINTMENT_CONFIRMED',
-
-          recipient:
-            data.recipient,
-
-          subject:
-            data.subject,
-
-          text:
-            data.text,
-
-          html:
-            data.html,
-
-          dedupeKey:
-            `appointment:${data.appointmentId}:confirmed`,
-        });
-
-      return Boolean(
-        delivery,
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : String(
-              error,
-            );
-
-      this.logger.error(
-        `Falha ao enfileirar notificação de confirmação: ${message}`,
-      );
-
-      return false;
-    }
-  }
-
-  private async safeEnqueueReminder(
-    data: {
-      tenantId: string;
-      appointmentId: string;
-      startsAt:
-        | Date
-        | string;
-      recipient: string;
-      subject: string;
-      text: string;
-      html: string;
-    },
-  ) {
-    try {
-      const startsAt =
-        new Date(
-          data.startsAt,
-        ).toISOString();
-
-      const delivery =
-        await this.notificationQueueService.enqueueEmail({
-          tenantId:
-            data.tenantId,
-
-          appointmentId:
-            data.appointmentId,
-
-          type:
-            'APPOINTMENT_REMINDER',
-
-          recipient:
-            data.recipient,
-
-          subject:
-            data.subject,
-
-          text:
-            data.text,
-
-          html:
-            data.html,
-
-          dedupeKey:
-            `appointment:${data.appointmentId}:reminder:${startsAt}`,
-        });
-
-      return Boolean(
-        delivery,
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : String(
-              error,
-            );
-
-      this.logger.error(
-        `Falha ao enfileirar lembrete de agendamento: ${message}`,
-      );
-
-      return false;
-    }
-  }
-
-  private async safeEnqueueCanceled(
-    data: {
-      tenantId: string;
-      appointmentId: string;
-      recipient: string;
-      subject: string;
-      text: string;
-      html: string;
-    },
-  ) {
-    try {
-      const delivery =
-        await this.notificationQueueService.enqueueEmail({
-          tenantId:
-            data.tenantId,
-
-          appointmentId:
-            data.appointmentId,
-
-          type:
-            'APPOINTMENT_CANCELED',
-
-          recipient:
-            data.recipient,
-
-          subject:
-            data.subject,
-
-          text:
-            data.text,
-
-          html:
-            data.html,
-
-          dedupeKey:
-            `appointment:${data.appointmentId}:canceled`,
-        });
-
-      return Boolean(
-        delivery,
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : String(
-              error,
-            );
-
-      this.logger.error(
-        `Falha ao enfileirar notificação de cancelamento: ${message}`,
-      );
-
-      return false;
-    }
-  }
-
-  private async safeEnqueueRescheduled(
-    data: {
-      tenantId: string;
-      appointmentId: string;
-      startsAt:
-        | Date
-        | string;
-      recipient: string;
-      subject: string;
-      text: string;
-      html: string;
-    },
-  ) {
-    try {
-      const startsAt =
-        new Date(
-          data.startsAt,
-        ).toISOString();
-
-      const delivery =
-        await this.notificationQueueService.enqueueEmail({
-          tenantId:
-            data.tenantId,
-
-          appointmentId:
-            data.appointmentId,
-
-          type:
-            'APPOINTMENT_RESCHEDULED',
-
-          recipient:
-            data.recipient,
-
-          subject:
-            data.subject,
-
-          text:
-            data.text,
-
-          html:
-            data.html,
-
-          dedupeKey:
-            `appointment:${data.appointmentId}:rescheduled:${startsAt}`,
-        });
-
-      return Boolean(
-        delivery,
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : String(
-              error,
-            );
-
-      this.logger.error(
-        `Falha ao enfileirar notificação de reagendamento: ${message}`,
-      );
-
+      /*
+       * Modo normal:
+       *
+       * preserva o comportamento anterior
+       * para chamadas que não fazem parte
+       * de uma alteração atômica.
+       */
       return false;
     }
   }
 
   async notifyAppointmentRequested(
     data: RequestedAppointmentNotificationData,
+    options?: NotificationEnqueueOptions,
   ) {
     if (
       !data.clientEmail
@@ -593,26 +424,39 @@ export class NotificationsService {
       </div>
     `;
 
-    return this.safeEnqueueRequested({
-      tenantId:
-        data.tenantId,
+    return this.enqueueNotification(
+      {
+        tenantId:
+          data.tenantId,
 
-      appointmentId:
-        data.appointmentId,
+        appointmentId:
+          data.appointmentId,
 
-      recipient:
-        data.clientEmail,
+        type:
+          'APPOINTMENT_REQUESTED',
 
-      subject,
+        recipient:
+          data.clientEmail,
 
-      text,
+        subject,
 
-      html,
-    });
+        text,
+
+        html,
+
+        dedupeKey:
+          `appointment:${data.appointmentId}:requested`,
+
+        errorDescription:
+          'Falha ao enfileirar notificação de solicitação',
+      },
+      options,
+    );
   }
 
   async notifyAppointmentConfirmed(
     data: ConfirmedAppointmentNotificationData,
+    options?: NotificationEnqueueOptions,
   ) {
     if (
       !data.clientEmail
@@ -709,26 +553,39 @@ export class NotificationsService {
       </div>
     `;
 
-    return this.safeEnqueueConfirmed({
-      tenantId:
-        data.tenantId,
+    return this.enqueueNotification(
+      {
+        tenantId:
+          data.tenantId,
 
-      appointmentId:
-        data.appointmentId,
+        appointmentId:
+          data.appointmentId,
 
-      recipient:
-        data.clientEmail,
+        type:
+          'APPOINTMENT_CONFIRMED',
 
-      subject,
+        recipient:
+          data.clientEmail,
 
-      text,
+        subject,
 
-      html,
-    });
+        text,
+
+        html,
+
+        dedupeKey:
+          `appointment:${data.appointmentId}:confirmed`,
+
+        errorDescription:
+          'Falha ao enfileirar notificação de confirmação',
+      },
+      options,
+    );
   }
 
   async notifyAppointmentReminder(
     data: ReminderAppointmentNotificationData,
+    options?: NotificationEnqueueOptions,
   ) {
     if (
       !data.clientEmail
@@ -783,7 +640,7 @@ export class NotificationsService {
       '',
       'Seu horário está confirmado. Esperamos por você!',
     ].join(
-      '\\n',
+      '\n',
     );
 
     const html = `
@@ -832,29 +689,44 @@ export class NotificationsService {
       </div>
     `;
 
-    return this.safeEnqueueReminder({
-      tenantId:
-        data.tenantId,
-
-      appointmentId:
-        data.appointmentId,
-
-      startsAt:
+    const startsAt =
+      new Date(
         data.startsAt,
+      ).toISOString();
 
-      recipient:
-        data.clientEmail,
+    return this.enqueueNotification(
+      {
+        tenantId:
+          data.tenantId,
 
-      subject,
+        appointmentId:
+          data.appointmentId,
 
-      text,
+        type:
+          'APPOINTMENT_REMINDER',
 
-      html,
-    });
+        recipient:
+          data.clientEmail,
+
+        subject,
+
+        text,
+
+        html,
+
+        dedupeKey:
+          `appointment:${data.appointmentId}:reminder:${startsAt}`,
+
+        errorDescription:
+          'Falha ao enfileirar lembrete de agendamento',
+      },
+      options,
+    );
   }
 
   async notifyAppointmentRescheduled(
     data: RescheduledAppointmentNotificationData,
+    options?: NotificationEnqueueOptions,
   ) {
     if (
       !data.clientEmail
@@ -977,29 +849,44 @@ export class NotificationsService {
       </div>
     `;
 
-    return this.safeEnqueueRescheduled({
-      tenantId:
-        data.tenantId,
-
-      appointmentId:
-        data.appointmentId,
-
-      startsAt:
+    const startsAt =
+      new Date(
         data.startsAt,
+      ).toISOString();
 
-      recipient:
-        data.clientEmail,
+    return this.enqueueNotification(
+      {
+        tenantId:
+          data.tenantId,
 
-      subject,
+        appointmentId:
+          data.appointmentId,
 
-      text,
+        type:
+          'APPOINTMENT_RESCHEDULED',
 
-      html,
-    });
+        recipient:
+          data.clientEmail,
+
+        subject,
+
+        text,
+
+        html,
+
+        dedupeKey:
+          `appointment:${data.appointmentId}:rescheduled:${startsAt}`,
+
+        errorDescription:
+          'Falha ao enfileirar notificação de reagendamento',
+      },
+      options,
+    );
   }
 
   async notifyAppointmentCanceled(
     data: CanceledAppointmentNotificationData,
+    options?: NotificationEnqueueOptions,
   ) {
     if (
       !data.clientEmail
@@ -1124,21 +1011,33 @@ export class NotificationsService {
       </div>
     `;
 
-    return this.safeEnqueueCanceled({
-      tenantId:
-        data.tenantId,
+    return this.enqueueNotification(
+      {
+        tenantId:
+          data.tenantId,
 
-      appointmentId:
-        data.appointmentId,
+        appointmentId:
+          data.appointmentId,
 
-      recipient:
-        data.clientEmail,
+        type:
+          'APPOINTMENT_CANCELED',
 
-      subject,
+        recipient:
+          data.clientEmail,
 
-      text,
+        subject,
 
-      html,
-    });
+        text,
+
+        html,
+
+        dedupeKey:
+          `appointment:${data.appointmentId}:canceled`,
+
+        errorDescription:
+          'Falha ao enfileirar notificação de cancelamento',
+      },
+      options,
+    );
   }
 }

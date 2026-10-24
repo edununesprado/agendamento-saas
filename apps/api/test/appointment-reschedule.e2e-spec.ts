@@ -563,6 +563,13 @@ describe(
                 Date,
               ),
           }),
+          expect.objectContaining({
+            client:
+              expect.anything(),
+
+            throwOnError:
+              true,
+          }),
         );
 
         const notificationData =

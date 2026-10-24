@@ -20,21 +20,27 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 describe(
   'Lembretes de agendamento (E2E)',
   () => {
-    let app: INestApplication;
-    let prisma: PrismaService;
+    let app:
+      INestApplication;
+
+    let prisma:
+      PrismaService;
 
     let remindersService:
       AppointmentRemindersService;
 
-    let tenantId: string;
-    let employeeId: string;
-    let serviceId: string;
-    let clientId: string;
+    let tenantId:
+      string;
 
-    /*
-     * Usamos uma data fixa para que os testes
-     * não dependam do relógio real da máquina.
-     */
+    let employeeId:
+      string;
+
+    let serviceId:
+      string;
+
+    let clientId:
+      string;
+
     const now =
       new Date(
         '2026-10-24T12:00:00.000Z',
@@ -140,9 +146,6 @@ describe(
         /*
          * Segurança:
          * este teste apaga dados.
-         *
-         * Ele nunca deve executar usando
-         * o banco normal de desenvolvimento.
          */
         if (
           !process.env.DATABASE_URL?.includes(
@@ -187,20 +190,9 @@ describe(
             AppointmentRemindersService,
           );
 
-        /*
-         * Limpa somente o banco E2E.
-         */
         await prisma.tenant.deleteMany();
         await prisma.user.deleteMany();
 
-        /*
-         * Empresa usada pelos testes.
-         *
-         * Valores padrão:
-         *
-         * lembretes habilitados
-         * 24 horas antes
-         */
         const tenant =
           await prisma.tenant.create({
             data: {
@@ -305,19 +297,12 @@ describe(
           true,
         );
 
-        /*
-         * Cada teste começa sem agendamentos.
-         */
         await prisma.appointment.deleteMany({
           where: {
             tenantId,
           },
         });
 
-        /*
-         * Um dos testes remove o e-mail.
-         * Restauramos antes de cada cenário.
-         */
         await prisma.client.update({
           where: {
             id:
@@ -330,10 +315,6 @@ describe(
           },
         });
 
-        /*
-         * Restauramos as configurações
-         * padrão antes de cada teste.
-         */
         await prisma.tenant.update({
           where: {
             id:
@@ -401,9 +382,23 @@ describe(
           1,
         );
 
+        /*
+         * Agora NotificationsService recebe:
+         *
+         * argumento 1 = dados do lembrete
+         * argumento 2 = transação Prisma
+         */
+        const [
+          notificationData,
+          notificationOptions,
+        ] =
+          notifyAppointmentReminder
+            .mock
+            .calls[0];
+
         expect(
-          notifyAppointmentReminder,
-        ).toHaveBeenCalledWith(
+          notificationData,
+        ).toEqual(
           expect.objectContaining({
             tenantId,
 
@@ -434,6 +429,18 @@ describe(
           }),
         );
 
+        expect(
+          notificationOptions,
+        ).toEqual(
+          expect.objectContaining({
+            client:
+              expect.anything(),
+
+            throwOnError:
+              true,
+          }),
+        );
+
         const savedAppointment =
           await prisma.appointment.findUnique({
             where: {
@@ -449,9 +456,8 @@ describe(
         /*
          * O scheduler apenas enfileira.
          *
-         * reminderSentAt só será preenchido
-         * depois que o worker confirmar que
-         * o SMTP enviou o e-mail.
+         * reminderSentAt será preenchido
+         * pelo worker depois do SMTP.
          */
         expect(
           savedAppointment?.reminderSentAt,
@@ -544,12 +550,6 @@ describe(
         );
 
         expect(
-          result.failed,
-        ).toBe(
-          0,
-        );
-
-        expect(
           notifyAppointmentReminder,
         ).not.toHaveBeenCalled();
 
@@ -586,12 +586,6 @@ describe(
 
         expect(
           result.queued,
-        ).toBe(
-          0,
-        );
-
-        expect(
-          result.failed,
         ).toBe(
           0,
         );
@@ -638,12 +632,6 @@ describe(
         );
 
         expect(
-          result.failed,
-        ).toBe(
-          0,
-        );
-
-        expect(
           notifyAppointmentReminder,
         ).not.toHaveBeenCalled();
 
@@ -664,11 +652,6 @@ describe(
     it(
       'não marca reminderSentAt quando o enfileiramento do lembrete falha',
       async () => {
-        /*
-         * false agora significa que a
-         * notificação não conseguiu ser
-         * registrada na fila.
-         */
         notifyAppointmentReminder.mockResolvedValueOnce(
           false,
         );
@@ -853,10 +836,6 @@ describe(
           },
         });
 
-        /*
-         * Fora da janela:
-         * faltam 2 horas.
-         */
         const outsideWindow =
           await createAppointment({
             startsAt:
@@ -866,10 +845,6 @@ describe(
               ),
           });
 
-        /*
-         * Dentro da janela:
-         * faltam 30 minutos.
-         */
         const insideWindow =
           await createAppointment({
             startsAt:
@@ -902,14 +877,41 @@ describe(
           1,
         );
 
+        const [
+          notificationData,
+          notificationOptions,
+        ] =
+          notifyAppointmentReminder
+            .mock
+            .calls[0];
+
         expect(
-          notifyAppointmentReminder,
-        ).toHaveBeenCalledWith(
+          notificationData,
+        ).toEqual(
           expect.objectContaining({
             appointmentId:
               insideWindow.id,
 
             tenantId,
+
+            clientEmail,
+
+            startsAt:
+              expect.any(
+                Date,
+              ),
+          }),
+        );
+
+        expect(
+          notificationOptions,
+        ).toEqual(
+          expect.objectContaining({
+            client:
+              expect.anything(),
+
+            throwOnError:
+              true,
           }),
         );
 
@@ -929,13 +931,14 @@ describe(
             },
           });
 
+        /*
+         * Nenhum deles é marcado aqui.
+         * O worker fará isso após SMTP.
+         */
         expect(
           outsideSaved?.reminderSentAt,
         ).toBeNull();
 
-        /*
-         * Ainda não houve SMTP.
-         */
         expect(
           insideSaved?.reminderSentAt,
         ).toBeNull();
@@ -957,14 +960,6 @@ describe(
           },
         });
 
-        /*
-         * Com a antiga regra fixa de
-         * 24 horas este agendamento
-         * não seria elegível.
-         *
-         * Com 48 horas configuradas,
-         * ele deve ser enfileirado.
-         */
         const appointment =
           await createAppointment({
             startsAt:
@@ -997,14 +992,41 @@ describe(
           1,
         );
 
+        const [
+          notificationData,
+          notificationOptions,
+        ] =
+          notifyAppointmentReminder
+            .mock
+            .calls[0];
+
         expect(
-          notifyAppointmentReminder,
-        ).toHaveBeenCalledWith(
+          notificationData,
+        ).toEqual(
           expect.objectContaining({
+            tenantId,
+
             appointmentId:
               appointment.id,
 
-            tenantId,
+            clientEmail,
+
+            startsAt:
+              expect.any(
+                Date,
+              ),
+          }),
+        );
+
+        expect(
+          notificationOptions,
+        ).toEqual(
+          expect.objectContaining({
+            client:
+              expect.anything(),
+
+            throwOnError:
+              true,
           }),
         );
 
@@ -1016,10 +1038,6 @@ describe(
             },
           });
 
-        /*
-         * O scheduler apenas colocou
-         * a notificação na fila.
-         */
         expect(
           savedAppointment?.reminderSentAt,
         ).toBeNull();

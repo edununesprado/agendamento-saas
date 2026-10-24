@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { DateTime } from 'luxon';
@@ -17,11 +16,6 @@ import { PublicEmployeesQueryDto } from './dto/public-employees-query.dto.js';
 
 @Injectable()
 export class PublicBookingService {
-  private readonly logger =
-    new Logger(
-      PublicBookingService.name,
-    );
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly availabilityService: AvailabilityService,
@@ -569,7 +563,7 @@ export class PublicBookingService {
     const notes =
       data.notes?.trim();
 
-    const result =
+    const appointment =
       await this.prisma.$transaction(
         async (tx) => {
           /*
@@ -810,7 +804,7 @@ export class PublicBookingService {
             );
           }
 
-          const appointment =
+          const createdAppointment =
             await tx.appointment.create({
               data: {
                 tenantId:
@@ -883,70 +877,62 @@ export class PublicBookingService {
               },
             });
 
-          return {
-            appointment,
+          /*
+           * TRANSACTIONAL OUTBOX
+           *
+           * A NotificationDelivery é criada usando
+           * exatamente o mesmo `tx` que acabou de
+           * criar o Appointment.
+           *
+           * Se a fila falhar:
+           *
+           * - notifyAppointmentRequested relança;
+           * - prisma.$transaction executa rollback;
+           * - o Appointment não fica salvo sozinho;
+           * - um Client recém-criado também é desfeito.
+           */
+          await this.notificationsService.notifyAppointmentRequested(
+            {
+              tenantId:
+                tenant.id,
 
-            client: {
-              name:
+              appointmentId:
+                createdAppointment.id,
+
+              clientName:
                 client.name,
 
-              email:
+              clientEmail:
                 client.email,
+
+              tenantName:
+                tenant.name,
+
+              serviceName:
+                createdAppointment.service.name,
+
+              employeeName:
+                createdAppointment.employee.name,
+
+              startsAt:
+                createdAppointment.startsAt,
+
+              timezone:
+                tenant.timezone,
             },
-          };
+            {
+              client:
+                tx,
+
+              throwOnError:
+                true,
+            },
+          );
+
+          return createdAppointment;
         },
       );
 
-    /*
-     * A notificação acontece somente depois
-     * que a transação foi concluída.
-     *
-     * Neste ponto apenas registramos a entrega
-     * na fila persistida. O SMTP será executado
-     * posteriormente pelo worker.
-     */
-    try {
-      await this.notificationsService.notifyAppointmentRequested({
-        tenantId:
-          tenant.id,
-
-        appointmentId:
-          result.appointment.id,
-
-        clientName:
-          result.client.name,
-
-        clientEmail:
-          result.client.email,
-
-        tenantName:
-          tenant.name,
-
-        serviceName:
-          result.appointment.service.name,
-
-        employeeName:
-          result.appointment.employee.name,
-
-        startsAt:
-          result.appointment.startsAt,
-
-        timezone:
-          tenant.timezone,
-      });
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : String(
-              error,
-            );
-
-      this.logger.error(
-        `Falha inesperada ao preparar notificação do agendamento ${result.appointment.id}: ${message}`,
-      );
-    }
-
-    return result.appointment;
+    return appointment;
   }
 }

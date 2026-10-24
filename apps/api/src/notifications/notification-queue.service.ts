@@ -37,6 +37,20 @@ type EnqueueEmailInput = {
   nextAttemptAt?: Date;
 };
 
+/*
+ * Apenas a parte do Prisma necessária
+ * para registrar uma NotificationDelivery.
+ *
+ * Tanto PrismaService quanto o `tx`
+ * recebido por uma transação interativa
+ * possuem esse delegate.
+ */
+export type NotificationQueueClient =
+  Pick<
+    PrismaService,
+    'notificationDelivery'
+  >;
+
 @Injectable()
 export class NotificationQueueService {
   constructor(
@@ -45,6 +59,8 @@ export class NotificationQueueService {
 
   async enqueueEmail(
     input: EnqueueEmailInput,
+    client: NotificationQueueClient =
+      this.prisma,
   ) {
     const recipient =
       input.recipient.trim();
@@ -84,8 +100,13 @@ export class NotificationQueueService {
      * depois que uma notificação foi criada,
      * seu conteúdo representa o evento
      * ocorrido naquele momento.
+     *
+     * Quando `client` for um TransactionClient,
+     * a criação da NotificationDelivery fará
+     * parte da mesma transação da operação
+     * que originou a notificação.
      */
-    return this.prisma.notificationDelivery.upsert({
+    return client.notificationDelivery.upsert({
       where: {
         dedupeKey,
       },
