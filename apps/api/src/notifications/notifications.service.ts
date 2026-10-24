@@ -29,6 +29,13 @@ type AppointmentNotificationData = {
     | null;
 };
 
+type RescheduledAppointmentNotificationData =
+  AppointmentNotificationData & {
+    previousStartsAt:
+      | Date
+      | string;
+  };
+
 @Injectable()
 export class NotificationsService {
   private readonly logger =
@@ -360,6 +367,136 @@ export class NotificationsService {
 
             <strong>Horário:</strong>
             ${time}
+          </p>
+        </div>
+      `,
+    });
+  }
+
+  async notifyAppointmentRescheduled(
+    data: RescheduledAppointmentNotificationData,
+  ) {
+    if (
+      !data.clientEmail
+    ) {
+      return false;
+    }
+
+    const previousDate =
+      this.formatDate(
+        data.previousStartsAt,
+        data.timezone,
+      );
+
+    const previousTime =
+      this.formatTime(
+        data.previousStartsAt,
+        data.timezone,
+      );
+
+    const newDate =
+      this.formatDate(
+        data.startsAt,
+        data.timezone,
+      );
+
+    const newTime =
+      this.formatTime(
+        data.startsAt,
+        data.timezone,
+      );
+
+    const clientName =
+      this.escapeHtml(
+        data.clientName,
+      );
+
+    const tenantName =
+      this.escapeHtml(
+        data.tenantName,
+      );
+
+    const serviceName =
+      this.escapeHtml(
+        data.serviceName,
+      );
+
+    const employeeName =
+      this.escapeHtml(
+        data.employeeName,
+      );
+
+    return this.safeSend({
+      to:
+        data.clientEmail,
+
+      subject:
+        `Agendamento reagendado - ${data.tenantName}`,
+
+      text: [
+        `Olá, ${data.clientName}.`,
+        '',
+        `Seu agendamento em ${data.tenantName} foi reagendado.`,
+        '',
+        `Serviço: ${data.serviceName}`,
+        `Profissional: ${data.employeeName}`,
+        '',
+        `Data anterior: ${previousDate}`,
+        `Horário anterior: ${previousTime}`,
+        '',
+        `Nova data: ${newDate}`,
+        `Novo horário: ${newTime}`,
+      ].join(
+        '\n',
+      ),
+
+      html: `
+        <div
+          style="
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #27272a;
+          "
+        >
+          <h2>
+            Agendamento reagendado
+          </h2>
+
+          <p>
+            Olá, <strong>${clientName}</strong>.
+          </p>
+
+          <p>
+            Seu agendamento em
+            <strong>${tenantName}</strong>
+            foi reagendado.
+          </p>
+
+          <p>
+            <strong>Serviço:</strong>
+            ${serviceName}
+            <br />
+
+            <strong>Profissional:</strong>
+            ${employeeName}
+          </p>
+
+          <p>
+            <strong>Data anterior:</strong>
+            ${previousDate}
+            <br />
+
+            <strong>Horário anterior:</strong>
+            ${previousTime}
+          </p>
+
+          <p>
+            <strong>Nova data:</strong>
+            ${newDate}
+            <br />
+
+            <strong>Novo horário:</strong>
+            ${newTime}
           </p>
         </div>
       `,

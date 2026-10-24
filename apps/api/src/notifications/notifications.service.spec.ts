@@ -177,6 +177,96 @@ describe(
     );
 
     it(
+      'envia e-mail com horário anterior e novo quando o agendamento é reagendado',
+      async () => {
+        const result =
+          await service.notifyAppointmentRescheduled({
+            ...appointment,
+
+            previousStartsAt:
+              new Date(
+                '2026-10-27T11:00:00.000Z',
+              ),
+          });
+
+        expect(
+          result,
+        ).toBe(true);
+
+        expect(
+          sendMail,
+        ).toHaveBeenCalledTimes(
+          1,
+        );
+
+        expect(
+          sendMail,
+        ).toHaveBeenCalledWith(
+          expect.objectContaining({
+            to:
+              'maria@teste.com',
+
+            subject:
+              expect.stringContaining(
+                'Agendamento reagendado',
+              ),
+          }),
+        );
+
+        const email =
+          sendMail.mock.calls[0][0];
+
+        expect(
+          email.subject,
+        ).toContain(
+          'Barbearia Alpha',
+        );
+
+        expect(
+          email.text,
+        ).toContain(
+          'Maria Silva',
+        );
+
+        expect(
+          email.text,
+        ).toContain(
+          'Corte',
+        );
+
+        expect(
+          email.text,
+        ).toContain(
+          'Carlos Souza',
+        );
+
+        expect(
+          email.text,
+        ).toContain(
+          'Data anterior: 27/10/2026',
+        );
+
+        expect(
+          email.text,
+        ).toContain(
+          'Horário anterior: 08:00',
+        );
+
+        expect(
+          email.text,
+        ).toContain(
+          'Nova data: 27/10/2026',
+        );
+
+        expect(
+          email.text,
+        ).toContain(
+          'Novo horário: 09:00',
+        );
+      },
+    );
+
+    it(
       'envia e-mail quando o agendamento é cancelado',
       async () => {
         const result =

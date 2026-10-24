@@ -122,6 +122,81 @@ export class AppointmentsService {
     }
   }
 
+  private async notifyAppointmentRescheduled(
+    tenantId: string,
+    appointment: {
+      id: string;
+      startsAt: Date;
+
+      employee: {
+        name: string;
+      };
+
+      service: {
+        name: string;
+      };
+
+      client: {
+        name: string;
+        email:
+          | string
+          | null;
+      };
+    },
+    previousStartsAt: Date,
+  ) {
+    try {
+      const tenant =
+        await this.getNotificationTenant(
+          tenantId,
+        );
+
+      if (!tenant) {
+        this.logger.warn(
+          `Empresa não encontrada ao preparar notificação de reagendamento do agendamento ${appointment.id}`,
+        );
+
+        return;
+      }
+
+      await this.notificationsService.notifyAppointmentRescheduled({
+        clientName:
+          appointment.client.name,
+
+        clientEmail:
+          appointment.client.email,
+
+        tenantName:
+          tenant.name,
+
+        serviceName:
+          appointment.service.name,
+
+        employeeName:
+          appointment.employee.name,
+
+        previousStartsAt,
+
+        startsAt:
+          appointment.startsAt,
+
+        timezone:
+          tenant.timezone,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(
+              error,
+            );
+
+      this.logger.error(
+        `Falha inesperada ao preparar notificação de reagendamento do agendamento ${appointment.id}: ${message}`,
+      );
+    }
+  }
+
   private async notifyAppointmentCanceled(
     tenantId: string,
     appointment: {
@@ -982,81 +1057,107 @@ export class AppointmentsService {
         .toUTC()
         .toJSDate();
 
-    return this.prisma.$transaction(
-      async (tx) => {
-        await tx.$queryRaw<
-          Array<{
-            lock_value: number;
-          }>
-        >`
-          SELECT 1::int AS lock_value
-          FROM pg_advisory_xact_lock(
-            hashtext(${tenantId}),
-            hashtext(${appointment.employeeId})
-          )
-        `;
+    /*
+     * Primeiro o novo horário é salvo
+     * com sucesso no banco.
+     *
+     * Somente depois da transação concluída
+     * tentamos enviar a notificação.
+     */
+    const updatedAppointment =
+      await this.prisma.$transaction(
+        async (tx) => {
+          await tx.$queryRaw<
+            Array<{
+              lock_value: number;
+            }>
+          >`
+            SELECT 1::int AS lock_value
+            FROM pg_advisory_xact_lock(
+              hashtext(${tenantId}),
+              hashtext(${appointment.employeeId})
+            )
+          `;
 
-        const conflictingAppointment =
-          await tx.appointment.findFirst({
+          const conflictingAppointment =
+            await tx.appointment.findFirst({
+              where: {
+                id: {
+                  not:
+                    appointment.id,
+                },
+
+                tenantId,
+
+                employeeId:
+                  appointment.employeeId,
+
+                status: {
+                  not:
+                    'CANCELED',
+                },
+
+                startsAt: {
+                  lt:
+                    endsAt,
+                },
+
+                endsAt: {
+                  gt:
+                    startsAt,
+                },
+              },
+            });
+
+          if (
+            conflictingAppointment
+          ) {
+            throw new ConflictException(
+              'O novo horário acabou de ser ocupado',
+            );
+          }
+
+          return tx.appointment.update({
             where: {
-              id: {
-                not:
-                  appointment.id,
-              },
+              id:
+                appointment.id,
+            },
 
-              tenantId,
+            data: {
+              startsAt,
+              endsAt,
+            },
 
-              employeeId:
-                appointment.employeeId,
+            include: {
+              employee:
+                true,
 
-              status: {
-                not:
-                  'CANCELED',
-              },
+              service:
+                true,
 
-              startsAt: {
-                lt:
-                  endsAt,
-              },
-
-              endsAt: {
-                gt:
-                  startsAt,
-              },
+              client:
+                true,
             },
           });
+        },
+      );
 
-        if (
-          conflictingAppointment
-        ) {
-          throw new ConflictException(
-            'O novo horário acabou de ser ocupado',
-          );
-        }
+    /*
+     * Não envia e-mail se o usuário
+     * selecionar exatamente o mesmo
+     * horário que já estava salvo.
+     */
+    if (
+      updatedAppointment.startsAt.getTime() !==
+      appointment.startsAt.getTime()
+    ) {
+      await this.notifyAppointmentRescheduled(
+        tenantId,
+        updatedAppointment,
+        appointment.startsAt,
+      );
+    }
 
-        return tx.appointment.update({
-          where: {
-            id:
-              appointment.id,
-          },
-
-          data: {
-            startsAt,
-            endsAt,
-          },
-
-          include: {
-            employee:
-              true,
-
-            service:
-              true,
-
-            client:
-              true,
-          },
-        });
-      },
-    );
+    return updatedAppointment;
   }
 }
