@@ -1,3 +1,4 @@
+
 import {
   Injectable,
   Logger,
@@ -23,9 +24,7 @@ type ClaimedDelivery = {
 
   tenantId: string;
 
-  appointmentId:
-    | string
-    | null;
+  appointmentId: string | null;
 
   type:
     | 'APPOINTMENT_REQUESTED'
@@ -47,23 +46,22 @@ type ClaimedDelivery = {
 
   text: string;
 
-  html:
-    | string
-    | null;
+  html: string | null;
 
   dedupeKey: string;
 
   attempts: number;
 
   maxAttempts: number;
+
+  processingStartedAt: Date | null;
 };
 
 @Injectable()
 export class NotificationWorkerService {
-  private readonly logger =
-    new Logger(
-      NotificationWorkerService.name,
-    );
+  private readonly logger = new Logger(
+    NotificationWorkerService.name,
+  );
 
   constructor(
     private readonly prisma: PrismaService,
@@ -74,24 +72,18 @@ export class NotificationWorkerService {
   private isWorkerEnabled() {
     return (
       this.configService
-        .get<string>(
-          'NOTIFICATION_QUEUE_ENABLED',
-        )
+        .get<string>('NOTIFICATION_QUEUE_ENABLED')
         ?.trim()
-        .toLowerCase() ===
-      'true'
+        .toLowerCase() === 'true'
     );
   }
 
   private isSmtpExplicitlyDisabled() {
     return (
       this.configService
-        .get<string>(
-          'SMTP_ENABLED',
-        )
+        .get<string>('SMTP_ENABLED')
         ?.trim()
-        .toLowerCase() ===
-      'false'
+        .toLowerCase() === 'false'
     );
   }
 
@@ -106,14 +98,10 @@ export class NotificationWorkerService {
       180,
     ];
 
-    const index =
-      Math.min(
-        Math.max(
-          attempts - 1,
-          0,
-        ),
-        delaysMinutes.length - 1,
-      );
+    const index = Math.min(
+      Math.max(attempts - 1, 0),
+      delaysMinutes.length - 1,
+    );
 
     return (
       delaysMinutes[index] *
@@ -129,28 +117,18 @@ export class NotificationWorkerService {
     const prefix =
       `appointment:${appointmentId}:reminder:`;
 
-    if (
-      !dedupeKey.startsWith(
-        prefix,
-      )
-    ) {
+    if (!dedupeKey.startsWith(prefix)) {
       return null;
     }
 
-    const value =
-      dedupeKey.slice(
-        prefix.length,
-      );
+    const value = dedupeKey.slice(
+      prefix.length,
+    );
 
-    const startsAt =
-      new Date(
-        value,
-      );
+    const startsAt = new Date(value);
 
     if (
-      Number.isNaN(
-        startsAt.getTime(),
-      )
+      Number.isNaN(startsAt.getTime())
     ) {
       return null;
     }
@@ -161,14 +139,11 @@ export class NotificationWorkerService {
   @Cron(
     CronExpression.EVERY_MINUTE,
     {
-      waitForCompletion:
-        true,
+      waitForCompletion: true,
     },
   )
   async handleNotificationQueue() {
-    if (
-      !this.isWorkerEnabled()
-    ) {
+    if (!this.isWorkerEnabled()) {
       return;
     }
 
@@ -212,9 +187,7 @@ export class NotificationWorkerService {
       const message =
         error instanceof Error
           ? error.message
-          : String(
-              error,
-            );
+          : String(error);
 
       this.logger.error(
         `Falha ao processar fila de notificações: ${message}`,
@@ -234,48 +207,39 @@ export class NotificationWorkerService {
         where: {
           OR: [
             {
-              status:
-                'PENDING',
+              status: 'PENDING',
 
               nextAttemptAt: {
-                lte:
-                  now,
+                lte: now,
               },
             },
 
             {
-              status:
-                'FAILED',
+              status: 'FAILED',
 
-              failedAt:
-                null,
+              failedAt: null,
 
               nextAttemptAt: {
-                lte:
-                  now,
+                lte: now,
               },
             },
           ],
         },
 
         select: {
-          id:
-            true,
+          id: true,
         },
 
         orderBy: [
           {
-            nextAttemptAt:
-              'asc',
+            nextAttemptAt: 'asc',
           },
           {
-            createdAt:
-              'asc',
+            createdAt: 'asc',
           },
         ],
 
-        take:
-          50,
+        take: 50,
       });
 
     let sent = 0;
@@ -292,27 +256,19 @@ export class NotificationWorkerService {
           now,
         );
 
-      if (
-        result === 'sent'
-      ) {
+      if (result === 'sent') {
         sent += 1;
       }
 
-      if (
-        result === 'retry'
-      ) {
+      if (result === 'retry') {
         retry += 1;
       }
 
-      if (
-        result === 'failed'
-      ) {
+      if (result === 'failed') {
         failed += 1;
       }
 
-      if (
-        result === 'skipped'
-      ) {
+      if (result === 'skipped') {
         skipped += 1;
       }
     }
@@ -356,29 +312,22 @@ export class NotificationWorkerService {
 
               OR: [
                 {
-                  status:
-                    'PENDING',
+                  status: 'PENDING',
                 },
 
                 {
-                  status:
-                    'FAILED',
-
-                  failedAt:
-                    null,
+                  status: 'FAILED',
+                  failedAt: null,
                 },
               ],
 
               nextAttemptAt: {
-                lte:
-                  now,
+                lte: now,
               },
             },
           });
 
-        if (
-          !delivery
-        ) {
+        if (!delivery) {
           return null;
         }
 
@@ -388,83 +337,89 @@ export class NotificationWorkerService {
         ) {
           await tx.notificationDelivery.update({
             where: {
-              id:
-                delivery.id,
+              id: delivery.id,
             },
 
             data: {
-              status:
-                'FAILED',
+              status: 'FAILED',
 
               failedAt:
-                delivery.failedAt ??
-                now,
+                delivery.failedAt ?? now,
 
-              processingStartedAt:
-                null,
+              processingStartedAt: null,
             },
           });
 
           return null;
         }
 
+        /*
+         * Cada claim incrementa attempts
+         * e registra seu início.
+         *
+         * Esses dois valores permitem
+         * identificar posteriormente
+         * qual tentativa é responsável
+         * pela entrega.
+         */
         return tx.notificationDelivery.update({
           where: {
-            id:
-              delivery.id,
+            id: delivery.id,
           },
 
           data: {
-            status:
-              'PROCESSING',
+            status: 'PROCESSING',
 
             attempts: {
-              increment:
-                1,
+              increment: 1,
             },
 
-            lastAttemptAt:
-              now,
+            lastAttemptAt: now,
 
-            processingStartedAt:
-              now,
+            processingStartedAt: now,
 
-            lastError:
-              null,
+            lastError: null,
           },
         });
       },
     );
   }
 
+  /*
+   * Cancela a notificação apenas se
+   * a tentativa atual ainda for a
+   * responsável pelo processamento.
+   *
+   * Uma tentativa antiga não pode
+   * cancelar uma entrega reassumida.
+   */
   private async cancelDelivery(
-    deliveryId: string,
+    delivery: ClaimedDelivery,
     reason: string,
   ) {
     await this.prisma.notificationDelivery.updateMany({
       where: {
-        id:
-          deliveryId,
+        id: delivery.id,
 
-        status:
-          'PROCESSING',
+        status: 'PROCESSING',
+
+        attempts: delivery.attempts,
+
+        processingStartedAt:
+          delivery.processingStartedAt,
       },
 
       data: {
-        status:
-          'CANCELED',
+        status: 'CANCELED',
 
-        processingStartedAt:
-          null,
+        processingStartedAt: null,
 
-        failedAt:
-          null,
+        failedAt: null,
 
-        lastError:
-          reason.slice(
-            0,
-            2000,
-          ),
+        lastError: reason.slice(
+          0,
+          2000,
+        ),
       },
     });
   }
@@ -484,7 +439,7 @@ export class NotificationWorkerService {
       !delivery.appointmentId
     ) {
       await this.cancelDelivery(
-        delivery.id,
+        delivery,
         'Lembrete cancelado porque não possui appointmentId',
       );
 
@@ -494,22 +449,17 @@ export class NotificationWorkerService {
     const appointment =
       await this.prisma.appointment.findFirst({
         where: {
-          id:
-            delivery.appointmentId,
+          id: delivery.appointmentId,
 
-          tenantId:
-            delivery.tenantId,
+          tenantId: delivery.tenantId,
         },
 
         select: {
-          status:
-            true,
+          status: true,
 
-          startsAt:
-            true,
+          startsAt: true,
 
-          reminderSentAt:
-            true,
+          reminderSentAt: true,
 
           tenant: {
             select: {
@@ -520,11 +470,9 @@ export class NotificationWorkerService {
         },
       });
 
-    if (
-      !appointment
-    ) {
+    if (!appointment) {
       await this.cancelDelivery(
-        delivery.id,
+        delivery,
         'Lembrete cancelado porque o agendamento não existe mais',
       );
 
@@ -536,7 +484,7 @@ export class NotificationWorkerService {
         .appointmentRemindersEnabled
     ) {
       await this.cancelDelivery(
-        delivery.id,
+        delivery,
         'Lembrete cancelado porque os lembretes foram desativados para a empresa',
       );
 
@@ -548,7 +496,7 @@ export class NotificationWorkerService {
       'CONFIRMED'
     ) {
       await this.cancelDelivery(
-        delivery.id,
+        delivery,
         `Lembrete cancelado porque o agendamento está com status ${appointment.status}`,
       );
 
@@ -559,7 +507,7 @@ export class NotificationWorkerService {
       appointment.reminderSentAt
     ) {
       await this.cancelDelivery(
-        delivery.id,
+        delivery,
         'Lembrete cancelado porque o agendamento já possui reminderSentAt',
       );
 
@@ -571,7 +519,7 @@ export class NotificationWorkerService {
       now.getTime()
     ) {
       await this.cancelDelivery(
-        delivery.id,
+        delivery,
         'Lembrete cancelado porque o horário do agendamento já passou',
       );
 
@@ -594,7 +542,7 @@ export class NotificationWorkerService {
        * mais ser enviada.
        */
       await this.cancelDelivery(
-        delivery.id,
+        delivery,
         'Lembrete cancelado porque o agendamento foi reagendado',
       );
 
@@ -604,45 +552,56 @@ export class NotificationWorkerService {
     return true;
   }
 
+  /*
+   * Registra sucesso somente se
+   * a tentativa ainda possuir o claim.
+   *
+   * Retorna false quando o claim foi
+   * perdido para outro processamento.
+   */
   private async markSent(
     delivery: ClaimedDelivery,
     now: Date,
-  ) {
-    await this.prisma.$transaction(
+  ): Promise<boolean> {
+    return this.prisma.$transaction(
       async (tx) => {
         const updated =
           await tx.notificationDelivery.updateMany({
             where: {
-              id:
-                delivery.id,
+              id: delivery.id,
 
-              status:
-                'PROCESSING',
+              status: 'PROCESSING',
+
+              attempts:
+                delivery.attempts,
+
+              processingStartedAt:
+                delivery.processingStartedAt,
             },
 
             data: {
-              status:
-                'SENT',
+              status: 'SENT',
 
-              sentAt:
-                now,
+              sentAt: now,
 
-              failedAt:
-                null,
+              failedAt: null,
 
-              processingStartedAt:
-                null,
+              processingStartedAt: null,
 
-              lastError:
-                null,
+              lastError: null,
             },
           });
 
+        /*
+         * Se count for zero,
+         * esta tentativa perdeu o claim.
+         *
+         * Não alteramos o agendamento.
+         */
         if (
-          updated.count !==
-          1
+          updated.count !== 1
         ) {
-          return;
+          return false;
         }
 
         if (
@@ -650,7 +609,7 @@ export class NotificationWorkerService {
             'APPOINTMENT_REMINDER' ||
           !delivery.appointmentId
         ) {
-          return;
+          return true;
         }
 
         const reminderStartsAt =
@@ -659,14 +618,12 @@ export class NotificationWorkerService {
             delivery.dedupeKey,
           );
 
-        if (
-          !reminderStartsAt
-        ) {
+        if (!reminderStartsAt) {
           this.logger.warn(
             `Notificação de lembrete ${delivery.id} foi enviada, mas não foi possível identificar o horário no dedupeKey`,
           );
 
-          return;
+          return true;
         }
 
         /*
@@ -677,30 +634,31 @@ export class NotificationWorkerService {
          * Também exigimos que o horário
          * continue sendo exatamente aquele
          * ao qual esta entrega pertence.
+         *
+         * Como o updateMany acima confirmou
+         * a propriedade da tentativa,
+         * uma tentativa antiga não pode
+         * preencher reminderSentAt.
          */
         await tx.appointment.updateMany({
           where: {
-            id:
-              delivery.appointmentId,
+            id: delivery.appointmentId,
 
-            tenantId:
-              delivery.tenantId,
+            tenantId: delivery.tenantId,
 
-            status:
-              'CONFIRMED',
+            status: 'CONFIRMED',
 
-            reminderSentAt:
-              null,
+            reminderSentAt: null,
 
-            startsAt:
-              reminderStartsAt,
+            startsAt: reminderStartsAt,
           },
 
           data: {
-            reminderSentAt:
-              now,
+            reminderSentAt: now,
           },
         });
+
+        return true;
       },
     );
   }
@@ -715,9 +673,7 @@ export class NotificationWorkerService {
         now,
       );
 
-    if (
-      !delivery
-    ) {
+    if (!delivery) {
       return 'skipped';
     }
 
@@ -738,9 +694,7 @@ export class NotificationWorkerService {
         now,
       );
 
-    if (
-      !canSend
-    ) {
+    if (!canSend) {
       return 'skipped';
     }
 
@@ -753,35 +707,40 @@ export class NotificationWorkerService {
        */
       const emailSent =
         await this.emailService.sendMail({
-          to:
-            currentDelivery.recipient,
+          to: currentDelivery.recipient,
 
-          subject:
-            currentDelivery.subject,
+          subject: currentDelivery.subject,
 
-          text:
-            currentDelivery.text,
+          text: currentDelivery.text,
 
           html:
             currentDelivery.html ??
             undefined,
         });
 
-      if (
-        emailSent
-      ) {
-        await this.markSent(
-          currentDelivery,
-          now,
-        );
+      if (emailSent) {
+        const markedSent =
+          await this.markSent(
+            currentDelivery,
+            now,
+          );
 
-        return 'sent';
+        /*
+         * Uma tentativa antiga pode ter
+         * recebido sucesso do SMTP,
+         * mas perdido o claim para
+         * uma tentativa mais recente.
+         *
+         * Nesse caso, não registramos
+         * um novo sucesso na fila.
+         */
+        return markedSent
+          ? 'sent'
+          : 'skipped';
       }
 
       return this.markFailure(
-        currentDelivery.id,
-        currentDelivery.attempts,
-        currentDelivery.maxAttempts,
+        currentDelivery,
         'O serviço de e-mail não confirmou o envio',
         now,
       );
@@ -789,30 +748,31 @@ export class NotificationWorkerService {
       const message =
         error instanceof Error
           ? error.message
-          : String(
-              error,
-            );
+          : String(error);
 
       return this.markFailure(
-        currentDelivery.id,
-        currentDelivery.attempts,
-        currentDelivery.maxAttempts,
+        currentDelivery,
         message,
         now,
       );
     }
   }
 
+  /*
+   * Uma falha também precisa respeitar
+   * a propriedade do processamento.
+   *
+   * Uma tentativa antiga não pode
+   * sobrescrever a tentativa mais recente.
+   */
   private async markFailure(
-    id: string,
-    attempts: number,
-    maxAttempts: number,
+    delivery: ClaimedDelivery,
     errorMessage: string,
     now: Date,
   ): Promise<ProcessResult> {
     const exhausted =
-      attempts >=
-      maxAttempts;
+      delivery.attempts >=
+      delivery.maxAttempts;
 
     const nextAttemptAt =
       exhausted
@@ -820,52 +780,67 @@ export class NotificationWorkerService {
         : new Date(
             now.getTime() +
               this.getRetryDelayMs(
-                attempts,
+                delivery.attempts,
               ),
           );
 
-    await this.prisma.notificationDelivery.updateMany({
-      where: {
-        id,
+    const updated =
+      await this.prisma.notificationDelivery.updateMany({
+        where: {
+          id: delivery.id,
 
-        status:
-          'PROCESSING',
-      },
+          status: 'PROCESSING',
 
-      data: {
-        status:
-          'FAILED',
+          attempts:
+            delivery.attempts,
 
-        processingStartedAt:
-          null,
+          processingStartedAt:
+            delivery.processingStartedAt,
+        },
 
-        nextAttemptAt,
+        data: {
+          status: 'FAILED',
 
-        lastError:
-          errorMessage.slice(
-            0,
-            2000,
-          ),
+          processingStartedAt: null,
 
-        failedAt:
-          exhausted
-            ? now
-            : null,
-      },
-    });
+          nextAttemptAt,
 
+          lastError:
+            errorMessage.slice(
+              0,
+              2000,
+            ),
+
+          failedAt:
+            exhausted
+              ? now
+              : null,
+        },
+      });
+
+    /*
+     * count zero significa que
+     * esta tentativa perdeu o claim.
+     *
+     * Não registramos falha nem retry
+     * sobre um processamento mais recente.
+     */
     if (
-      exhausted
+      updated.count !== 1
     ) {
+      return 'skipped';
+    }
+
+    if (exhausted) {
       this.logger.error(
-        `Notificação ${id} falhou definitivamente após ${attempts} tentativa(s): ${errorMessage}`,
+        `Notificação ${delivery.id} falhou definitivamente após ${delivery.attempts} tentativa(s): ${errorMessage}`,
       );
 
       return 'failed';
     }
 
     this.logger.warn(
-      `Notificação ${id} falhou na tentativa ${attempts}/${maxAttempts} e será tentada novamente`,
+      `Notificação ${delivery.id} falhou na tentativa ${delivery.attempts}/${delivery.maxAttempts} e será tentada novamente`,
     );
 
     return 'retry';
@@ -885,28 +860,22 @@ export class NotificationWorkerService {
     const staleDeliveries =
       await this.prisma.notificationDelivery.findMany({
         where: {
-          status:
-            'PROCESSING',
+          status: 'PROCESSING',
 
           processingStartedAt: {
-            lte:
-              staleBefore,
+            lte: staleBefore,
           },
         },
 
         select: {
-          id:
-            true,
+          id: true,
 
-          attempts:
-            true,
+          attempts: true,
 
-          maxAttempts:
-            true,
+          maxAttempts: true,
         },
 
-        take:
-          100,
+        take: 100,
       });
 
     for (
@@ -916,24 +885,38 @@ export class NotificationWorkerService {
         delivery.attempts >=
         delivery.maxAttempts;
 
+      /*
+       * Proteção contra condição de corrida:
+       *
+       * O processamento pode ter sido
+       * renovado após o findMany.
+       *
+       * Por isso, o updateMany precisa
+       * verificar novamente se o registro
+       * continua em PROCESSING e se o início
+       * do processamento ainda é antigo.
+       *
+       * Se outro processo renovou
+       * processingStartedAt, nenhuma
+       * atualização será realizada.
+       */
       await this.prisma.notificationDelivery.updateMany({
         where: {
-          id:
-            delivery.id,
+          id: delivery.id,
 
-          status:
-            'PROCESSING',
+          status: 'PROCESSING',
+
+          processingStartedAt: {
+            lte: staleBefore,
+          },
         },
 
         data: {
-          status:
-            'FAILED',
+          status: 'FAILED',
 
-          processingStartedAt:
-            null,
+          processingStartedAt: null,
 
-          nextAttemptAt:
-            now,
+          nextAttemptAt: now,
 
           failedAt:
             exhausted

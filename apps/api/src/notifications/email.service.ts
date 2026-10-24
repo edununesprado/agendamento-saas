@@ -1,3 +1,4 @@
+
 import {
   Injectable,
   Logger,
@@ -129,11 +130,49 @@ export class EmailService {
       return null;
     }
 
+    /*
+     * ETAPA 2.4 - TIMEOUTS SMTP
+     *
+     * O worker recupera notificações
+     * em PROCESSING após 10 minutos.
+     *
+     * Definimos limites menores para
+     * conexões SMTP que não respondem:
+     *
+     * connectionTimeout:
+     *   30 segundos para estabelecer
+     *   a sessão SMTP.
+     *
+     * greetingTimeout:
+     *   30 segundos para aguardar
+     *   a saudação do servidor.
+     *
+     * socketTimeout:
+     *   2 minutos de inatividade
+     *   na conexão SMTP.
+     *
+     * IMPORTANTE:
+     *
+     * socketTimeout NÃO representa
+     * um limite absoluto para toda
+     * a duração do envio.
+     *
+     * Também não garante ausência
+     * de duplicidade quando o SMTP
+     * aceita a mensagem, mas a
+     * confirmação não chega à API.
+     */
     this.transporter =
       nodemailer.createTransport({
         host,
         port,
         secure,
+
+        connectionTimeout: 30_000,
+
+        greetingTimeout: 30_000,
+
+        socketTimeout: 120_000,
 
         auth: {
           user,
