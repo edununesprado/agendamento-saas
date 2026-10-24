@@ -522,10 +522,6 @@ export type ServiceUncheckedUpdateManyWithoutTenantNestedInput = {
   deleteMany?: Prisma.ServiceScalarWhereInput | Prisma.ServiceScalarWhereInput[]
 }
 
-export type BoolFieldUpdateOperationsInput = {
-  set?: boolean
-}
-
 export type ServiceCreateNestedOneWithoutEmployeeServicesInput = {
   create?: Prisma.XOR<Prisma.ServiceCreateWithoutEmployeeServicesInput, Prisma.ServiceUncheckedCreateWithoutEmployeeServicesInput>
   connectOrCreate?: Prisma.ServiceCreateOrConnectWithoutEmployeeServicesInput

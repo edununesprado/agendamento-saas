@@ -90,6 +90,8 @@ export const TenantScalarFieldEnum = {
   timezone: 'timezone',
   bookingMinAdvanceMinutes: 'bookingMinAdvanceMinutes',
   bookingMaxAdvanceDays: 'bookingMaxAdvanceDays',
+  appointmentRemindersEnabled: 'appointmentRemindersEnabled',
+  appointmentReminderHoursBefore: 'appointmentReminderHoursBefore',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

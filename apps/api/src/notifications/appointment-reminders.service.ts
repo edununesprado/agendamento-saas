@@ -9,13 +9,8 @@ import {
 } from '@nestjs/schedule';
 
 import { PrismaService } from '../prisma/prisma.service.js';
+
 import { NotificationsService } from './notifications.service.js';
-
-const REMINDER_WINDOW_HOURS =
-  24;
-
-const REMINDER_BATCH_SIZE =
-  100;
 
 type ReminderResult =
   | 'sent'
@@ -35,7 +30,7 @@ export class AppointmentRemindersService {
     private readonly configService: ConfigService,
   ) {}
 
-  private isEnabled() {
+  private isSchedulerEnabled() {
     return (
       this.configService
         .get<string>(
@@ -47,29 +42,42 @@ export class AppointmentRemindersService {
     );
   }
 
-  /**
-   * Executa a verificação a cada minuto.
-   *
-   * O processamento só acontece quando
-   * APPOINTMENT_REMINDERS_ENABLED=true.
-   *
-   * waitForCompletion impede duas execuções
-   * simultâneas dentro da mesma instância
-   * da API.
-   */
+  private normalizeReminderHours(
+    value: number,
+  ) {
+    /*
+     * Proteção adicional.
+     *
+     * Depois também teremos validação
+     * no DTO das configurações da empresa,
+     * mas o scheduler não deve confiar
+     * cegamente no valor armazenado.
+     */
+    return Math.min(
+      168,
+      Math.max(
+        1,
+        value,
+      ),
+    );
+  }
+
   @Cron(
     CronExpression.EVERY_MINUTE,
     {
-      name:
-        'appointment-reminders',
-
       waitForCompletion:
         true,
     },
   )
-  async handleCron() {
+  async handleAppointmentReminders() {
+    /*
+     * Esta flag é global.
+     *
+     * Se estiver false, nenhum tenant
+     * terá lembretes processados.
+     */
     if (
-      !this.isEnabled()
+      !this.isSchedulerEnabled()
     ) {
       return;
     }
@@ -79,8 +87,9 @@ export class AppointmentRemindersService {
         await this.processDueReminders();
 
       if (
-        result.sent >
-        0
+        result.sent > 0 ||
+        result.failed > 0 ||
+        result.skipped > 0
       ) {
         this.logger.log(
           `Lembretes processados: ${result.sent} enviado(s), ${result.failed} falha(s), ${result.skipped} ignorado(s)`,
@@ -100,131 +109,170 @@ export class AppointmentRemindersService {
     }
   }
 
-  /**
-   * Procura agendamentos confirmados que:
-   *
-   * - ainda não receberam lembrete;
-   * - começam no futuro;
-   * - começam dentro das próximas 24 horas.
-   *
-   * Este método é público de propósito
-   * para permitir testes automatizados.
-   */
   async processDueReminders(
     now = new Date(),
   ) {
-    const windowEnd =
-      new Date(
-        now.getTime() +
-          REMINDER_WINDOW_HOURS *
-            60 *
-            60 *
-            1000,
-      );
+    let sent = 0;
+    let failed = 0;
+    let skipped = 0;
 
-    const candidates =
-      await this.prisma.appointment.findMany({
+    /*
+     * Primeiro buscamos somente empresas
+     * que possuem lembretes ativados.
+     *
+     * Cada empresa poderá possuir uma
+     * antecedência diferente.
+     */
+    const tenants =
+      await this.prisma.tenant.findMany({
         where: {
-          status:
-            'CONFIRMED',
+          appointmentRemindersEnabled:
+            true,
+        },
 
-          reminderSentAt:
-            null,
+        select: {
+          id:
+            true,
 
-          startsAt: {
-            gt:
-              now,
+          name:
+            true,
 
-            lte:
-              windowEnd,
-          },
+          timezone:
+            true,
 
-          client: {
-            is: {
+          appointmentReminderHoursBefore:
+            true,
+        },
+
+        orderBy: {
+          id:
+            'asc',
+        },
+      });
+
+    for (
+      const tenant of tenants
+    ) {
+      const reminderHours =
+        this.normalizeReminderHours(
+          tenant.appointmentReminderHoursBefore,
+        );
+
+      const windowEnd =
+        new Date(
+          now.getTime() +
+            reminderHours *
+              60 *
+              60 *
+              1000,
+        );
+
+      /*
+       * Cada tenant possui seu próprio
+       * limite de processamento.
+       *
+       * Isso evita que agendamentos de
+       * uma empresa ocupem todo o lote
+       * e prejudiquem outras empresas.
+       */
+      const candidates =
+        await this.prisma.appointment.findMany({
+          where: {
+            tenantId:
+              tenant.id,
+
+            status:
+              'CONFIRMED',
+
+            reminderSentAt:
+              null,
+
+            startsAt: {
+              gt:
+                now,
+
+              lte:
+                windowEnd,
+            },
+
+            client: {
               email: {
                 not:
                   null,
               },
             },
           },
-        },
 
-        select: {
-          id:
-            true,
-        },
+          select: {
+            id:
+              true,
+          },
 
-        orderBy: {
-          startsAt:
-            'asc',
-        },
+          orderBy: {
+            startsAt:
+              'asc',
+          },
 
-        take:
-          REMINDER_BATCH_SIZE,
-      });
+          take:
+            100,
+        });
 
-    let sent =
-      0;
-
-    let failed =
-      0;
-
-    let skipped =
-      0;
-
-    for (
-      const candidate
-      of candidates
-    ) {
-      const result =
-        await this.processAppointment(
-          candidate.id,
-          now,
-          windowEnd,
-        );
-
-      if (
-        result ===
-        'sent'
+      for (
+        const candidate of candidates
       ) {
-        sent++;
-      } else if (
-        result ===
-        'failed'
-      ) {
-        failed++;
-      } else {
-        skipped++;
+        const result =
+          await this.processAppointmentReminder(
+            candidate.id,
+            tenant.id,
+            now,
+          );
+
+        if (
+          result === 'sent'
+        ) {
+          sent += 1;
+        }
+
+        if (
+          result === 'failed'
+        ) {
+          failed += 1;
+        }
+
+        if (
+          result === 'skipped'
+        ) {
+          skipped += 1;
+        }
       }
     }
 
     return {
-      found:
-        candidates.length,
-
       sent,
       failed,
       skipped,
     };
   }
 
-  /**
-   * Processa um único agendamento.
-   *
-   * O advisory lock também protege contra
-   * duas instâncias da API tentando enviar
-   * o mesmo lembrete simultaneamente.
-   */
-  private async processAppointment(
+  private async processAppointmentReminder(
     appointmentId: string,
+    tenantId: string,
     now: Date,
-    windowEnd: Date,
   ): Promise<ReminderResult> {
     try {
       return await this.prisma.$transaction(
-        async (
-          tx,
-        ) => {
+        async (tx) => {
+          /*
+           * Evita que duas instâncias da API
+           * processem o mesmo lembrete ao
+           * mesmo tempo.
+           *
+           * pg_try_advisory_xact_lock não
+           * fica esperando: se outro processo
+           * já possuir o lock, ignoramos esta
+           * execução e tentamos novamente
+           * futuramente.
+           */
           const lockResult =
             await tx.$queryRaw<
               Array<{
@@ -238,25 +286,76 @@ export class AppointmentRemindersService {
             `;
 
           if (
-            !lockResult[0]
-              ?.locked
+            !lockResult[0]?.locked
           ) {
             return 'skipped';
           }
 
-          /**
-           * Fazemos uma segunda verificação
+          /*
+           * Buscamos novamente a configuração
+           * dentro da transação.
+           *
+           * A empresa pode ter desativado os
+           * lembretes entre a consulta inicial
+           * e este processamento.
+           */
+          const tenant =
+            await tx.tenant.findUnique({
+              where: {
+                id:
+                  tenantId,
+              },
+
+              select: {
+                name:
+                  true,
+
+                timezone:
+                  true,
+
+                appointmentRemindersEnabled:
+                  true,
+
+                appointmentReminderHoursBefore:
+                  true,
+              },
+            });
+
+          if (
+            !tenant ||
+            !tenant.appointmentRemindersEnabled
+          ) {
+            return 'skipped';
+          }
+
+          const reminderHours =
+            this.normalizeReminderHours(
+              tenant.appointmentReminderHoursBefore,
+            );
+
+          const windowEnd =
+            new Date(
+              now.getTime() +
+                reminderHours *
+                  60 *
+                  60 *
+                  1000,
+            );
+
+          /*
+           * Revalidamos todas as condições
            * depois de adquirir o lock.
            *
-           * Outro processo pode ter enviado
-           * o lembrete entre a primeira busca
-           * e este ponto.
+           * Isso protege contra mudanças
+           * ocorridas desde a primeira busca.
            */
           const appointment =
             await tx.appointment.findFirst({
               where: {
                 id:
                   appointmentId,
+
+                tenantId,
 
                 status:
                   'CONFIRMED',
@@ -271,112 +370,80 @@ export class AppointmentRemindersService {
                   lte:
                     windowEnd,
                 },
+
+                client: {
+                  email: {
+                    not:
+                      null,
+                  },
+                },
               },
 
               include: {
-                tenant: {
-                  select: {
-                    name:
-                      true,
+                employee:
+                  true,
 
-                    timezone:
-                      true,
-                  },
-                },
+                service:
+                  true,
 
-                employee: {
-                  select: {
-                    name:
-                      true,
-                  },
-                },
-
-                service: {
-                  select: {
-                    name:
-                      true,
-                  },
-                },
-
-                client: {
-                  select: {
-                    name:
-                      true,
-
-                    email:
-                      true,
-                  },
-                },
+                client:
+                  true,
               },
             });
 
           if (
-            !appointment
+            !appointment ||
+            !appointment.client.email
           ) {
             return 'skipped';
           }
 
-          if (
-            !appointment
-              .client
-              .email
-          ) {
-            return 'skipped';
-          }
-
-          const emailSent =
-            await this.notificationsService.notifyAppointmentReminder(
-              {
-                clientName:
-                  appointment
-                    .client
-                    .name,
-
-                clientEmail:
-                  appointment
-                    .client
-                    .email,
-
-                tenantName:
-                  appointment
-                    .tenant
-                    .name,
-
-                serviceName:
-                  appointment
-                    .service
-                    .name,
-
-                employeeName:
-                  appointment
-                    .employee
-                    .name,
-
-                startsAt:
-                  appointment
-                    .startsAt,
-
-                timezone:
-                  appointment
-                    .tenant
-                    .timezone,
-              },
-            );
-
-          /**
-           * Se o SMTP falhar, não marcamos
-           * reminderSentAt.
+          /*
+           * O e-mail é enviado antes de
+           * preencher reminderSentAt.
            *
-           * Assim o próximo ciclo poderá
-           * tentar novamente.
+           * Se o SMTP falhar, o campo fica
+           * NULL e o scheduler poderá tentar
+           * novamente futuramente.
            */
+          const emailSent =
+            await this.notificationsService.notifyAppointmentReminder({
+              clientName:
+                appointment.client.name,
+
+              clientEmail:
+                appointment.client.email,
+
+              tenantName:
+                tenant.name,
+
+              serviceName:
+                appointment.service.name,
+
+              employeeName:
+                appointment.employee.name,
+
+              startsAt:
+                appointment.startsAt,
+
+              timezone:
+                tenant.timezone,
+            });
+
           if (
             !emailSent
           ) {
             return 'failed';
           }
 
-          const updateResult =
+          /*
+           * updateMany adiciona mais uma
+           * proteção contra duplicidade.
+           *
+           * Só atualizamos se o lembrete
+           * continuar sem marcação.
+           */
+          const updated =
             await tx.appointment.updateMany({
               where: {
                 id:
@@ -396,8 +463,7 @@ export class AppointmentRemindersService {
             });
 
           if (
-            updateResult.count !==
-            1
+            updated.count !== 1
           ) {
             return 'skipped';
           }

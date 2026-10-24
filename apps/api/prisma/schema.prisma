@@ -48,6 +48,9 @@ model Tenant {
   bookingMinAdvanceMinutes Int @default(60)
   bookingMaxAdvanceDays    Int @default(7)
 
+  appointmentRemindersEnabled    Boolean @default(true)
+  appointmentReminderHoursBefore Int     @default(24)
+
   memberships       Membership[]
   services          Service[]
   employees         Employee[]

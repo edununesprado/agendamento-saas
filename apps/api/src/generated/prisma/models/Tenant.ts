@@ -29,11 +29,13 @@ export type AggregateTenant = {
 export type TenantAvgAggregateOutputType = {
   bookingMinAdvanceMinutes: number | null
   bookingMaxAdvanceDays: number | null
+  appointmentReminderHoursBefore: number | null
 }
 
 export type TenantSumAggregateOutputType = {
   bookingMinAdvanceMinutes: number | null
   bookingMaxAdvanceDays: number | null
+  appointmentReminderHoursBefore: number | null
 }
 
 export type TenantMinAggregateOutputType = {
@@ -47,6 +49,8 @@ export type TenantMinAggregateOutputType = {
   timezone: string | null
   bookingMinAdvanceMinutes: number | null
   bookingMaxAdvanceDays: number | null
+  appointmentRemindersEnabled: boolean | null
+  appointmentReminderHoursBefore: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -62,6 +66,8 @@ export type TenantMaxAggregateOutputType = {
   timezone: string | null
   bookingMinAdvanceMinutes: number | null
   bookingMaxAdvanceDays: number | null
+  appointmentRemindersEnabled: boolean | null
+  appointmentReminderHoursBefore: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -77,6 +83,8 @@ export type TenantCountAggregateOutputType = {
   timezone: number
   bookingMinAdvanceMinutes: number
   bookingMaxAdvanceDays: number
+  appointmentRemindersEnabled: number
+  appointmentReminderHoursBefore: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -86,11 +94,13 @@ export type TenantCountAggregateOutputType = {
 export type TenantAvgAggregateInputType = {
   bookingMinAdvanceMinutes?: true
   bookingMaxAdvanceDays?: true
+  appointmentReminderHoursBefore?: true
 }
 
 export type TenantSumAggregateInputType = {
   bookingMinAdvanceMinutes?: true
   bookingMaxAdvanceDays?: true
+  appointmentReminderHoursBefore?: true
 }
 
 export type TenantMinAggregateInputType = {
@@ -104,6 +114,8 @@ export type TenantMinAggregateInputType = {
   timezone?: true
   bookingMinAdvanceMinutes?: true
   bookingMaxAdvanceDays?: true
+  appointmentRemindersEnabled?: true
+  appointmentReminderHoursBefore?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -119,6 +131,8 @@ export type TenantMaxAggregateInputType = {
   timezone?: true
   bookingMinAdvanceMinutes?: true
   bookingMaxAdvanceDays?: true
+  appointmentRemindersEnabled?: true
+  appointmentReminderHoursBefore?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -134,6 +148,8 @@ export type TenantCountAggregateInputType = {
   timezone?: true
   bookingMinAdvanceMinutes?: true
   bookingMaxAdvanceDays?: true
+  appointmentRemindersEnabled?: true
+  appointmentReminderHoursBefore?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -236,6 +252,8 @@ export type TenantGroupByOutputType = {
   timezone: string
   bookingMinAdvanceMinutes: number
   bookingMaxAdvanceDays: number
+  appointmentRemindersEnabled: boolean
+  appointmentReminderHoursBefore: number
   createdAt: Date
   updatedAt: Date
   _count: TenantCountAggregateOutputType | null
@@ -274,6 +292,8 @@ export type TenantWhereInput = {
   timezone?: Prisma.StringFilter<"Tenant"> | string
   bookingMinAdvanceMinutes?: Prisma.IntFilter<"Tenant"> | number
   bookingMaxAdvanceDays?: Prisma.IntFilter<"Tenant"> | number
+  appointmentRemindersEnabled?: Prisma.BoolFilter<"Tenant"> | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFilter<"Tenant"> | number
   createdAt?: Prisma.DateTimeFilter<"Tenant"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Tenant"> | Date | string
   memberships?: Prisma.MembershipListRelationFilter
@@ -296,6 +316,8 @@ export type TenantOrderByWithRelationInput = {
   timezone?: Prisma.SortOrder
   bookingMinAdvanceMinutes?: Prisma.SortOrder
   bookingMaxAdvanceDays?: Prisma.SortOrder
+  appointmentRemindersEnabled?: Prisma.SortOrder
+  appointmentReminderHoursBefore?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   memberships?: Prisma.MembershipOrderByRelationAggregateInput
@@ -321,6 +343,8 @@ export type TenantWhereUniqueInput = Prisma.AtLeast<{
   timezone?: Prisma.StringFilter<"Tenant"> | string
   bookingMinAdvanceMinutes?: Prisma.IntFilter<"Tenant"> | number
   bookingMaxAdvanceDays?: Prisma.IntFilter<"Tenant"> | number
+  appointmentRemindersEnabled?: Prisma.BoolFilter<"Tenant"> | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFilter<"Tenant"> | number
   createdAt?: Prisma.DateTimeFilter<"Tenant"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Tenant"> | Date | string
   memberships?: Prisma.MembershipListRelationFilter
@@ -343,6 +367,8 @@ export type TenantOrderByWithAggregationInput = {
   timezone?: Prisma.SortOrder
   bookingMinAdvanceMinutes?: Prisma.SortOrder
   bookingMaxAdvanceDays?: Prisma.SortOrder
+  appointmentRemindersEnabled?: Prisma.SortOrder
+  appointmentReminderHoursBefore?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.TenantCountOrderByAggregateInput
@@ -366,6 +392,8 @@ export type TenantScalarWhereWithAggregatesInput = {
   timezone?: Prisma.StringWithAggregatesFilter<"Tenant"> | string
   bookingMinAdvanceMinutes?: Prisma.IntWithAggregatesFilter<"Tenant"> | number
   bookingMaxAdvanceDays?: Prisma.IntWithAggregatesFilter<"Tenant"> | number
+  appointmentRemindersEnabled?: Prisma.BoolWithAggregatesFilter<"Tenant"> | boolean
+  appointmentReminderHoursBefore?: Prisma.IntWithAggregatesFilter<"Tenant"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Tenant"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Tenant"> | Date | string
 }
@@ -381,6 +409,8 @@ export type TenantCreateInput = {
   timezone?: string
   bookingMinAdvanceMinutes?: number
   bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
@@ -403,6 +433,8 @@ export type TenantUncheckedCreateInput = {
   timezone?: string
   bookingMinAdvanceMinutes?: number
   bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
@@ -425,6 +457,8 @@ export type TenantUpdateInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
@@ -447,6 +481,8 @@ export type TenantUncheckedUpdateInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
@@ -469,6 +505,8 @@ export type TenantCreateManyInput = {
   timezone?: string
   bookingMinAdvanceMinutes?: number
   bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -484,6 +522,8 @@ export type TenantUpdateManyMutationInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -499,6 +539,8 @@ export type TenantUncheckedUpdateManyInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -514,6 +556,8 @@ export type TenantCountOrderByAggregateInput = {
   timezone?: Prisma.SortOrder
   bookingMinAdvanceMinutes?: Prisma.SortOrder
   bookingMaxAdvanceDays?: Prisma.SortOrder
+  appointmentRemindersEnabled?: Prisma.SortOrder
+  appointmentReminderHoursBefore?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -521,6 +565,7 @@ export type TenantCountOrderByAggregateInput = {
 export type TenantAvgOrderByAggregateInput = {
   bookingMinAdvanceMinutes?: Prisma.SortOrder
   bookingMaxAdvanceDays?: Prisma.SortOrder
+  appointmentReminderHoursBefore?: Prisma.SortOrder
 }
 
 export type TenantMaxOrderByAggregateInput = {
@@ -534,6 +579,8 @@ export type TenantMaxOrderByAggregateInput = {
   timezone?: Prisma.SortOrder
   bookingMinAdvanceMinutes?: Prisma.SortOrder
   bookingMaxAdvanceDays?: Prisma.SortOrder
+  appointmentRemindersEnabled?: Prisma.SortOrder
+  appointmentReminderHoursBefore?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -549,6 +596,8 @@ export type TenantMinOrderByAggregateInput = {
   timezone?: Prisma.SortOrder
   bookingMinAdvanceMinutes?: Prisma.SortOrder
   bookingMaxAdvanceDays?: Prisma.SortOrder
+  appointmentRemindersEnabled?: Prisma.SortOrder
+  appointmentReminderHoursBefore?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -556,6 +605,7 @@ export type TenantMinOrderByAggregateInput = {
 export type TenantSumOrderByAggregateInput = {
   bookingMinAdvanceMinutes?: Prisma.SortOrder
   bookingMaxAdvanceDays?: Prisma.SortOrder
+  appointmentReminderHoursBefore?: Prisma.SortOrder
 }
 
 export type TenantScalarRelationFilter = {
@@ -577,6 +627,10 @@ export type IntFieldUpdateOperationsInput = {
   decrement?: number
   multiply?: number
   divide?: number
+}
+
+export type BoolFieldUpdateOperationsInput = {
+  set?: boolean
 }
 
 export type DateTimeFieldUpdateOperationsInput = {
@@ -692,6 +746,8 @@ export type TenantCreateWithoutMembershipsInput = {
   timezone?: string
   bookingMinAdvanceMinutes?: number
   bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   services?: Prisma.ServiceCreateNestedManyWithoutTenantInput
@@ -713,6 +769,8 @@ export type TenantUncheckedCreateWithoutMembershipsInput = {
   timezone?: string
   bookingMinAdvanceMinutes?: number
   bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   services?: Prisma.ServiceUncheckedCreateNestedManyWithoutTenantInput
@@ -750,6 +808,8 @@ export type TenantUpdateWithoutMembershipsInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   services?: Prisma.ServiceUpdateManyWithoutTenantNestedInput
@@ -771,6 +831,8 @@ export type TenantUncheckedUpdateWithoutMembershipsInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   services?: Prisma.ServiceUncheckedUpdateManyWithoutTenantNestedInput
@@ -792,6 +854,8 @@ export type TenantCreateWithoutServicesInput = {
   timezone?: string
   bookingMinAdvanceMinutes?: number
   bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
@@ -813,6 +877,8 @@ export type TenantUncheckedCreateWithoutServicesInput = {
   timezone?: string
   bookingMinAdvanceMinutes?: number
   bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
@@ -850,6 +916,8 @@ export type TenantUpdateWithoutServicesInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
@@ -871,6 +939,8 @@ export type TenantUncheckedUpdateWithoutServicesInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
@@ -892,6 +962,8 @@ export type TenantCreateWithoutEmployeesInput = {
   timezone?: string
   bookingMinAdvanceMinutes?: number
   bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
@@ -913,6 +985,8 @@ export type TenantUncheckedCreateWithoutEmployeesInput = {
   timezone?: string
   bookingMinAdvanceMinutes?: number
   bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
@@ -950,6 +1024,8 @@ export type TenantUpdateWithoutEmployeesInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
@@ -971,6 +1047,8 @@ export type TenantUncheckedUpdateWithoutEmployeesInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
@@ -992,6 +1070,8 @@ export type TenantCreateWithoutClientsInput = {
   timezone?: string
   bookingMinAdvanceMinutes?: number
   bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
@@ -1013,6 +1093,8 @@ export type TenantUncheckedCreateWithoutClientsInput = {
   timezone?: string
   bookingMinAdvanceMinutes?: number
   bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
@@ -1050,6 +1132,8 @@ export type TenantUpdateWithoutClientsInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
@@ -1071,6 +1155,8 @@ export type TenantUncheckedUpdateWithoutClientsInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
@@ -1092,6 +1178,8 @@ export type TenantCreateWithoutAvailabilityRulesInput = {
   timezone?: string
   bookingMinAdvanceMinutes?: number
   bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
@@ -1113,6 +1201,8 @@ export type TenantUncheckedCreateWithoutAvailabilityRulesInput = {
   timezone?: string
   bookingMinAdvanceMinutes?: number
   bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
@@ -1150,6 +1240,8 @@ export type TenantUpdateWithoutAvailabilityRulesInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
@@ -1171,6 +1263,8 @@ export type TenantUncheckedUpdateWithoutAvailabilityRulesInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
@@ -1192,6 +1286,8 @@ export type TenantCreateWithoutBlockedTimesInput = {
   timezone?: string
   bookingMinAdvanceMinutes?: number
   bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
@@ -1213,6 +1309,8 @@ export type TenantUncheckedCreateWithoutBlockedTimesInput = {
   timezone?: string
   bookingMinAdvanceMinutes?: number
   bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
@@ -1250,6 +1348,8 @@ export type TenantUpdateWithoutBlockedTimesInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
@@ -1271,6 +1371,8 @@ export type TenantUncheckedUpdateWithoutBlockedTimesInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
@@ -1292,6 +1394,8 @@ export type TenantCreateWithoutAppointmentsInput = {
   timezone?: string
   bookingMinAdvanceMinutes?: number
   bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
@@ -1313,6 +1417,8 @@ export type TenantUncheckedCreateWithoutAppointmentsInput = {
   timezone?: string
   bookingMinAdvanceMinutes?: number
   bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
@@ -1350,6 +1456,8 @@ export type TenantUpdateWithoutAppointmentsInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
@@ -1371,6 +1479,8 @@ export type TenantUncheckedUpdateWithoutAppointmentsInput = {
   timezone?: Prisma.StringFieldUpdateOperationsInput | string
   bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
@@ -1477,6 +1587,8 @@ export type TenantSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   timezone?: boolean
   bookingMinAdvanceMinutes?: boolean
   bookingMaxAdvanceDays?: boolean
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   memberships?: boolean | Prisma.Tenant$membershipsArgs<ExtArgs>
@@ -1500,6 +1612,8 @@ export type TenantSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   timezone?: boolean
   bookingMinAdvanceMinutes?: boolean
   bookingMaxAdvanceDays?: boolean
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["tenant"]>
@@ -1515,6 +1629,8 @@ export type TenantSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   timezone?: boolean
   bookingMinAdvanceMinutes?: boolean
   bookingMaxAdvanceDays?: boolean
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["tenant"]>
@@ -1530,11 +1646,13 @@ export type TenantSelectScalar = {
   timezone?: boolean
   bookingMinAdvanceMinutes?: boolean
   bookingMaxAdvanceDays?: boolean
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type TenantOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "slug" | "logoUrl" | "primaryColor" | "phone" | "email" | "timezone" | "bookingMinAdvanceMinutes" | "bookingMaxAdvanceDays" | "createdAt" | "updatedAt", ExtArgs["result"]["tenant"]>
+export type TenantOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "slug" | "logoUrl" | "primaryColor" | "phone" | "email" | "timezone" | "bookingMinAdvanceMinutes" | "bookingMaxAdvanceDays" | "appointmentRemindersEnabled" | "appointmentReminderHoursBefore" | "createdAt" | "updatedAt", ExtArgs["result"]["tenant"]>
 export type TenantInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   memberships?: boolean | Prisma.Tenant$membershipsArgs<ExtArgs>
   services?: boolean | Prisma.Tenant$servicesArgs<ExtArgs>
@@ -1570,6 +1688,8 @@ export type $TenantPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     timezone: string
     bookingMinAdvanceMinutes: number
     bookingMaxAdvanceDays: number
+    appointmentRemindersEnabled: boolean
+    appointmentReminderHoursBefore: number
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["tenant"]>
@@ -2012,6 +2132,8 @@ export interface TenantFieldRefs {
   readonly timezone: Prisma.FieldRef<"Tenant", 'String'>
   readonly bookingMinAdvanceMinutes: Prisma.FieldRef<"Tenant", 'Int'>
   readonly bookingMaxAdvanceDays: Prisma.FieldRef<"Tenant", 'Int'>
+  readonly appointmentRemindersEnabled: Prisma.FieldRef<"Tenant", 'Boolean'>
+  readonly appointmentReminderHoursBefore: Prisma.FieldRef<"Tenant", 'Int'>
   readonly createdAt: Prisma.FieldRef<"Tenant", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Tenant", 'DateTime'>
 }

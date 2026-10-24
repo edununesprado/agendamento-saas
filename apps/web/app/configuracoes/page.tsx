@@ -14,14 +14,19 @@ type Tenant = {
   id: string;
   name: string;
   slug: string;
+
   logoUrl?: string | null;
   primaryColor?: string | null;
   phone?: string | null;
   email?: string | null;
+
   timezone: string;
 
   bookingMinAdvanceMinutes: number;
   bookingMaxAdvanceDays: number;
+
+  appointmentRemindersEnabled: boolean;
+  appointmentReminderHoursBefore: number;
 };
 
 type TenantForm = {
@@ -34,22 +39,33 @@ type TenantForm = {
 
   bookingMinAdvanceMinutes: number;
   bookingMaxAdvanceDays: number;
+
+  appointmentRemindersEnabled: boolean;
+  appointmentReminderHoursBefore: number;
 };
 
 async function readResponse<T>(
   response: Response,
 ) {
   const data =
-    await response.json();
+    await response
+      .json()
+      .catch(() => null);
 
   if (!response.ok) {
     const message =
-      Array.isArray(data?.message)
-        ? data.message.join(', ')
+      Array.isArray(
+        data?.message,
+      )
+        ? data.message.join(
+            ', ',
+          )
         : data?.message ??
           'Erro na requisição';
 
-    throw new Error(message);
+    throw new Error(
+      message,
+    );
   }
 
   return data as T;
@@ -72,14 +88,20 @@ export default function SettingsPage() {
     setForm,
   ] =
     useState<TenantForm>({
-      name: '',
-      logoUrl: '',
+      name:
+        '',
+
+      logoUrl:
+        '',
 
       primaryColor:
         '#18181b',
 
-      phone: '',
-      email: '',
+      phone:
+        '',
+
+      email:
+        '',
 
       timezone:
         'America/Sao_Paulo',
@@ -89,43 +111,61 @@ export default function SettingsPage() {
 
       bookingMaxAdvanceDays:
         7,
+
+      appointmentRemindersEnabled:
+        true,
+
+      appointmentReminderHoursBefore:
+        24,
     });
 
   const [
     loading,
     setLoading,
   ] =
-    useState(true);
+    useState(
+      true,
+    );
 
   const [
     saving,
     setSaving,
   ] =
-    useState(false);
+    useState(
+      false,
+    );
 
   const [
     error,
     setError,
   ] =
-    useState('');
+    useState(
+      '',
+    );
 
   const [
     success,
     setSuccess,
   ] =
-    useState('');
+    useState(
+      '',
+    );
 
   const [
     publicBookingUrl,
     setPublicBookingUrl,
   ] =
-    useState('');
+    useState(
+      '',
+    );
 
   const [
     copied,
     setCopied,
   ] =
-    useState(false);
+    useState(
+      false,
+    );
 
   function handleLogout() {
     localStorage.removeItem(
@@ -216,6 +256,14 @@ export default function SettingsPage() {
           bookingMaxAdvanceDays:
             data.bookingMaxAdvanceDays ??
             7,
+
+          appointmentRemindersEnabled:
+            data.appointmentRemindersEnabled ??
+            true,
+
+          appointmentReminderHoursBefore:
+            data.appointmentReminderHoursBefore ??
+            24,
         });
       } catch (err) {
         setError(
@@ -285,8 +333,13 @@ export default function SettingsPage() {
   ) {
     event.preventDefault();
 
-    setError('');
-    setSuccess('');
+    setError(
+      '',
+    );
+
+    setSuccess(
+      '',
+    );
 
     if (
       !form.name.trim()
@@ -299,32 +352,39 @@ export default function SettingsPage() {
     }
 
     if (
-      !Number.isInteger(
-        form.bookingMinAdvanceMinutes,
-      ) ||
       form.bookingMinAdvanceMinutes <
         0 ||
       form.bookingMinAdvanceMinutes >
         1440
     ) {
       setError(
-        'A antecedência mínima deve ser um número inteiro entre 0 e 1440 minutos.',
+        'A antecedência mínima deve estar entre 0 e 1440 minutos.',
       );
 
       return;
     }
 
     if (
-      !Number.isInteger(
-        form.bookingMaxAdvanceDays,
-      ) ||
       form.bookingMaxAdvanceDays <
         1 ||
       form.bookingMaxAdvanceDays >
         365
     ) {
       setError(
-        'O limite de agendamento deve ser um número inteiro entre 1 e 365 dias.',
+        'O limite da agenda pública deve estar entre 1 e 365 dias.',
+      );
+
+      return;
+    }
+
+    if (
+      form.appointmentReminderHoursBefore <
+        1 ||
+      form.appointmentReminderHoursBefore >
+        168
+    ) {
+      setError(
+        'A antecedência do lembrete deve estar entre 1 e 168 horas.',
       );
 
       return;
@@ -348,21 +408,18 @@ export default function SettingsPage() {
                   form.name.trim(),
 
                 logoUrl:
-                  form.logoUrl
-                    .trim() ||
+                  form.logoUrl.trim() ||
                   null,
 
                 primaryColor:
                   form.primaryColor,
 
                 phone:
-                  form.phone
-                    .trim() ||
+                  form.phone.trim() ||
                   null,
 
                 email:
-                  form.email
-                    .trim() ||
+                  form.email.trim() ||
                   null,
 
                 timezone:
@@ -373,6 +430,12 @@ export default function SettingsPage() {
 
                 bookingMaxAdvanceDays:
                   form.bookingMaxAdvanceDays,
+
+                appointmentRemindersEnabled:
+                  form.appointmentRemindersEnabled,
+
+                appointmentReminderHoursBefore:
+                  form.appointmentReminderHoursBefore,
               }),
           },
         );
@@ -394,6 +457,44 @@ export default function SettingsPage() {
       setTenant(
         updated,
       );
+
+      setForm({
+        name:
+          updated.name ??
+          '',
+
+        logoUrl:
+          updated.logoUrl ??
+          '',
+
+        primaryColor:
+          updated.primaryColor ||
+          '#18181b',
+
+        phone:
+          updated.phone ??
+          '',
+
+        email:
+          updated.email ??
+          '',
+
+        timezone:
+          updated.timezone ||
+          'America/Sao_Paulo',
+
+        bookingMinAdvanceMinutes:
+          updated.bookingMinAdvanceMinutes,
+
+        bookingMaxAdvanceDays:
+          updated.bookingMaxAdvanceDays,
+
+        appointmentRemindersEnabled:
+          updated.appointmentRemindersEnabled,
+
+        appointmentReminderHoursBefore:
+          updated.appointmentReminderHoursBefore,
+      });
 
       const storedUser =
         localStorage.getItem(
@@ -421,18 +522,6 @@ export default function SettingsPage() {
 
       setSuccess(
         'Configurações atualizadas com sucesso.',
-      );
-
-      /*
-       * O PanelShell busca novamente
-       * os dados quando a página
-       * é recarregada.
-       */
-      window.setTimeout(
-        () => {
-          window.location.reload();
-        },
-        700,
       );
     } catch (err) {
       setError(
@@ -462,7 +551,7 @@ export default function SettingsPage() {
   return (
     <PanelShell
       title="Configurações"
-      subtitle="Identidade, dados e regras de agendamento"
+      subtitle="Identidade, agendamento e notificações da empresa"
     >
       {error && (
         <div className="mb-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -530,261 +619,33 @@ export default function SettingsPage() {
       )}
 
       <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
-
-        {/* FORMULÁRIO */}
-        <section className="rounded-2xl bg-white p-6 shadow-sm">
-
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-900">
-              Dados da empresa
-            </h2>
-
-            <p className="mt-1 text-sm text-zinc-500">
-              Essas informações pertencem somente a esta empresa.
-            </p>
-          </div>
-
-          <form
-            onSubmit={
-              handleSubmit
-            }
-            className="mt-6 grid gap-5 md:grid-cols-2"
-          >
-
-            {/* NOME */}
-            <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Nome da empresa *
-              </label>
-
-              <input
-                value={
-                  form.name
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-
-                    name:
-                      event
-                        .target
-                        .value,
-                  })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                placeholder="Barbearia Alpha"
-              />
-            </div>
-
-            {/* TELEFONE */}
+        <form
+          onSubmit={
+            handleSubmit
+          }
+          className="space-y-6"
+        >
+          {/* DADOS DA EMPRESA */}
+          <section className="rounded-2xl bg-white p-6 shadow-sm">
             <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Telefone
-              </label>
-
-              <input
-                value={
-                  form.phone
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-
-                    phone:
-                      event
-                        .target
-                        .value,
-                  })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                placeholder="(34) 99999-9999"
-              />
-            </div>
-
-            {/* EMAIL */}
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                E-mail
-              </label>
-
-              <input
-                type="email"
-                value={
-                  form.email
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-
-                    email:
-                      event
-                        .target
-                        .value,
-                  })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                placeholder="contato@empresa.com"
-              />
-            </div>
-
-            {/* LOGO */}
-            <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                URL da logo
-              </label>
-
-              <input
-                value={
-                  form.logoUrl
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-
-                    logoUrl:
-                      event
-                        .target
-                        .value,
-                  })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-4 py-3"
-                placeholder="https://..."
-              />
-
-              <p className="mt-2 text-xs text-zinc-400">
-                Por enquanto usamos uma URL. Depois implementaremos upload da própria imagem.
-              </p>
-            </div>
-
-            {/* COR */}
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Cor principal
-              </label>
-
-              <div className="flex gap-3">
-
-                <input
-                  type="color"
-                  value={
-                    form.primaryColor
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    setForm({
-                      ...form,
-
-                      primaryColor:
-                        event
-                          .target
-                          .value,
-                    })
-                  }
-                  className="h-12 w-16 cursor-pointer rounded-lg border border-zinc-300 bg-white p-1"
-                />
-
-                <input
-                  value={
-                    form.primaryColor
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    setForm({
-                      ...form,
-
-                      primaryColor:
-                        event
-                          .target
-                          .value,
-                    })
-                  }
-                  className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-4 py-3 uppercase"
-                  placeholder="#18181B"
-                />
-              </div>
-            </div>
-
-            {/* TIMEZONE */}
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Fuso horário
-              </label>
-
-              <select
-                value={
-                  form.timezone
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-
-                    timezone:
-                      event
-                        .target
-                        .value,
-                  })
-                }
-                className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3"
-              >
-                <option value="America/Sao_Paulo">
-                  Brasília / São Paulo
-                </option>
-
-                <option value="America/Manaus">
-                  Manaus
-                </option>
-
-                <option value="America/Cuiaba">
-                  Cuiabá
-                </option>
-
-                <option value="America/Rio_Branco">
-                  Rio Branco
-                </option>
-
-                <option value="America/Noronha">
-                  Fernando de Noronha
-                </option>
-              </select>
-            </div>
-
-            {/* REGRAS DO AGENDAMENTO */}
-            <div className="md:col-span-2 mt-2 border-t border-zinc-200 pt-6">
-              <h3 className="text-base font-semibold text-zinc-900">
-                Regras do agendamento público
-              </h3>
+              <h2 className="text-lg font-semibold text-zinc-900">
+                Dados da empresa
+              </h2>
 
               <p className="mt-1 text-sm text-zinc-500">
-                Defina com quanto tempo de antecedência o cliente pode reservar e até quantos dias à frente a agenda ficará disponível.
+                Identidade e informações principais da empresa.
               </p>
             </div>
 
-            {/* ANTECEDÊNCIA */}
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Antecedência mínima
-              </label>
+            <div className="mt-6 grid gap-5 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Nome da empresa *
+                </label>
 
-              <div className="relative">
                 <input
-                  type="number"
-                  min={0}
-                  max={1440}
-                  step={1}
                   value={
-                    form.bookingMinAdvanceMinutes
+                    form.name
                   }
                   onChange={(
                     event,
@@ -792,41 +653,25 @@ export default function SettingsPage() {
                     setForm({
                       ...form,
 
-                      bookingMinAdvanceMinutes:
-                        Number(
-                          event
-                            .target
-                            .value,
-                        ),
+                      name:
+                        event
+                          .target
+                          .value,
                     })
                   }
-                  className="w-full rounded-lg border border-zinc-300 px-4 py-3 pr-24"
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                  placeholder="Barbearia Alpha"
                 />
-
-                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-zinc-400">
-                  minutos
-                </span>
               </div>
 
-              <p className="mt-2 text-xs text-zinc-400">
-                Exemplo: 60 significa que o cliente precisa agendar pelo menos 1 hora antes.
-              </p>
-            </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Telefone
+                </label>
 
-            {/* DIAS À FRENTE */}
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Agendar até
-              </label>
-
-              <div className="relative">
                 <input
-                  type="number"
-                  min={1}
-                  max={365}
-                  step={1}
                   value={
-                    form.bookingMaxAdvanceDays
+                    form.phone
                   }
                   onChange={(
                     event,
@@ -834,68 +679,424 @@ export default function SettingsPage() {
                     setForm({
                       ...form,
 
-                      bookingMaxAdvanceDays:
-                        Number(
+                      phone:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                  placeholder="(34) 99999-9999"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  E-mail
+                </label>
+
+                <input
+                  type="email"
+                  value={
+                    form.email
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      email:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                  placeholder="contato@empresa.com"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  URL da logo
+                </label>
+
+                <input
+                  value={
+                    form.logoUrl
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      logoUrl:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3"
+                  placeholder="https://..."
+                />
+
+                <p className="mt-2 text-xs text-zinc-400">
+                  Por enquanto usamos uma URL. Depois implementaremos upload da própria imagem.
+                </p>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Cor principal
+                </label>
+
+                <div className="flex gap-3">
+                  <input
+                    type="color"
+                    value={
+                      form.primaryColor
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setForm({
+                        ...form,
+
+                        primaryColor:
                           event
                             .target
                             .value,
-                        ),
-                    })
-                  }
-                  className="w-full rounded-lg border border-zinc-300 px-4 py-3 pr-20"
-                />
+                      })
+                    }
+                    className="h-12 w-16 cursor-pointer rounded-lg border border-zinc-300 bg-white p-1"
+                  />
 
-                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-zinc-400">
-                  dias
-                </span>
+                  <input
+                    value={
+                      form.primaryColor
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setForm({
+                        ...form,
+
+                        primaryColor:
+                          event
+                            .target
+                            .value,
+                      })
+                    }
+                    className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-4 py-3 uppercase"
+                    placeholder="#18181B"
+                  />
+                </div>
               </div>
 
-              <p className="mt-2 text-xs text-zinc-400">
-                Exemplo: 7 permite agendamentos de hoje até os próximos 7 dias.
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Fuso horário
+                </label>
+
+                <select
+                  value={
+                    form.timezone
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setForm({
+                      ...form,
+
+                      timezone:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3"
+                >
+                  <option value="America/Sao_Paulo">
+                    Brasília / São Paulo
+                  </option>
+
+                  <option value="America/Manaus">
+                    Manaus
+                  </option>
+
+                  <option value="America/Cuiaba">
+                    Cuiabá
+                  </option>
+
+                  <option value="America/Rio_Branco">
+                    Rio Branco
+                  </option>
+
+                  <option value="America/Noronha">
+                    Fernando de Noronha
+                  </option>
+                </select>
+              </div>
+            </div>
+          </section>
+
+          {/* AGENDAMENTO PÚBLICO */}
+          <section className="rounded-2xl bg-white p-6 shadow-sm">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-900">
+                Agendamento público
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-500">
+                Defina com quanto tempo de antecedência seus clientes podem agendar.
               </p>
             </div>
 
-            {/* RESUMO */}
-            <div className="md:col-span-2 rounded-xl border border-green-200 bg-green-50 px-4 py-4">
-              <p className="text-sm font-medium text-green-900">
-                Regra atual
-              </p>
+            <div className="mt-6 grid gap-5 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Antecedência mínima
+                </label>
 
-              <p className="mt-1 text-sm text-green-800">
-                O cliente poderá agendar com pelo menos{' '}
-                <strong>
-                  {form.bookingMinAdvanceMinutes}{' '}
-                  minutos
-                </strong>{' '}
-                de antecedência e no máximo{' '}
-                <strong>
-                  {form.bookingMaxAdvanceDays}{' '}
-                  dias
-                </strong>{' '}
-                à frente.
+                <div className="relative">
+                  <input
+                    type="number"
+                    min={
+                      0
+                    }
+                    max={
+                      1440
+                    }
+                    step={
+                      1
+                    }
+                    value={
+                      form.bookingMinAdvanceMinutes
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setForm({
+                        ...form,
+
+                        bookingMinAdvanceMinutes:
+                          Number(
+                            event
+                              .target
+                              .value,
+                          ),
+                      })
+                    }
+                    className="w-full rounded-lg border border-zinc-300 px-4 py-3 pr-24"
+                  />
+
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-zinc-400">
+                    minutos
+                  </span>
+                </div>
+
+                <p className="mt-2 text-xs text-zinc-400">
+                  De 0 até 1440 minutos. Ex.: 120 = 2 horas antes.
+                </p>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Agenda disponível
+                </label>
+
+                <div className="relative">
+                  <input
+                    type="number"
+                    min={
+                      1
+                    }
+                    max={
+                      365
+                    }
+                    step={
+                      1
+                    }
+                    value={
+                      form.bookingMaxAdvanceDays
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setForm({
+                        ...form,
+
+                        bookingMaxAdvanceDays:
+                          Number(
+                            event
+                              .target
+                              .value,
+                          ),
+                      })
+                    }
+                    className="w-full rounded-lg border border-zinc-300 px-4 py-3 pr-20"
+                  />
+
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-zinc-400">
+                    dias
+                  </span>
+                </div>
+
+                <p className="mt-2 text-xs text-zinc-400">
+                  De 1 até 365 dias à frente.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* LEMBRETES */}
+          <section className="rounded-2xl bg-white p-6 shadow-sm">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-900">
+                Lembretes automáticos
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-500">
+                Envie automaticamente um e-mail ao cliente antes do horário confirmado.
               </p>
             </div>
 
-            <div className="md:col-span-2">
+            <div className="mt-6">
+              <label className="flex cursor-pointer items-start justify-between gap-5 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                <div>
+                  <p className="text-sm font-medium text-zinc-900">
+                    Enviar lembretes por e-mail
+                  </p>
 
-              <button
-                type="submit"
-                disabled={
-                  saving
-                }
-                className="rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                  <p className="mt-1 text-sm text-zinc-500">
+                    Somente agendamentos confirmados e clientes com e-mail cadastrado recebem o lembrete.
+                  </p>
+                </div>
+
+                <div className="relative shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={
+                      form.appointmentRemindersEnabled
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setForm({
+                        ...form,
+
+                        appointmentRemindersEnabled:
+                          event
+                            .target
+                            .checked,
+                      })
+                    }
+                    className="peer sr-only"
+                  />
+
+                  <div className="h-6 w-11 rounded-full bg-zinc-300 transition peer-checked:bg-green-600" />
+
+                  <div className="absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow-sm transition peer-checked:translate-x-5" />
+                </div>
+              </label>
+
+              <div
+                className={`mt-5 rounded-xl border p-5 ${
+                  form.appointmentRemindersEnabled
+                    ? 'border-zinc-200 bg-white'
+                    : 'border-zinc-100 bg-zinc-50 opacity-60'
+                }`}
               >
-                {saving
-                  ? 'Salvando...'
-                  : 'Salvar configurações'}
-              </button>
+                <label className="mb-2 block text-sm font-medium text-zinc-700">
+                  Enviar lembrete com antecedência de
+                </label>
+
+                <div className="relative max-w-sm">
+                  <input
+                    type="number"
+                    min={
+                      1
+                    }
+                    max={
+                      168
+                    }
+                    step={
+                      1
+                    }
+                    disabled={
+                      !form.appointmentRemindersEnabled
+                    }
+                    value={
+                      form.appointmentReminderHoursBefore
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setForm({
+                        ...form,
+
+                        appointmentReminderHoursBefore:
+                          Number(
+                            event
+                              .target
+                              .value,
+                          ),
+                      })
+                    }
+                    className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 pr-20 disabled:cursor-not-allowed disabled:bg-zinc-100"
+                  />
+
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-zinc-400">
+                    horas
+                  </span>
+                </div>
+
+                <p className="mt-2 text-xs text-zinc-400">
+                  Mínimo de 1 hora e máximo de 168 horas (7 dias).
+                </p>
+
+                {form.appointmentRemindersEnabled && (
+                  <div className="mt-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-800">
+                    O cliente receberá o lembrete aproximadamente{' '}
+                    <strong>
+                      {form.appointmentReminderHoursBefore}{' '}
+                      {form.appointmentReminderHoursBefore ===
+                      1
+                        ? 'hora'
+                        : 'horas'}
+                    </strong>{' '}
+                    antes do agendamento.
+                  </div>
+                )}
+
+                {!form.appointmentRemindersEnabled && (
+                  <div className="mt-4 rounded-lg bg-zinc-100 px-4 py-3 text-sm text-zinc-600">
+                    Os lembretes automáticos estão desativados para esta empresa.
+                  </div>
+                )}
+              </div>
             </div>
-          </form>
-        </section>
+          </section>
+
+          <section className="rounded-2xl bg-white p-6 shadow-sm">
+            <button
+              type="submit"
+              disabled={
+                saving
+              }
+              className="rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving
+                ? 'Salvando...'
+                : 'Salvar configurações'}
+            </button>
+          </section>
+        </form>
 
         {/* PREVIEW */}
         <section className="h-fit rounded-2xl bg-white p-6 shadow-sm">
-
           <h2 className="text-lg font-semibold text-zinc-900">
             Pré-visualização
           </h2>
@@ -905,10 +1106,8 @@ export default function SettingsPage() {
           </p>
 
           <div className="mt-6 overflow-hidden rounded-2xl bg-zinc-950 p-5 text-white">
-
             {form.logoUrl ? (
               <div className="mb-5 flex h-24 items-center justify-center overflow-hidden rounded-xl bg-white p-3">
-
                 <img
                   src={
                     form.logoUrl
@@ -926,7 +1125,9 @@ export default function SettingsPage() {
                 }}
               >
                 {form.name
-                  .charAt(0)
+                  .charAt(
+                    0,
+                  )
                   .toUpperCase() ||
                   'A'}
               </div>
@@ -952,26 +1153,50 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="mt-5 rounded-xl bg-zinc-50 p-4">
+          <div className="mt-6 rounded-xl border border-zinc-200 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
               Agendamento público
             </p>
 
             <p className="mt-2 text-sm text-zinc-700">
-              Antecedência mínima:{' '}
+              Mínimo de{' '}
               <strong>
-                {form.bookingMinAdvanceMinutes}{' '}
-                min
-              </strong>
+                {form.bookingMinAdvanceMinutes}
+              </strong>{' '}
+              minutos de antecedência.
             </p>
 
             <p className="mt-1 text-sm text-zinc-700">
-              Agenda aberta por:{' '}
+              Agenda aberta por até{' '}
               <strong>
-                {form.bookingMaxAdvanceDays}{' '}
-                dias
-              </strong>
+                {form.bookingMaxAdvanceDays}
+              </strong>{' '}
+              dias.
             </p>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-zinc-200 p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+              Lembretes
+            </p>
+
+            {form.appointmentRemindersEnabled ? (
+              <p className="mt-2 text-sm text-zinc-700">
+                Ativos —{' '}
+                <strong>
+                  {form.appointmentReminderHoursBefore}{' '}
+                  {form.appointmentReminderHoursBefore ===
+                  1
+                    ? 'hora'
+                    : 'horas'}
+                </strong>{' '}
+                antes.
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-zinc-500">
+                Desativados
+              </p>
+            )}
           </div>
 
           {tenant && (

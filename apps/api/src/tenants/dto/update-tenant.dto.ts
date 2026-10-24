@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsInt,
   IsOptional,
@@ -83,4 +84,25 @@ export class UpdateTenantDto {
   @Min(1)
   @Max(365)
   bookingMaxAdvanceDays?: number;
+
+  /*
+   * Define se a empresa deseja
+   * utilizar lembretes automáticos.
+   */
+  @IsOptional()
+  @IsBoolean()
+  appointmentRemindersEnabled?: boolean;
+
+  /*
+   * Quantas horas antes do agendamento
+   * o lembrete deve ser enviado.
+   *
+   * Permitido:
+   * 1 hora até 168 horas (7 dias).
+   */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(168)
+  appointmentReminderHoursBefore?: number;
 }
