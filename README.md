@@ -2,9 +2,9 @@
 
 Sistema SaaS multiempresa para gerenciamento de agendamentos, desenvolvido como projeto de portfólio.
 
-A aplicação permite que diferentes empresas utilizem a mesma plataforma de forma isolada, cada uma com seus próprios usuários, funcionários, serviços, clientes, horários e agendamentos.
+A aplicação permite que diferentes empresas utilizem a mesma plataforma de forma isolada, cada uma com seus próprios usuários, funcionários, serviços, clientes, horários, bloqueios, agendamentos e configurações.
 
-O projeto possui painel administrativo, controle de acesso por função e uma página pública onde clientes podem solicitar agendamentos sem necessidade de login.
+O projeto possui painel administrativo, controle de acesso por função, página pública de agendamento, proteção contra conflitos de horários, notificações por e-mail e lembretes automáticos.
 
 ---
 
@@ -26,6 +26,8 @@ O projeto possui painel administrativo, controle de acesso por função e uma p�
 - bcrypt
 - Luxon
 - NestJS Throttler
+- NestJS Schedule
+- Nodemailer
 
 ### Banco de dados
 
@@ -41,6 +43,7 @@ O projeto possui painel administrativo, controle de acesso por função e uma p�
 
 - Docker
 - Docker Compose
+- Mailpit
 - pnpm Workspaces
 
 ---
@@ -61,6 +64,8 @@ agendamento-saas/
 └── README.md
 ```
 
+A aplicação segue uma arquitetura multi-tenant, onde os registros são associados a uma empresa (`tenant`) e as operações da API respeitam esse isolamento.
+
 ---
 
 ## Funcionalidades implementadas
@@ -72,8 +77,11 @@ agendamento-saas/
 - Identificação do usuário autenticado
 - Associação automática do usuário OWNER à empresa
 - Isolamento entre empresas
+- Proteção de rotas autenticadas
 
-### Multi-tenant
+---
+
+## Multi-tenant
 
 Cada empresa possui seus próprios:
 
@@ -81,12 +89,15 @@ Cada empresa possui seus próprios:
 - funcionários
 - serviços
 - clientes
-- horários
+- horários de trabalho
 - bloqueios
 - agendamentos
 - configurações
+- regras de agendamento público
 
 Os dados de uma empresa não podem ser acessados por outra.
+
+O `tenantId` do usuário autenticado é utilizado no backend para limitar o acesso aos recursos pertencentes à empresa correta.
 
 ---
 
@@ -120,6 +131,16 @@ Pode:
 
 Pode administrar a maior parte da operação da empresa.
 
+Pode:
+
+- consultar usuários
+- gerenciar funcionários
+- gerenciar serviços
+- gerenciar clientes
+- gerenciar horários
+- gerenciar agenda
+- alterar configurações da empresa
+
 ### RECEPTIONIST
 
 Pode:
@@ -128,15 +149,18 @@ Pode:
 - criar agendamentos
 - reagendar
 - confirmar
+- concluir
+- registrar ausência
 - cancelar
 - gerenciar clientes
-- consultar funcionários e serviços
+- consultar funcionários
+- consultar serviços
 
 ### STAFF
 
 Possui acesso restrito à própria agenda.
 
-Pode consultar seus próprios atendimentos, mas não gerenciar configurações administrativas.
+Pode consultar apenas os próprios atendimentos e não possui acesso às configurações administrativas da empresa.
 
 ---
 
@@ -146,6 +170,7 @@ O sistema permite:
 
 - criar serviços
 - listar serviços
+- consultar serviço
 - editar serviços
 - desativar serviços
 - restaurar serviços
@@ -168,10 +193,12 @@ status
 
 - cadastrar funcionários
 - editar funcionários
-- desativar e restaurar funcionários
+- desativar funcionários
+- restaurar funcionários
 - vincular serviços aos funcionários
 - configurar horários de trabalho
 - cadastrar bloqueios de horário
+- vincular funcionário a um usuário STAFF
 
 ---
 
@@ -184,9 +211,10 @@ O sistema calcula automaticamente os horários disponíveis considerando:
 - serviços realizados pelo funcionário
 - horários bloqueados
 - agendamentos existentes
+- status dos agendamentos
 - timezone da empresa
 
-Os horários são calculados no timezone configurado pela empresa.
+Os horários são calculados utilizando o timezone configurado pela empresa.
 
 Por padrão:
 
@@ -203,12 +231,25 @@ O sistema permite:
 - cadastrar clientes
 - editar clientes
 - pesquisar clientes
-- ativar e desativar clientes
+- ativar clientes
+- desativar clientes
 - armazenar telefone
 - armazenar e-mail
+- armazenar data de nascimento
 - armazenar observações
 
 Clientes criados pela página pública também ficam associados somente à empresa responsável pelo agendamento.
+
+O telefone informado no agendamento público é normalizado antes da busca e do armazenamento, evitando duplicidades causadas por diferentes formatos.
+
+Exemplos tratados como o mesmo telefone:
+
+```text
+(34) 99999-3333
+34 99999-3333
++55 34 99999-3333
+5534999993333
+```
 
 ---
 
@@ -249,13 +290,49 @@ Agendamentos feitos pela página pública começam como:
 PENDING
 ```
 
+As transições de status são controladas pelo backend.
+
+Exemplo:
+
+```text
+PENDING
+   ↓
+CONFIRMED
+   ↓
+COMPLETED
+```
+
+Também é possível transformar um agendamento confirmado em:
+
+```text
+NO_SHOW
+```
+
+Agendamentos cancelados não voltam para estados ativos.
+
 ---
 
 ## Proteção contra conflito de horários
 
-A API utiliza transações e PostgreSQL Advisory Locks para evitar que duas requisições simultâneas criem agendamentos para o mesmo funcionário no mesmo horário.
+A API utiliza transações e PostgreSQL Advisory Locks para evitar que duas requisições simultâneas criem agendamentos conflitantes.
 
-Além disso, agendamentos com status diferente de `CANCELED` bloqueiam o horário correspondente.
+A proteção é utilizada principalmente em operações como:
+
+- criação de agendamento
+- agendamento público
+- reagendamento
+- prevenção de duplicidade de cliente
+- processamento de lembretes
+
+Agendamentos com status diferente de:
+
+```text
+CANCELED
+```
+
+bloqueiam o intervalo de horário correspondente.
+
+Também existe proteção contra agendamentos públicos simultâneos do mesmo cliente para horários sobrepostos.
 
 ---
 
@@ -331,7 +408,7 @@ Dias disponíveis:
 1 até 365 dias
 ```
 
-As regras são validadas tanto no frontend quanto no backend.
+As regras são utilizadas pelo frontend para melhorar a experiência do usuário e são obrigatoriamente validadas novamente pelo backend.
 
 O backend permanece como fonte definitiva de validação.
 
@@ -351,6 +428,201 @@ No painel é possível configurar:
 - quantidade máxima de dias disponíveis para agendamento
 
 Também é possível copiar ou abrir diretamente o link público da empresa.
+
+---
+
+## Notificações por e-mail
+
+O sistema possui suporte a notificações por e-mail utilizando:
+
+```text
+Nodemailer
+SMTP
+```
+
+Atualmente são enviados e-mails nos seguintes eventos:
+
+### Solicitação de agendamento público
+
+Quando o cliente realiza um agendamento pela página pública:
+
+```text
+PENDING
+```
+
+ele recebe uma mensagem informando que a solicitação foi recebida.
+
+### Confirmação
+
+Quando a empresa altera o agendamento de:
+
+```text
+PENDING
+```
+
+para:
+
+```text
+CONFIRMED
+```
+
+o cliente recebe um e-mail de confirmação.
+
+### Cancelamento
+
+Quando um agendamento é cancelado, o cliente recebe uma notificação contendo também o motivo do cancelamento, quando informado.
+
+### Reagendamento
+
+Quando a data ou horário realmente é alterado, o cliente recebe um e-mail contendo:
+
+```text
+data anterior
+horário anterior
+nova data
+novo horário
+```
+
+Caso o mesmo horário seja enviado novamente, nenhum e-mail redundante de reagendamento é disparado.
+
+---
+
+## Lembretes automáticos
+
+O sistema possui um processo automático de lembretes utilizando:
+
+```text
+@nestjs/schedule
+```
+
+O scheduler verifica periodicamente os agendamentos elegíveis.
+
+Atualmente o lembrete é enviado para agendamentos:
+
+```text
+CONFIRMED
+```
+
+que estejam dentro das próximas:
+
+```text
+24 horas
+```
+
+e cujo cliente possua e-mail cadastrado.
+
+A verificação é executada periodicamente pelo backend.
+
+Cada agendamento possui o campo:
+
+```text
+reminderSentAt
+```
+
+Esse campo registra quando o lembrete foi enviado e impede o envio duplicado.
+
+Fluxo:
+
+```text
+CONFIRMED
+    ↓
+entra na janela das próximas 24 horas
+    ↓
+scheduler encontra o agendamento
+    ↓
+e-mail de lembrete é enviado
+    ↓
+reminderSentAt é preenchido
+    ↓
+agendamento não é selecionado novamente
+```
+
+Se o envio do e-mail falhar:
+
+```text
+reminderSentAt permanece NULL
+```
+
+permitindo uma nova tentativa em uma execução futura.
+
+Se um agendamento for realmente reagendado:
+
+```text
+reminderSentAt = NULL
+```
+
+permitindo que um novo lembrete seja enviado para o novo horário.
+
+Caso o horário não tenha sido alterado, o valor existente é preservado.
+
+---
+
+## SMTP
+
+O envio de e-mails é configurado através de variáveis de ambiente.
+
+Exemplo para desenvolvimento local com Mailpit:
+
+```env
+SMTP_ENABLED=true
+SMTP_HOST=127.0.0.1
+SMTP_PORT=1025
+SMTP_SECURE=false
+SMTP_USER=mailpit
+SMTP_PASS=mailpit
+SMTP_FROM_NAME=Agendamento SaaS
+SMTP_FROM_EMAIL=nao-responda@agendamento.local
+
+APPOINTMENT_REMINDERS_ENABLED=true
+```
+
+O envio de e-mails pode ser desativado através de:
+
+```env
+SMTP_ENABLED=false
+```
+
+Os lembretes automáticos também podem ser desativados:
+
+```env
+APPOINTMENT_REMINDERS_ENABLED=false
+```
+
+Falhas no SMTP não desfazem operações importantes como confirmação, cancelamento ou reagendamento.
+
+---
+
+## Mailpit
+
+O projeto utiliza Mailpit no ambiente local para testar e-mails sem enviar mensagens reais.
+
+O serviço está configurado no:
+
+```text
+docker-compose.yml
+```
+
+Portas padrão:
+
+```text
+SMTP:
+localhost:1025
+
+Interface web:
+http://localhost:8025
+```
+
+Para iniciar:
+
+```bash
+docker compose up -d mailpit
+```
+
+Depois acesse:
+
+```text
+http://localhost:8025
+```
 
 ---
 
@@ -396,9 +668,14 @@ Algumas proteções atualmente implementadas:
 - whitelist de propriedades
 - proteção contra conflito de agendamentos
 - transações no PostgreSQL
-- Advisory Locks
+- PostgreSQL Advisory Locks
 - rate limit em endpoints públicos
 - validações de disponibilidade no backend
+- validação das regras de agendamento público no backend
+- proteção contra agendamento público duplicado
+- normalização de telefone
+- banco separado para testes E2E
+- proteção dos testes contra execução no banco de desenvolvimento
 
 ---
 
@@ -425,6 +702,7 @@ PATCH /tenants/current
 POST   /services
 GET    /services
 GET    /services/:id
+PATCH  /services/:id
 DELETE /services/:id
 PATCH  /services/:id/restore
 ```
@@ -432,8 +710,9 @@ PATCH  /services/:id/restore
 ### Funcionários
 
 ```http
-GET  /employees
-POST /employees
+GET   /employees
+POST  /employees
+PATCH /employees/:id
 
 GET /employees/:id/services
 PUT /employees/:id/services
@@ -443,6 +722,15 @@ PUT /employees/:id/availability
 
 GET  /employees/:id/blocked-times
 POST /employees/:id/blocked-times
+```
+
+### Clientes
+
+```http
+GET   /clients
+POST  /clients
+GET   /clients/:id
+PATCH /clients/:id
 ```
 
 ### Disponibilidade
@@ -463,11 +751,42 @@ GET /availability?employeeId=...&serviceId=...&date=2026-10-20
 GET  /appointments
 POST /appointments
 
-PATCH /appointments/:id/reschedule
-PATCH /appointments/:id/confirm
-PATCH /appointments/:id/complete
+GET   /appointments/:id
+PATCH /appointments/:id/status
 PATCH /appointments/:id/cancel
-PATCH /appointments/:id/no-show
+PATCH /appointments/:id/reschedule
+```
+
+Exemplo de confirmação:
+
+```http
+PATCH /appointments/:id/status
+```
+
+Body:
+
+```json
+{
+  "status": "CONFIRMED"
+}
+```
+
+Outros estados permitidos pelo fluxo também utilizam o mesmo endpoint de status.
+
+Exemplo:
+
+```json
+{
+  "status": "COMPLETED"
+}
+```
+
+ou:
+
+```json
+{
+  "status": "NO_SHOW"
+}
 ```
 
 ### Agendamento público
@@ -523,12 +842,20 @@ pnpm install
 
 ---
 
-### 3. Inicie o PostgreSQL
+### 3. Inicie os containers
 
 Na raiz do projeto:
 
 ```bash
 docker compose up -d
+```
+
+Esse comando inicia os serviços configurados no Docker Compose, incluindo PostgreSQL e Mailpit.
+
+Para conferir:
+
+```bash
+docker compose ps
 ```
 
 ---
@@ -549,6 +876,17 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/agendamento"
 JWT_ACCESS_SECRET="sua-chave-secreta"
 
 JWT_ACCESS_EXPIRES_IN="15m"
+
+SMTP_ENABLED=true
+SMTP_HOST=127.0.0.1
+SMTP_PORT=1025
+SMTP_SECURE=false
+SMTP_USER=mailpit
+SMTP_PASS=mailpit
+SMTP_FROM_NAME=Agendamento SaaS
+SMTP_FROM_EMAIL=nao-responda@agendamento.local
+
+APPOINTMENT_REMINDERS_ENABLED=true
 ```
 
 ---
@@ -557,14 +895,13 @@ JWT_ACCESS_EXPIRES_IN="15m"
 
 ```bash
 cd apps/api
-
-pnpm exec prisma migrate deploy
+pnpm prisma migrate deploy
 ```
 
 Gere o Prisma Client:
 
 ```bash
-pnpm exec prisma generate
+pnpm prisma generate
 ```
 
 ---
@@ -653,19 +990,45 @@ JWT_ACCESS_SECRET="test-e2e-secret-key"
 JWT_ACCESS_EXPIRES_IN="15m"
 
 NODE_ENV="test"
+
+APPOINTMENT_REMINDERS_ENABLED=false
 ```
 
-Para aplicar as migrations no banco de testes:
+Os lembretes automáticos permanecem desativados durante os testes E2E para evitar interferência do scheduler nos cenários automatizados.
+
+### Aplicando migrations no banco de testes
+
+No PowerShell:
 
 ```powershell
-$env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/agendamento_test"
+$env:DATABASE_URL = ((Get-Content .env.test | Where-Object { $_ -match '^DATABASE_URL=' } | Select-Object -First 1) -replace '^DATABASE_URL=', '').Trim('"').Trim("'")
 
-pnpm exec prisma migrate deploy
+pnpm prisma migrate deploy
 
 Remove-Item Env:DATABASE_URL
 ```
 
-Para executar todos os testes E2E:
+Antes de executar migrations manualmente, é possível conferir o banco selecionado:
+
+```powershell
+node -e "console.log(new URL(process.env.DATABASE_URL).pathname)"
+```
+
+O esperado para E2E é:
+
+```text
+/agendamento_test
+```
+
+### Executando todos os testes
+
+Dentro de:
+
+```text
+apps/api
+```
+
+execute:
 
 ```bash
 pnpm test:e2e
@@ -674,8 +1037,8 @@ pnpm test:e2e
 Estado atual da suíte:
 
 ```text
-Test Files: 13 passed
-Tests:      125 passed
+Test Files: 17 passed
+Tests:      147 passed
 ```
 
 Entre os testes existem verificações para:
@@ -687,10 +1050,16 @@ Entre os testes existem verificações para:
 - serviços
 - funcionários
 - agenda de funcionários
+- acesso do STAFF
 - agendamento público
+- normalização de telefone
 - criação pública concorrente
+- conflito de cliente
 - rate limit
 - regras configuráveis de agendamento público
+- reagendamento
+- notificações
+- lembretes automáticos
 
 ---
 
@@ -710,7 +1079,7 @@ cd apps/web
 pnpm build
 ```
 
-Atualmente os builds da API e do frontend estão passando sem erros.
+Atualmente os builds da API e do frontend passam sem erros.
 
 ---
 
@@ -739,7 +1108,34 @@ Página pública
    ↓
 Solicitação de agendamento
    ↓
+PENDING
+   ↓
 Confirmação pela empresa
+   ↓
+CONFIRMED
+   ↓
+Notificação por e-mail
+   ↓
+Lembrete automático
+   ↓
+Atendimento
+```
+
+Também estão implementados:
+
+```text
+Multi-tenancy
+RBAC
+Conflito de horários
+Advisory Locks
+Rate Limit
+Agendamento público
+Reagendamento
+SMTP
+Mailpit
+Notificações
+Lembretes automáticos
+Testes E2E
 ```
 
 O desenvolvimento continua com novas funcionalidades sendo adicionadas gradualmente.
@@ -757,10 +1153,13 @@ Este projeto está sendo desenvolvido com foco em:
 - APIs REST
 - integridade de dados
 - concorrência
+- transações
 - testes automatizados
 - boas práticas de backend
 - frontend administrativo
 - experiência de agendamento público
+- notificações
+- processamento de tarefas agendadas
 
 Também faz parte do meu portfólio para demonstrar conhecimentos em desenvolvimento Full Stack com TypeScript.
 
