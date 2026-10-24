@@ -248,8 +248,9 @@ model Appointment {
 
   notes String?
 
-  canceledAt   DateTime?
-  cancelReason String?
+  canceledAt     DateTime?
+  cancelReason   String?
+  reminderSentAt DateTime?
 
   tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
@@ -263,4 +264,5 @@ model Appointment {
   @@index([employeeId, startsAt])
   @@index([clientId, startsAt])
   @@index([tenantId, status])
+  @@index([status, reminderSentAt, startsAt])
 }

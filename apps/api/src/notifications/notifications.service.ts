@@ -373,6 +373,117 @@ export class NotificationsService {
     });
   }
 
+  async notifyAppointmentReminder(
+    data: AppointmentNotificationData,
+  ) {
+    if (
+      !data.clientEmail
+    ) {
+      return false;
+    }
+
+    const date =
+      this.formatDate(
+        data.startsAt,
+        data.timezone,
+      );
+
+    const time =
+      this.formatTime(
+        data.startsAt,
+        data.timezone,
+      );
+
+    const clientName =
+      this.escapeHtml(
+        data.clientName,
+      );
+
+    const tenantName =
+      this.escapeHtml(
+        data.tenantName,
+      );
+
+    const serviceName =
+      this.escapeHtml(
+        data.serviceName,
+      );
+
+    const employeeName =
+      this.escapeHtml(
+        data.employeeName,
+      );
+
+    return this.safeSend({
+      to:
+        data.clientEmail,
+
+      subject:
+        `Lembrete do seu agendamento - ${data.tenantName}`,
+
+      text: [
+        `Olá, ${data.clientName}.`,
+        '',
+        `Este é um lembrete do seu agendamento em ${data.tenantName}.`,
+        '',
+        `Serviço: ${data.serviceName}`,
+        `Profissional: ${data.employeeName}`,
+        `Data: ${date}`,
+        `Horário: ${time}`,
+        '',
+        'Seu horário está confirmado. Esperamos por você!',
+      ].join(
+        '\n',
+      ),
+
+      html: `
+        <div
+          style="
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #27272a;
+          "
+        >
+          <h2>
+            Lembrete de agendamento
+          </h2>
+
+          <p>
+            Olá, <strong>${clientName}</strong>.
+          </p>
+
+          <p>
+            Este é um lembrete do seu agendamento em
+            <strong>${tenantName}</strong>.
+          </p>
+
+          <p>
+            <strong>Serviço:</strong>
+            ${serviceName}
+            <br />
+
+            <strong>Profissional:</strong>
+            ${employeeName}
+            <br />
+
+            <strong>Data:</strong>
+            ${date}
+            <br />
+
+            <strong>Horário:</strong>
+            ${time}
+          </p>
+
+          <p>
+            Seu horário está
+            <strong>confirmado</strong>.
+            Esperamos por você!
+          </p>
+        </div>
+      `,
+    });
+  }
+
   async notifyAppointmentRescheduled(
     data: RescheduledAppointmentNotificationData,
   ) {

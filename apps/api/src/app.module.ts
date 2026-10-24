@@ -1,30 +1,41 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
-
-import { HealthModule } from './health/health.module.js';
-import { PrismaModule } from './prisma/prisma.module.js';
-import { TenantsModule } from './tenants/tenants.module.js';
+import { AppointmentsModule } from './appointments/appointments.module.js';
 import { AuthModule } from './auth/auth.module.js';
-import { UsersModule } from './users/users.module.js';
-import { ServicesModule } from './services/services.module.js';
-import { EmployeesModule } from './employees/employees.module.js';
-import { ClientsModule } from './clients/clients.module.js';
 import { AvailabilityModule } from './availability/availability.module.js';
 import { BlockedTimesModule } from './blocked-times/blocked-times.module.js';
-import { AppointmentsModule } from './appointments/appointments.module.js';
+import { ClientsModule } from './clients/clients.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
-import { TeamMembersModule } from './team-members/team-members.module.js';
+import { EmployeesModule } from './employees/employees.module.js';
+import { HealthModule } from './health/health.module.js';
+import { PrismaModule } from './prisma/prisma.module.js';
 import { PublicBookingModule } from './public-booking/public-booking.module.js';
+import { ServicesModule } from './services/services.module.js';
+import { TeamMembersModule } from './team-members/team-members.module.js';
+import { TenantsModule } from './tenants/tenants.module.js';
+import { UsersModule } from './users/users.module.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true,
+      isGlobal:
+        true,
     }),
+
+    /**
+     * Habilita os decorators @Cron,
+     * @Interval e @Timeout do Nest.
+     *
+     * O serviço de lembretes ainda verifica
+     * APPOINTMENT_REMINDERS_ENABLED antes
+     * de executar qualquer processamento.
+     */
+    ScheduleModule.forRoot(),
 
     /*
      * Configuração base do rate limiting.
@@ -39,8 +50,11 @@ import { PublicBookingModule } from './public-booking/public-booking.module.js';
      */
     ThrottlerModule.forRoot([
       {
-        ttl: 60_000,
-        limit: 120,
+        ttl:
+          60_000,
+
+        limit:
+          120,
       },
     ]),
 

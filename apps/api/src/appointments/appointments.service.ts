@@ -1057,6 +1057,10 @@ export class AppointmentsService {
         .toUTC()
         .toJSDate();
 
+    const startsAtChanged =
+      startsAt.getTime() !==
+      appointment.startsAt.getTime();
+
     /*
      * Primeiro o novo horário é salvo
      * com sucesso no banco.
@@ -1126,6 +1130,13 @@ export class AppointmentsService {
             data: {
               startsAt,
               endsAt,
+
+              ...(startsAtChanged
+                ? {
+                    reminderSentAt:
+                      null,
+                  }
+                : {}),
             },
 
             include: {
@@ -1148,8 +1159,7 @@ export class AppointmentsService {
      * horário que já estava salvo.
      */
     if (
-      updatedAppointment.startsAt.getTime() !==
-      appointment.startsAt.getTime()
+      startsAtChanged
     ) {
       await this.notifyAppointmentRescheduled(
         tenantId,

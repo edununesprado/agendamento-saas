@@ -354,6 +354,9 @@ describe(
         /*
          * Agenda inicial às 09:00
          * America/Sao_Paulo.
+         *
+         * Simula que o cliente já recebeu
+         * um lembrete antes do reagendamento.
          */
         const appointment =
           await prisma.appointment.create({
@@ -381,6 +384,11 @@ describe(
 
               status:
                 'CONFIRMED',
+
+              reminderSentAt:
+                new Date(
+                  '2026-11-10T09:00:00.000Z',
+                ),
 
               notes:
                 'Agendamento para teste de reagendamento',
@@ -503,6 +511,16 @@ describe(
         );
 
         /*
+         * Como houve mudança real de horário,
+         * o lembrete anterior precisa ser
+         * invalidado para permitir um novo
+         * lembrete do novo horário.
+         */
+        expect(
+          savedAppointment?.reminderSentAt,
+        ).toBeNull();
+
+        /*
          * A integração com NotificationsService
          * precisa ser chamada apenas depois do
          * reagendamento ter sido concluído.
@@ -572,6 +590,29 @@ describe(
         /*
          * O primeiro teste deixou o
          * agendamento às 10:00.
+         *
+         * Simulamos que, depois disso,
+         * um novo lembrete já foi enviado.
+         */
+        const reminderSentAt =
+          new Date(
+            '2026-11-10T10:30:00.000Z',
+          );
+
+        await prisma.appointment.update({
+          where: {
+            id:
+              appointmentId,
+          },
+
+          data: {
+            reminderSentAt,
+          },
+        });
+
+        /*
+         * Reagenda para exatamente o mesmo
+         * horário já salvo: 10:00.
          */
         const response =
           await request(
@@ -597,6 +638,28 @@ describe(
           response.body.startsAt,
         ).toBe(
           newStartsAtUtc,
+        );
+
+        /*
+         * Como não houve mudança real de horário,
+         * reminderSentAt deve permanecer intacto.
+         */
+        const savedAppointment =
+          await prisma.appointment.findUnique({
+            where: {
+              id:
+                appointmentId,
+            },
+          });
+
+        expect(
+          savedAppointment,
+        ).not.toBeNull();
+
+        expect(
+          savedAppointment?.reminderSentAt?.toISOString(),
+        ).toBe(
+          reminderSentAt.toISOString(),
         );
 
         /*
