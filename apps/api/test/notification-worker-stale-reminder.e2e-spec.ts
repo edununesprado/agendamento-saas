@@ -125,8 +125,10 @@ describe(
     beforeAll(
       async () => {
         /*
-         * Segurança: este arquivo executa
-         * exclusões no banco de testes.
+         * Segurança:
+         * estes testes excluem registros.
+         * Nunca executar fora do banco
+         * agendamento_test.
          */
         if (
           !process.env.DATABASE_URL?.includes(
@@ -160,20 +162,13 @@ describe(
         await app.init();
 
         prisma = app.get(PrismaService);
-
         worker = app.get(
           NotificationWorkerService,
         );
 
-        /*
-         * Limpa somente o banco de testes.
-         */
         await prisma.tenant.deleteMany();
         await prisma.user.deleteMany();
 
-        /*
-         * Empresa + OWNER.
-         */
         const registerResponse =
           await request(
             app.getHttpServer(),
@@ -211,9 +206,6 @@ describe(
 
         expect(tenantId).toBeTruthy();
 
-        /*
-         * Lembretes habilitados.
-         */
         await prisma.tenant.update({
           where: {
             id: tenantId,
@@ -224,9 +216,6 @@ describe(
           },
         });
 
-        /*
-         * Funcionário.
-         */
         const employee =
           await prisma.employee.create({
             data: {
@@ -240,9 +229,6 @@ describe(
 
         employeeId = employee.id;
 
-        /*
-         * Serviço.
-         */
         const service =
           await prisma.service.create({
             data: {
@@ -255,9 +241,6 @@ describe(
 
         serviceId = service.id;
 
-        /*
-         * Cliente.
-         */
         const client =
           await prisma.client.create({
             data: {
@@ -287,10 +270,6 @@ describe(
         },
       });
 
-      /*
-       * Garante que cada teste começa
-       * com os lembretes habilitados.
-       */
       await prisma.tenant.update({
         where: {
           id: tenantId,
@@ -328,11 +307,6 @@ describe(
           delivery,
         } = await createReminderScenario(startsAt);
 
-        /*
-         * O lembrete já estava na fila,
-         * mas o agendamento foi cancelado
-         * antes do worker executar.
-         */
         await prisma.appointment.update({
           where: {
             id: appointment.id,
@@ -355,9 +329,6 @@ describe(
           skipped: 1,
         });
 
-        /*
-         * O SMTP jamais pode ser chamado.
-         */
         expect(sendMail).not.toHaveBeenCalled();
 
         const savedDelivery =
@@ -372,7 +343,6 @@ describe(
         );
 
         expect(savedDelivery?.sentAt).toBeNull();
-
         expect(savedDelivery?.failedAt).toBeNull();
 
         expect(
@@ -410,13 +380,6 @@ describe(
           originalStartsAt,
         );
 
-        /*
-         * O agendamento muda de 15:00 local
-         * para 16:00 local antes do worker.
-         *
-         * O dedupeKey da entrega continua
-         * apontando para o horário antigo.
-         */
         const newStartsAt = new Date(
           '2026-11-10T19:00:00.000Z',
         );
@@ -460,7 +423,6 @@ describe(
         );
 
         expect(savedDelivery?.sentAt).toBeNull();
-
         expect(savedDelivery?.failedAt).toBeNull();
 
         expect(savedDelivery?.lastError).toContain(
@@ -496,11 +458,6 @@ describe(
           delivery,
         } = await createReminderScenario(startsAt);
 
-        /*
-         * A empresa desativa lembretes
-         * depois que esta entrega já
-         * estava PENDING.
-         */
         await prisma.tenant.update({
           where: {
             id: tenantId,
@@ -550,24 +507,17 @@ describe(
       },
     );
 
+    /*
+     * ETAPA 2.9 - SUCESSO SMTP TARDIO
+     *
+     * Depois da recuperação para UNCERTAIN,
+     * uma resposta de sucesso da tentativa
+     * anterior não pode mudar o estado
+     * da entrega nem reminderSentAt.
+     */
     it(
-      'não permite que uma tentativa antiga marque como SENT um lembrete assumido por outra tentativa',
+      'não permite que sucesso SMTP tardio sobrescreva lembrete UNCERTAIN',
       async () => {
-        /*
-         * TESTE DE CONCORRÊNCIA
-         *
-         * A primeira tentativa inicia SMTP,
-         * mas permanece aguardando resposta.
-         *
-         * Depois de 11 minutos simulados,
-         * a segunda tentativa recupera
-         * a entrega e inicia outro SMTP.
-         *
-         * Quando a primeira termina, ela
-         * não pode marcar a entrega como SENT
-         * nem preencher reminderSentAt.
-         */
-
         const startsAt = new Date(
           '2026-11-10T18:00:00.000Z',
         );
@@ -581,31 +531,15 @@ describe(
           now.getTime() + 11 * 60 * 1000,
         );
 
-        /*
-         * Promessas controladas pelo teste.
-         * Nenhum e-mail real é enviado.
-         */
         let resolveFirstEmail:
-          (sent: boolean) => void = () => {};
-
-        let resolveSecondEmail:
           (sent: boolean) => void = () => {};
 
         let signalFirstStarted:
           () => void = () => {};
 
-        let signalSecondStarted:
-          () => void = () => {};
-
         const firstEmail = new Promise<boolean>(
           (resolve) => {
             resolveFirstEmail = resolve;
-          },
-        );
-
-        const secondEmail = new Promise<boolean>(
-          (resolve) => {
-            resolveSecondEmail = resolve;
           },
         );
 
@@ -615,28 +549,16 @@ describe(
           },
         );
 
-        const secondStarted = new Promise<void>(
-          (resolve) => {
-            signalSecondStarted = resolve;
-          },
-        );
-
         sendMail.mockReset();
 
-        sendMail
-          .mockImplementationOnce(() => {
-            signalFirstStarted();
-            return firstEmail;
-          })
-          .mockImplementationOnce(() => {
-            signalSecondStarted();
-            return secondEmail;
-          });
+        sendMail.mockImplementationOnce(() => {
+          signalFirstStarted();
+          return firstEmail;
+        });
 
         /*
          * Primeira execução:
-         * faz o claim e inicia SMTP,
-         * mas fica aguardando firstEmail.
+         * o SMTP inicia e fica pendente.
          */
         const firstRun =
           worker.processDueNotifications(now);
@@ -656,107 +578,77 @@ describe(
 
         expect(claimedFirst?.attempts).toBe(1);
 
+        expect(
+          claimedFirst?.processingStartedAt?.toISOString(),
+        ).toBe(now.toISOString());
+
+        expect(sendMail).toHaveBeenCalledTimes(1);
+
         /*
-         * Segunda execução:
-         * simula 11 minutos depois.
-         *
-         * O primeiro PROCESSING é considerado
-         * abandonado e ocorre novo claim.
+         * Onze minutos depois:
+         * a recuperação registra UNCERTAIN,
+         * sem iniciar um segundo SMTP.
          */
-        const secondRun =
-          worker.processDueNotifications(
+        const recoveryResult =
+          await worker.processDueNotifications(
             recoveryNow,
           );
 
-        await secondStarted;
+        expect(recoveryResult).toEqual({
+          sent: 0,
+          retry: 0,
+          failed: 0,
+          skipped: 0,
+        });
 
-        const claimedSecond =
+        expect(sendMail).toHaveBeenCalledTimes(1);
+
+        const recoveredDelivery =
           await prisma.notificationDelivery.findUnique({
             where: {
               id: delivery.id,
             },
           });
 
-        expect(claimedSecond?.status).toBe(
-          'PROCESSING',
+        expect(recoveredDelivery?.status).toBe(
+          'UNCERTAIN',
         );
 
-        expect(claimedSecond?.attempts).toBe(2);
+        expect(recoveredDelivery?.attempts).toBe(1);
 
         expect(
-          claimedSecond?.processingStartedAt?.toISOString(),
-        ).toBe(recoveryNow.toISOString());
+          recoveredDelivery?.lastAttemptAt?.toISOString(),
+        ).toBe(now.toISOString());
+
+        expect(
+          recoveredDelivery?.processingStartedAt,
+        ).toBeNull();
+
+        expect(recoveredDelivery?.sentAt).toBeNull();
+        expect(recoveredDelivery?.failedAt).toBeNull();
+
+        expect(recoveredDelivery?.lastError).toContain(
+          'resultado SMTP incerto',
+        );
 
         /*
-         * Agora a tentativa antiga recebe
-         * uma resposta de sucesso do SMTP,
-         * enquanto a tentativa nova
-         * continua em processamento.
+         * O SMTP responde com sucesso
+         * depois da recuperação.
+         *
+         * O claim antigo não pode
+         * sobrescrever UNCERTAIN.
          */
         resolveFirstEmail(true);
 
-        await firstRun;
+        const firstResult = await firstRun;
 
-        /*
-         * Capturamos o estado ANTES
-         * de concluir o segundo SMTP.
-         */
-        const stateAfterOldAttempt =
-          await prisma.notificationDelivery.findUnique({
-            where: {
-              id: delivery.id,
-            },
-          });
+        expect(firstResult).toEqual({
+          sent: 0,
+          retry: 0,
+          failed: 0,
+          skipped: 1,
+        });
 
-        const appointmentAfterOldAttempt =
-          await prisma.appointment.findUnique({
-            where: {
-              id: appointment.id,
-            },
-          });
-
-        /*
-         * Encerramos a segunda execução
-         * para não deixar promessas pendentes
-         * após o teste.
-         */
-        resolveSecondEmail(true);
-
-        await secondRun;
-
-        expect(sendMail).toHaveBeenCalledTimes(2);
-
-        /*
-         * A primeira tentativa NÃO possui
-         * mais a responsabilidade pela entrega.
-         *
-         * Estes asserts devem falhar no worker
-         * antigo e passar depois da correção.
-         */
-        expect(stateAfterOldAttempt?.status).toBe(
-          'PROCESSING',
-        );
-
-        expect(stateAfterOldAttempt?.attempts).toBe(2);
-
-        expect(
-          stateAfterOldAttempt?.processingStartedAt
-            ?.toISOString(),
-        ).toBe(recoveryNow.toISOString());
-
-        expect(
-          stateAfterOldAttempt?.sentAt,
-        ).toBeNull();
-
-        expect(
-          appointmentAfterOldAttempt?.reminderSentAt,
-        ).toBeNull();
-
-        /*
-         * Após a segunda tentativa terminar
-         * com sucesso, o estado final pode
-         * ser SENT.
-         */
         const finalDelivery =
           await prisma.notificationDelivery.findUnique({
             where: {
@@ -764,33 +656,58 @@ describe(
             },
           });
 
-        expect(finalDelivery?.status).toBe('SENT');
+        const finalAppointment =
+          await prisma.appointment.findUnique({
+            where: {
+              id: appointment.id,
+            },
+          });
 
-        expect(finalDelivery?.attempts).toBe(2);
+        expect(finalDelivery?.status).toBe(
+          'UNCERTAIN',
+        );
+
+        expect(finalDelivery?.attempts).toBe(1);
+
+        expect(
+          finalDelivery?.processingStartedAt,
+        ).toBeNull();
+
+        expect(finalDelivery?.sentAt).toBeNull();
+        expect(finalDelivery?.failedAt).toBeNull();
+
+        expect(finalDelivery?.lastError).toContain(
+          'resultado SMTP incerto',
+        );
+
+        expect(
+          finalAppointment?.reminderSentAt,
+        ).toBeNull();
+
+        expect(sendMail).toHaveBeenCalledTimes(1);
       },
       30000,
     );
 
+    /*
+     * ETAPA 2.10 - FALHA SMTP TARDIA
+     *
+     * Cenário:
+     *
+     * 1. O worker inicia uma tentativa.
+     * 2. O SMTP permanece sem resposta.
+     * 3. Onze minutos depois, a entrega
+     *    passa para UNCERTAIN.
+     * 4. A tentativa original retorna
+     *    uma falha tardia.
+     *
+     * A falha antiga não pode sobrescrever
+     * UNCERTAIN, registrar FAILED
+     * ou agendar retry.
+     */
     it(
-      'não permite que uma falha antiga sobrescreva o processamento de uma tentativa mais recente',
+      'não permite que falha SMTP tardia sobrescreva lembrete UNCERTAIN',
       async () => {
-        /*
-         * ETAPA 2.3 - REGRESSÃO DE FALHA ANTIGA
-         *
-         * A primeira tentativa inicia SMTP
-         * e permanece aguardando resposta.
-         *
-         * Após 11 minutos simulados,
-         * a segunda tentativa assume
-         * a mesma notificação.
-         *
-         * A primeira tentativa então falha.
-         *
-         * Essa falha não pode modificar
-         * o processamento da segunda
-         * tentativa nem agendar um retry.
-         */
-
         const startsAt = new Date(
           '2026-11-10T18:00:00.000Z',
         );
@@ -805,30 +722,20 @@ describe(
         );
 
         /*
-         * Controlamos separadamente
-         * as duas respostas do SMTP.
+         * O primeiro SMTP fica pendente.
+         *
+         * A promessa será resolvida
+         * manualmente pelo teste.
          */
         let resolveFirstEmail:
-          (sent: boolean) => void = () => {};
-
-        let resolveSecondEmail:
           (sent: boolean) => void = () => {};
 
         let signalFirstStarted:
           () => void = () => {};
 
-        let signalSecondStarted:
-          () => void = () => {};
-
         const firstEmail = new Promise<boolean>(
           (resolve) => {
             resolveFirstEmail = resolve;
-          },
-        );
-
-        const secondEmail = new Promise<boolean>(
-          (resolve) => {
-            resolveSecondEmail = resolve;
           },
         );
 
@@ -838,28 +745,17 @@ describe(
           },
         );
 
-        const secondStarted = new Promise<void>(
-          (resolve) => {
-            signalSecondStarted = resolve;
-          },
-        );
-
         sendMail.mockReset();
 
-        sendMail
-          .mockImplementationOnce(() => {
-            signalFirstStarted();
-            return firstEmail;
-          })
-          .mockImplementationOnce(() => {
-            signalSecondStarted();
-            return secondEmail;
-          });
+        sendMail.mockImplementationOnce(() => {
+          signalFirstStarted();
+          return firstEmail;
+        });
 
         /*
          * Primeira execução:
-         * a notificação entra em PROCESSING
-         * e aguarda a resposta do SMTP.
+         * a notificação passa para
+         * PROCESSING e o SMTP inicia.
          */
         const firstRun =
           worker.processDueNotifications(now);
@@ -884,62 +780,81 @@ describe(
             ?.toISOString(),
         ).toBe(now.toISOString());
 
+        expect(sendMail).toHaveBeenCalledTimes(1);
+
         /*
-         * Segunda execução:
-         * 11 minutos depois, o worker
-         * recupera a entrega e inicia
-         * a segunda tentativa.
+         * Onze minutos depois:
+         *
+         * A notificação é considerada
+         * abandonada e passa para
+         * UNCERTAIN.
+         *
+         * Nenhum segundo SMTP deve ocorrer.
          */
-        const secondRun =
-          worker.processDueNotifications(
+        const recoveryResult =
+          await worker.processDueNotifications(
             recoveryNow,
           );
 
-        await secondStarted;
+        expect(recoveryResult).toEqual({
+          sent: 0,
+          retry: 0,
+          failed: 0,
+          skipped: 0,
+        });
 
-        const claimedSecond =
+        expect(sendMail).toHaveBeenCalledTimes(1);
+
+        const recoveredDelivery =
           await prisma.notificationDelivery.findUnique({
             where: {
               id: delivery.id,
             },
           });
 
-        expect(claimedSecond?.status).toBe(
-          'PROCESSING',
+        expect(recoveredDelivery?.status).toBe(
+          'UNCERTAIN',
         );
 
-        expect(claimedSecond?.attempts).toBe(2);
+        expect(recoveredDelivery?.attempts).toBe(1);
 
         expect(
-          claimedSecond?.processingStartedAt
+          recoveredDelivery?.lastAttemptAt
             ?.toISOString(),
-        ).toBe(recoveryNow.toISOString());
+        ).toBe(now.toISOString());
 
-        /*
-         * A recuperação anterior definiu
-         * nextAttemptAt como recoveryNow.
-         *
-         * O segundo claim não muda
-         * esse valor.
-         */
         expect(
-          claimedSecond?.nextAttemptAt.toISOString(),
-        ).toBe(recoveryNow.toISOString());
+          recoveredDelivery?.processingStartedAt,
+        ).toBeNull();
+
+        expect(recoveredDelivery?.sentAt).toBeNull();
+        expect(recoveredDelivery?.failedAt).toBeNull();
+
+        expect(recoveredDelivery?.lastError).toContain(
+          'resultado SMTP incerto',
+        );
+
+        const originalNextAttemptAt =
+          recoveredDelivery?.nextAttemptAt.toISOString();
+
+        const originalLastError =
+          recoveredDelivery?.lastError;
 
         /*
-         * Agora a tentativa ANTIGA falha.
+         * Agora o SMTP da tentativa
+         * original informa uma falha.
          *
-         * Ela não deve conseguir alterar
-         * a tentativa mais recente.
+         * Essa resposta chega depois
+         * de a entrega ser marcada
+         * como UNCERTAIN.
          */
         resolveFirstEmail(false);
 
         const firstResult = await firstRun;
 
         /*
-         * O worker deve reconhecer
-         * que a tentativa antiga perdeu
-         * a responsabilidade pela entrega.
+         * A tentativa antiga perdeu seu claim
+         * e não pode produzir um retry.
          */
         expect(firstResult).toEqual({
           sent: 0,
@@ -949,97 +864,9 @@ describe(
         });
 
         /*
-         * Capturamos o estado enquanto
-         * o segundo SMTP continua pendente.
+         * Conferimos que a falha tardia
+         * não alterou o banco.
          */
-        const stateAfterOldFailure =
-          await prisma.notificationDelivery.findUnique({
-            where: {
-              id: delivery.id,
-            },
-          });
-
-        const appointmentAfterOldFailure =
-          await prisma.appointment.findUnique({
-            where: {
-              id: appointment.id,
-            },
-          });
-
-        /*
-         * Finalizamos o SMTP da segunda
-         * tentativa antes das verificações
-         * para não deixar uma execução
-         * pendente ao término do teste.
-         */
-        resolveSecondEmail(true);
-
-        const secondResult = await secondRun;
-
-        expect(sendMail).toHaveBeenCalledTimes(2);
-
-        /*
-         * A falha antiga não pode mudar
-         * o status para FAILED.
-         */
-        expect(
-          stateAfterOldFailure?.status,
-        ).toBe('PROCESSING');
-
-        /*
-         * A tentativa atual continua
-         * sendo a segunda.
-         */
-        expect(
-          stateAfterOldFailure?.attempts,
-        ).toBe(2);
-
-        expect(
-          stateAfterOldFailure?.processingStartedAt
-            ?.toISOString(),
-        ).toBe(recoveryNow.toISOString());
-
-        /*
-         * A falha antiga não pode definir
-         * um novo horário de retry.
-         */
-        expect(
-          stateAfterOldFailure?.nextAttemptAt
-            .toISOString(),
-        ).toBe(recoveryNow.toISOString());
-
-        /*
-         * A falha antiga também não pode
-         * registrar erro ou falha definitiva
-         * sobre a tentativa atual.
-         */
-        expect(
-          stateAfterOldFailure?.lastError,
-        ).toBeNull();
-
-        expect(
-          stateAfterOldFailure?.failedAt,
-        ).toBeNull();
-
-        expect(
-          stateAfterOldFailure?.sentAt,
-        ).toBeNull();
-
-        expect(
-          appointmentAfterOldFailure?.reminderSentAt,
-        ).toBeNull();
-
-        /*
-         * A segunda tentativa deve
-         * conseguir finalizar normalmente.
-         */
-        expect(secondResult).toEqual({
-          sent: 1,
-          retry: 0,
-          failed: 0,
-          skipped: 0,
-        });
-
         const finalDelivery =
           await prisma.notificationDelivery.findUnique({
             where: {
@@ -1055,27 +882,77 @@ describe(
           });
 
         expect(finalDelivery?.status).toBe(
-          'SENT',
+          'UNCERTAIN',
         );
 
-        expect(finalDelivery?.attempts).toBe(2);
+        expect(finalDelivery?.attempts).toBe(1);
 
         expect(
-          finalDelivery?.failedAt,
+          finalDelivery?.lastAttemptAt?.toISOString(),
+        ).toBe(now.toISOString());
+
+        expect(
+          finalDelivery?.processingStartedAt,
         ).toBeNull();
 
+        expect(finalDelivery?.sentAt).toBeNull();
+        expect(finalDelivery?.failedAt).toBeNull();
+
+        /*
+         * Nenhum retry deve ser agendado
+         * pela resposta antiga.
+         */
         expect(
-          finalDelivery?.lastError,
+          finalDelivery?.nextAttemptAt.toISOString(),
+        ).toBe(originalNextAttemptAt);
+
+        /*
+         * O motivo original da incerteza
+         * deve continuar registrado.
+         */
+        expect(finalDelivery?.lastError).toBe(
+          originalLastError,
+        );
+
+        expect(
+          finalAppointment?.reminderSentAt,
         ).toBeNull();
 
-        expect(
-          finalDelivery?.sentAt?.toISOString(),
-        ).toBe(recoveryNow.toISOString());
+        expect(sendMail).toHaveBeenCalledTimes(1);
 
-        expect(
-          finalAppointment?.reminderSentAt
-            ?.toISOString(),
-        ).toBe(recoveryNow.toISOString());
+        /*
+         * Mesmo no dia seguinte,
+         * a entrega UNCERTAIN permanece
+         * fora da fila de reenvio.
+         */
+        const resultNextDay =
+          await worker.processDueNotifications(
+            new Date(
+              '2026-11-11T12:00:00.000Z',
+            ),
+          );
+
+        expect(resultNextDay).toEqual({
+          sent: 0,
+          retry: 0,
+          failed: 0,
+          skipped: 0,
+        });
+
+        expect(sendMail).toHaveBeenCalledTimes(1);
+
+        const savedNextDay =
+          await prisma.notificationDelivery.findUnique({
+            where: {
+              id: delivery.id,
+            },
+          });
+
+        expect(savedNextDay?.status).toBe(
+          'UNCERTAIN',
+        );
+
+        expect(savedNextDay?.attempts).toBe(1);
       },
       30000,
     );

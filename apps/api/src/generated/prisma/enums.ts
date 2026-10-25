@@ -66,7 +66,8 @@ export const NotificationStatus = {
   PROCESSING: 'PROCESSING',
   SENT: 'SENT',
   FAILED: 'FAILED',
-  CANCELED: 'CANCELED'
+  CANCELED: 'CANCELED',
+  UNCERTAIN: 'UNCERTAIN'
 } as const
 
 export type NotificationStatus = (typeof NotificationStatus)[keyof typeof NotificationStatus]

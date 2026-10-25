@@ -12,7 +12,10 @@ import {
 } from 'vitest';
 
 import { AppModule } from '../src/app.module.js';
-import { EmailService } from '../src/notifications/email.service.js';
+import {
+  EmailService,
+  SmtpDeliveryUncertainError,
+} from '../src/notifications/email.service.js';
 import { NotificationWorkerService } from '../src/notifications/notification-worker.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 
@@ -289,8 +292,25 @@ describe('Worker da fila de notificações (E2E)', () => {
     },
   );
 
+  /*
+   * ETAPA 2.8 - TENTATIVAS ESGOTADAS
+   *
+   * Uma notificação abandonada em
+   * PROCESSING pode ter sido enviada
+   * ao SMTP antes da interrupção.
+   *
+   * Mesmo quando attempts alcançou
+   * maxAttempts, o resultado do envio
+   * continua desconhecido.
+   *
+   * Por isso, esperamos UNCERTAIN
+   * em vez de FAILED.
+   *
+   * Este teste deve falhar antes
+   * da correção do worker.
+   */
   it(
-    'recupera PROCESSING abandonado e encerra quando as tentativas acabaram',
+    'marca como UNCERTAIN PROCESSING abandonado com tentativas esgotadas',
     async () => {
       const processingStartedAt = new Date(
         now.getTime() - 11 * 60 * 1000,
@@ -313,15 +333,22 @@ describe('Worker da fila de notificações (E2E)', () => {
         },
       });
 
-      const result = await worker.processDueNotifications(now);
+      /*
+       * Executa a recuperação após
+       * 11 minutos de processamento.
+       *
+       * O envio anterior pode ter
+       * sido aceito pelo servidor SMTP.
+       */
+      const result =
+        await worker.processDueNotifications(now);
 
       /*
-       * A recuperação acontece antes da
-       * busca de candidatos.
+       * Nenhum novo envio deve acontecer.
        *
-       * Como as tentativas já acabaram,
-       * a notificação vira uma falha
-       * definitiva e não chega ao SMTP.
+       * Também não devemos contabilizar
+       * a recuperação como uma nova falha
+       * definitiva de envio.
        */
       expect(result).toEqual({
         sent: 0,
@@ -332,23 +359,68 @@ describe('Worker da fila de notificações (E2E)', () => {
 
       expect(sendMail).not.toHaveBeenCalled();
 
-      const saved = await prisma.notificationDelivery.findUnique({
-        where: {
-          id: delivery.id,
-        },
-      });
+      const saved =
+        await prisma.notificationDelivery.findUnique({
+          where: {
+            id: delivery.id,
+          },
+        });
 
-      expect(saved?.status).toBe('FAILED');
+      /*
+       * O estado deve representar que
+       * o resultado SMTP é desconhecido,
+       * mesmo com tentativas esgotadas.
+       */
+      expect(saved?.status).toBe('UNCERTAIN');
+
+      /*
+       * Preservamos o histórico
+       * da tentativa interrompida.
+       */
       expect(saved?.attempts).toBe(2);
-      expect(saved?.processingStartedAt).toBeNull();
+      expect(saved?.maxAttempts).toBe(2);
 
-      expect(saved?.failedAt?.toISOString()).toBe(
-        now.toISOString(),
+      expect(saved?.lastAttemptAt?.toISOString()).toBe(
+        processingStartedAt.toISOString(),
       );
+
+      expect(saved?.processingStartedAt).toBeNull();
+      expect(saved?.sentAt).toBeNull();
+      expect(saved?.failedAt).toBeNull();
 
       expect(saved?.lastError).toContain(
         'Processamento anterior foi interrompido',
       );
+
+      /*
+       * Mesmo no dia seguinte,
+       * a notificação deve continuar
+       * fora da fila automática.
+       */
+      const resultNextDay =
+        await worker.processDueNotifications(
+          new Date('2026-10-25T12:00:00.000Z'),
+        );
+
+      expect(resultNextDay).toEqual({
+        sent: 0,
+        retry: 0,
+        failed: 0,
+        skipped: 0,
+      });
+
+      expect(sendMail).not.toHaveBeenCalled();
+
+      const savedAgain =
+        await prisma.notificationDelivery.findUnique({
+          where: {
+            id: delivery.id,
+          },
+        });
+
+      expect(savedAgain?.status).toBe('UNCERTAIN');
+      expect(savedAgain?.attempts).toBe(2);
+      expect(savedAgain?.failedAt).toBeNull();
     },
   );
 
@@ -493,6 +565,266 @@ describe('Worker da fila de notificações (E2E)', () => {
        * notificação durante essa recuperação.
        */
       expect(sendMail).not.toHaveBeenCalled();
+    },
+  );
+
+  /*
+   * ETAPA 2.6 - CONFIRMAÇÃO SMTP INCERTA
+   *
+   * O SMTP pode ter aceitado a mensagem,
+   * mas o aplicativo não recebeu a resposta.
+   *
+   * Nesse cenário não podemos considerar
+   * o envio confirmado, nem repetir
+   * automaticamente a mensagem.
+   *
+   * Este teste foi criado antes
+   * da implementação do estado UNCERTAIN.
+   */
+  it(
+    'mantém entrega incerta fora do retry automático',
+    async () => {
+      const smtpError = Object.assign(
+        new Error(
+          'Timeout aguardando confirmação SMTP durante DATA',
+        ),
+        {
+          code: 'ETIMEDOUT',
+          command: 'DATA',
+          timeoutType: 'SOCKET_TIMEOUT',
+        },
+      );
+
+      /*
+       * Simula o novo erro específico
+       * produzido pelo EmailService.
+       */
+      sendMail.mockRejectedValue(
+        new SmtpDeliveryUncertainError(smtpError),
+      );
+
+      const delivery =
+        await prisma.notificationDelivery.create({
+          data: {
+            tenantId,
+            type: 'APPOINTMENT_CONFIRMED',
+            status: 'PENDING',
+            recipient: 'incerto@teste.com',
+            subject: 'Confirmação incerta',
+            text: 'Mensagem com confirmação incerta.',
+            dedupeKey: 'worker-e2e:uncertain:1',
+            maxAttempts: 3,
+            nextAttemptAt: now,
+          },
+        });
+
+      /*
+       * Primeira execução: o SMTP retorna
+       * uma confirmação incerta.
+       */
+      const result =
+        await worker.processDueNotifications(now);
+
+      expect(result.sent).toBe(0);
+      expect(result.retry).toBe(0);
+      expect(result.failed).toBe(0);
+
+      expect(sendMail).toHaveBeenCalledTimes(1);
+
+      const saved =
+        await prisma.notificationDelivery.findUnique({
+          where: {
+            id: delivery.id,
+          },
+        });
+
+      /*
+       * Comportamento desejado:
+       * estado exclusivo para entregas
+       * que precisam ser analisadas.
+       */
+      expect(saved?.status).toBe('UNCERTAIN');
+
+      expect(saved?.attempts).toBe(1);
+
+      expect(saved?.lastAttemptAt?.toISOString()).toBe(
+        now.toISOString(),
+      );
+
+      expect(saved?.processingStartedAt).toBeNull();
+      expect(saved?.sentAt).toBeNull();
+      expect(saved?.failedAt).toBeNull();
+
+      expect(saved?.lastError).toContain(
+        'Não foi possível confirmar',
+      );
+
+      /*
+       * Avançamos um dia.
+       *
+       * Mesmo depois de transcorrido o
+       * intervalo normal de retry,
+       * a mensagem não pode ser reenviada.
+       */
+      await worker.processDueNotifications(
+        new Date('2026-10-25T12:00:00.000Z'),
+      );
+
+      expect(sendMail).toHaveBeenCalledTimes(1);
+
+      const savedAgain =
+        await prisma.notificationDelivery.findUnique({
+          where: {
+            id: delivery.id,
+          },
+        });
+
+      expect(savedAgain?.status).toBe('UNCERTAIN');
+      expect(savedAgain?.attempts).toBe(1);
+    },
+  );
+
+  /*
+   * ETAPA 2.7 - PROCESSAMENTO SMTP INTERROMPIDO
+   *
+   * Uma notificação pode permanecer em
+   * PROCESSING quando o processo termina
+   * antes de receber a resposta SMTP.
+   *
+   * Não sabemos se o servidor aceitou
+   * ou não a mensagem.
+   *
+   * A recuperação automática não deve
+   * iniciar outro envio nessa situação.
+   */
+  it(
+    'não reenvia PROCESSING abandonado com tentativas disponíveis',
+    async () => {
+      const processingStartedAt = new Date(
+        now.getTime() - 11 * 60 * 1000,
+      );
+
+      /*
+       * Simula uma tentativa já iniciada
+       * que perdeu seu processo antes
+       * de obter uma resposta do SMTP.
+       *
+       * Ainda existem tentativas disponíveis,
+       * mas isso não significa que reenviar
+       * a mensagem seja seguro.
+       */
+      const delivery =
+        await prisma.notificationDelivery.create({
+          data: {
+            tenantId,
+
+            type: 'APPOINTMENT_CONFIRMED',
+
+            status: 'PROCESSING',
+
+            recipient:
+              'interrompido@teste.com',
+
+            subject:
+              'Envio SMTP interrompido',
+
+            text:
+              'Mensagem com resultado SMTP desconhecido.',
+
+            dedupeKey:
+              'worker-e2e:stale-uncertain:1',
+
+            attempts: 1,
+
+            maxAttempts: 3,
+
+            processingStartedAt,
+
+            lastAttemptAt:
+              processingStartedAt,
+
+            nextAttemptAt:
+              processingStartedAt,
+          },
+        });
+
+      /*
+       * Executa o mecanismo de
+       * recuperação após 11 minutos.
+       */
+      const result =
+        await worker.processDueNotifications(now);
+
+      /*
+       * A recuperação não deve enviar
+       * a mesma mensagem novamente.
+       */
+      expect(result).toEqual({
+        sent: 0,
+        retry: 0,
+        failed: 0,
+        skipped: 0,
+      });
+
+      expect(sendMail).not.toHaveBeenCalled();
+
+      const saved =
+        await prisma.notificationDelivery.findUnique({
+          where: {
+            id: delivery.id,
+          },
+        });
+
+      expect(saved?.status).toBe('UNCERTAIN');
+
+      /*
+       * A tentativa anterior permanece
+       * registrada para análise.
+       */
+      expect(saved?.attempts).toBe(1);
+
+      expect(saved?.lastAttemptAt?.toISOString()).toBe(
+        processingStartedAt.toISOString(),
+      );
+
+      expect(saved?.processingStartedAt).toBeNull();
+      expect(saved?.sentAt).toBeNull();
+      expect(saved?.failedAt).toBeNull();
+
+      expect(saved?.lastError).toContain(
+        'Processamento anterior foi interrompido',
+      );
+
+      /*
+       * Executa o worker novamente no
+       * dia seguinte.
+       *
+       * A notificação incerta deve
+       * continuar fora da fila de retry.
+       */
+      const resultNextDay =
+        await worker.processDueNotifications(
+          new Date('2026-10-25T12:00:00.000Z'),
+        );
+
+      expect(resultNextDay).toEqual({
+        sent: 0,
+        retry: 0,
+        failed: 0,
+        skipped: 0,
+      });
+
+      expect(sendMail).not.toHaveBeenCalled();
+
+      const savedAgain =
+        await prisma.notificationDelivery.findUnique({
+          where: {
+            id: delivery.id,
+          },
+        });
+
+      expect(savedAgain?.status).toBe('UNCERTAIN');
+      expect(savedAgain?.attempts).toBe(1);
     },
   );
 });

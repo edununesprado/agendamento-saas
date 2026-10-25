@@ -1,17 +1,14 @@
 
-import {
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  Cron,
-  CronExpression,
-} from '@nestjs/schedule';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 
-import { EmailService } from './email.service.js';
+import {
+  EmailService,
+  SmtpDeliveryUncertainError,
+} from './email.service.js';
 
 type ProcessResult =
   | 'sent'
@@ -21,9 +18,7 @@ type ProcessResult =
 
 type ClaimedDelivery = {
   id: string;
-
   tenantId: string;
-
   appointmentId: string | null;
 
   type:
@@ -38,20 +33,16 @@ type ClaimedDelivery = {
     | 'PROCESSING'
     | 'SENT'
     | 'FAILED'
-    | 'CANCELED';
+    | 'CANCELED'
+    | 'UNCERTAIN';
 
   recipient: string;
-
   subject: string;
-
   text: string;
-
   html: string | null;
-
   dedupeKey: string;
 
   attempts: number;
-
   maxAttempts: number;
 
   processingStartedAt: Date | null;
@@ -127,9 +118,7 @@ export class NotificationWorkerService {
 
     const startsAt = new Date(value);
 
-    if (
-      Number.isNaN(startsAt.getTime())
-    ) {
+    if (Number.isNaN(startsAt.getTime())) {
       return null;
     }
 
@@ -150,18 +139,15 @@ export class NotificationWorkerService {
     /*
      * SMTP desativado propositalmente:
      *
-     * não buscamos entregas,
+     * Não buscamos entregas,
      * não fazemos claim,
      * não incrementamos attempts
      * e não transformamos nada em FAILED.
      *
      * As notificações permanecem na fila
-     * para serem processadas quando o SMTP
-     * for ativado novamente.
+     * para processamento futuro.
      */
-    if (
-      this.isSmtpExplicitlyDisabled()
-    ) {
+    if (this.isSmtpExplicitlyDisabled()) {
       this.logger.debug(
         'Fila de notificações pausada porque SMTP_ENABLED=false',
       );
@@ -198,10 +184,15 @@ export class NotificationWorkerService {
   async processDueNotifications(
     now = new Date(),
   ) {
-    await this.recoverStaleProcessing(
-      now,
-    );
+    await this.recoverStaleProcessing(now);
 
+    /*
+     * UNCERTAIN não é elegível
+     * para processamento automático.
+     *
+     * Apenas PENDING e FAILED
+     * sem failedAt podem ser processados.
+     */
     const candidates =
       await this.prisma.notificationDelivery.findMany({
         where: {
@@ -247,9 +238,7 @@ export class NotificationWorkerService {
     let failed = 0;
     let skipped = 0;
 
-    for (
-      const candidate of candidates
-    ) {
+    for (const candidate of candidates) {
       const result =
         await this.processNotification(
           candidate.id,
@@ -299,9 +288,7 @@ export class NotificationWorkerService {
             ) AS locked
           `;
 
-        if (
-          !lockResult[0]?.locked
-        ) {
+        if (!lockResult[0]?.locked) {
           return null;
         }
 
@@ -357,10 +344,8 @@ export class NotificationWorkerService {
          * Cada claim incrementa attempts
          * e registra seu início.
          *
-         * Esses dois valores permitem
-         * identificar posteriormente
-         * qual tentativa é responsável
-         * pela entrega.
+         * Esses valores identificam
+         * a tentativa responsável.
          */
         return tx.notificationDelivery.update({
           where: {
@@ -386,12 +371,9 @@ export class NotificationWorkerService {
   }
 
   /*
-   * Cancela a notificação apenas se
-   * a tentativa atual ainda for a
-   * responsável pelo processamento.
-   *
-   * Uma tentativa antiga não pode
-   * cancelar uma entrega reassumida.
+   * Cancela a notificação somente
+   * se a tentativa ainda possuir
+   * o claim atual.
    */
   private async cancelDelivery(
     delivery: ClaimedDelivery,
@@ -435,9 +417,7 @@ export class NotificationWorkerService {
       return true;
     }
 
-    if (
-      !delivery.appointmentId
-    ) {
+    if (!delivery.appointmentId) {
       await this.cancelDelivery(
         delivery,
         'Lembrete cancelado porque não possui appointmentId',
@@ -491,6 +471,16 @@ export class NotificationWorkerService {
       return false;
     }
 
+    /*
+     * CORREÇÃO:
+     *
+     * O motivo do cancelamento deve
+     * informar o status real do
+     * agendamento.
+     *
+     * Exemplo:
+     * status CANCELED.
+     */
     if (
       appointment.status !==
       'CONFIRMED'
@@ -503,9 +493,7 @@ export class NotificationWorkerService {
       return false;
     }
 
-    if (
-      appointment.reminderSentAt
-    ) {
+    if (appointment.reminderSentAt) {
       await this.cancelDelivery(
         delivery,
         'Lembrete cancelado porque o agendamento já possui reminderSentAt',
@@ -534,12 +522,9 @@ export class NotificationWorkerService {
       expectedDedupeKey
     ) {
       /*
-       * O horário mudou depois que este
-       * lembrete foi criado.
-       *
-       * Portanto esta entrega pertence
-       * ao horário antigo e não deve
-       * mais ser enviada.
+       * O agendamento mudou de horário.
+       * Esta entrega pertence ao horário
+       * antigo e não pode ser enviada.
        */
       await this.cancelDelivery(
         delivery,
@@ -556,8 +541,8 @@ export class NotificationWorkerService {
    * Registra sucesso somente se
    * a tentativa ainda possuir o claim.
    *
-   * Retorna false quando o claim foi
-   * perdido para outro processamento.
+   * Retorna false quando o claim
+   * foi perdido.
    */
   private async markSent(
     delivery: ClaimedDelivery,
@@ -593,14 +578,11 @@ export class NotificationWorkerService {
           });
 
         /*
-         * Se count for zero,
-         * esta tentativa perdeu o claim.
-         *
-         * Não alteramos o agendamento.
+         * Uma tentativa antiga não
+         * pode atualizar a entrega
+         * nem reminderSentAt.
          */
-        if (
-          updated.count !== 1
-        ) {
+        if (updated.count !== 1) {
           return false;
         }
 
@@ -628,17 +610,10 @@ export class NotificationWorkerService {
 
         /*
          * reminderSentAt só é preenchido
-         * depois que EmailService confirmou
-         * o envio.
+         * depois de um envio confirmado.
          *
-         * Também exigimos que o horário
-         * continue sendo exatamente aquele
-         * ao qual esta entrega pertence.
-         *
-         * Como o updateMany acima confirmou
-         * a propriedade da tentativa,
-         * uma tentativa antiga não pode
-         * preencher reminderSentAt.
+         * O horário do agendamento também
+         * deve continuar o mesmo.
          */
         await tx.appointment.updateMany({
           where: {
@@ -681,12 +656,8 @@ export class NotificationWorkerService {
       delivery as ClaimedDelivery;
 
     /*
-     * Lembretes precisam ser revalidados
+     * Lembretes são revalidados
      * imediatamente antes do SMTP.
-     *
-     * Isso evita enviar lembrete antigo
-     * depois de cancelamento, reagendamento
-     * ou desativação dos lembretes.
      */
     const canSend =
       await this.validateReminderBeforeSend(
@@ -700,10 +671,9 @@ export class NotificationWorkerService {
 
     try {
       /*
-       * IMPORTANTE:
-       *
-       * O SMTP acontece fora de qualquer
-       * transação do banco.
+       * O SMTP acontece fora
+       * de qualquer transação
+       * do banco de dados.
        */
       const emailSent =
         await this.emailService.sendMail({
@@ -726,13 +696,9 @@ export class NotificationWorkerService {
           );
 
         /*
-         * Uma tentativa antiga pode ter
-         * recebido sucesso do SMTP,
-         * mas perdido o claim para
-         * uma tentativa mais recente.
-         *
-         * Nesse caso, não registramos
-         * um novo sucesso na fila.
+         * Uma tentativa antiga pode
+         * receber sucesso do SMTP
+         * após perder seu claim.
          */
         return markedSent
           ? 'sent'
@@ -750,6 +716,29 @@ export class NotificationWorkerService {
           ? error.message
           : String(error);
 
+      /*
+       * Confirmação SMTP incerta:
+       *
+       * Não sabemos se o servidor
+       * aceitou a mensagem.
+       *
+       * Registramos UNCERTAIN
+       * em vez de agendar retry.
+       */
+      if (
+        error instanceof
+        SmtpDeliveryUncertainError
+      ) {
+        return this.markUncertain(
+          currentDelivery,
+          message,
+        );
+      }
+
+      /*
+       * Falhas comuns permanecem
+       * no fluxo original de retry.
+       */
       return this.markFailure(
         currentDelivery,
         message,
@@ -759,11 +748,70 @@ export class NotificationWorkerService {
   }
 
   /*
-   * Uma falha também precisa respeitar
-   * a propriedade do processamento.
+   * Registra confirmação SMTP incerta.
    *
-   * Uma tentativa antiga não pode
-   * sobrescrever a tentativa mais recente.
+   * A atualização exige o claim
+   * da tentativa atual, impedindo
+   * que uma tentativa antiga
+   * sobrescreva outra.
+   */
+  private async markUncertain(
+    delivery: ClaimedDelivery,
+    errorMessage: string,
+  ): Promise<ProcessResult> {
+    const updated =
+      await this.prisma.notificationDelivery.updateMany({
+        where: {
+          id: delivery.id,
+
+          status: 'PROCESSING',
+
+          attempts:
+            delivery.attempts,
+
+          processingStartedAt:
+            delivery.processingStartedAt,
+        },
+
+        data: {
+          status: 'UNCERTAIN',
+
+          processingStartedAt: null,
+
+          sentAt: null,
+
+          failedAt: null,
+
+          lastError:
+            errorMessage.slice(
+              0,
+              2000,
+            ),
+        },
+      });
+
+    if (updated.count !== 1) {
+      return 'skipped';
+    }
+
+    this.logger.warn(
+      `Notificação ${delivery.id} com confirmação SMTP incerta após ${delivery.attempts} tentativa(s). Reenvio automático bloqueado.`,
+    );
+
+    /*
+     * O resultado é contado como skipped:
+     * não houve confirmação de sucesso
+     * nem agendamento de retry.
+     */
+    return 'skipped';
+  }
+
+  /*
+   * Falhas comuns continuam seguindo
+   * a política de retry existente.
+   *
+   * A atualização exige a propriedade
+   * do claim atual.
    */
   private async markFailure(
     delivery: ClaimedDelivery,
@@ -818,16 +866,7 @@ export class NotificationWorkerService {
         },
       });
 
-    /*
-     * count zero significa que
-     * esta tentativa perdeu o claim.
-     *
-     * Não registramos falha nem retry
-     * sobre um processamento mais recente.
-     */
-    if (
-      updated.count !== 1
-    ) {
+    if (updated.count !== 1) {
       return 'skipped';
     }
 
@@ -846,6 +885,24 @@ export class NotificationWorkerService {
     return 'retry';
   }
 
+  /*
+   * ETAPA 2.8 - RECUPERAÇÃO SEGURA
+   *
+   * Uma entrega abandonada em PROCESSING
+   * possui resultado SMTP desconhecido.
+   *
+   * Não importa se ainda existem
+   * tentativas disponíveis ou se
+   * maxAttempts já foi atingido:
+   * nenhuma dessas situações confirma
+   * que o SMTP não recebeu a mensagem.
+   *
+   * Por isso, a recuperação registra
+   * UNCERTAIN e não agenda retry.
+   *
+   * Preservamos as condições de
+   * concorrência no updateMany.
+   */
   private async recoverStaleProcessing(
     now: Date,
   ) {
@@ -869,64 +926,54 @@ export class NotificationWorkerService {
 
         select: {
           id: true,
-
           attempts: true,
-
-          maxAttempts: true,
         },
 
         take: 100,
       });
 
-    for (
-      const delivery of staleDeliveries
-    ) {
-      const exhausted =
-        delivery.attempts >=
-        delivery.maxAttempts;
-
+    for (const delivery of staleDeliveries) {
       /*
        * Proteção contra condição de corrida:
        *
-       * O processamento pode ter sido
-       * renovado após o findMany.
+       * Um processamento pode ter sido
+       * renovado depois do findMany.
        *
-       * Por isso, o updateMany precisa
-       * verificar novamente se o registro
-       * continua em PROCESSING e se o início
-       * do processamento ainda é antigo.
+       * Por isso, repetimos no updateMany
+       * as condições de status e tempo.
        *
-       * Se outro processo renovou
-       * processingStartedAt, nenhuma
-       * atualização será realizada.
+       * Se a tentativa foi renovada,
+       * nenhuma alteração será efetuada.
        */
-      await this.prisma.notificationDelivery.updateMany({
-        where: {
-          id: delivery.id,
+      const updated =
+        await this.prisma.notificationDelivery.updateMany({
+          where: {
+            id: delivery.id,
 
-          status: 'PROCESSING',
+            status: 'PROCESSING',
 
-          processingStartedAt: {
-            lte: staleBefore,
+            processingStartedAt: {
+              lte: staleBefore,
+            },
           },
-        },
 
-        data: {
-          status: 'FAILED',
+          data: {
+            status: 'UNCERTAIN',
 
-          processingStartedAt: null,
+            processingStartedAt: null,
 
-          nextAttemptAt: now,
+            failedAt: null,
 
-          failedAt:
-            exhausted
-              ? now
-              : null,
+            lastError:
+              'Processamento anterior foi interrompido antes de ser concluído; resultado SMTP incerto',
+          },
+        });
 
-          lastError:
-            'Processamento anterior foi interrompido antes de ser concluído',
-        },
-      });
+      if (updated.count === 1) {
+        this.logger.warn(
+          `Notificação ${delivery.id} estava em PROCESSING abandonado após ${delivery.attempts} tentativa(s) e foi marcada como UNCERTAIN. Reenvio automático bloqueado.`,
+        );
+      }
     }
   }
 }

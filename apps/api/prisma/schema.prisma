@@ -1,3 +1,4 @@
+
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -50,6 +51,7 @@ enum NotificationStatus {
   SENT
   FAILED
   CANCELED
+  UNCERTAIN
 }
 
 model Tenant {
@@ -236,11 +238,11 @@ model AvailabilityRule {
 model BlockedTime {
   id String @id @default(cuid())
 
-  tenantId   String
+  tenantId String
   employeeId String
 
   startsAt DateTime
-  endsAt   DateTime
+  endsAt DateTime
 
   reason String?
 
@@ -263,7 +265,7 @@ model Appointment {
   clientId   String
 
   startsAt DateTime
-  endsAt   DateTime
+  endsAt DateTime
 
   durationMin Int
   priceCents  Int
@@ -301,7 +303,7 @@ model NotificationDelivery {
 
   channel NotificationChannel @default(EMAIL)
   type    NotificationType
-  status  NotificationStatus  @default(PENDING)
+  status  NotificationStatus @default(PENDING)
 
   recipient String
   subject   String

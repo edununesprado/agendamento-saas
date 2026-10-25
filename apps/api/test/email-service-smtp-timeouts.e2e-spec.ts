@@ -179,5 +179,93 @@ describe(
         expect(result).toBe(true);
       },
     );
+
+    it(
+      'identifica como incerta uma entrega com timeout durante DATA',
+      async () => {
+        /*
+         * ETAPA 2.5 - CONFIRMAÇÃO INCERTA
+         *
+         * Ocorreu um timeout enquanto
+         * o transporte estava na etapa DATA.
+         *
+         * Não sabemos se o servidor SMTP
+         * aceitou a mensagem antes da falha.
+         *
+         * Portanto, não devemos interpretar
+         * automaticamente esse cenário
+         * como uma entrega não realizada.
+         */
+
+        const smtpError = Object.assign(
+          new Error(
+            'Timeout aguardando resposta SMTP durante DATA',
+          ),
+          {
+            code: 'ETIMEDOUT',
+
+            command: 'DATA',
+
+            timeoutType: 'SOCKET_TIMEOUT',
+          },
+        );
+
+        /*
+         * Simulamos o erro do Nodemailer.
+         *
+         * Nenhuma conexão real será aberta.
+         */
+        sendMailMock.mockRejectedValue(
+          smtpError,
+        );
+
+        /*
+         * Comportamento desejado:
+         *
+         * O EmailService deve lançar um
+         * erro próprio que identifique
+         * a confirmação como incerta.
+         *
+         * O erro original deve ser
+         * preservado em cause.
+         *
+         * A política de retry será
+         * tratada separadamente no worker.
+         */
+        await expect(
+          emailService.sendMail({
+            to: 'cliente@example.test',
+
+            subject:
+              'Teste de confirmação incerta',
+
+            text:
+              'Mensagem com resultado SMTP incerto.',
+
+            html:
+              '<p>Mensagem com resultado SMTP incerto.</p>',
+          }),
+        ).rejects.toMatchObject({
+          name: 'SmtpDeliveryUncertainError',
+
+          cause: smtpError,
+        });
+
+        /*
+         * Apenas uma tentativa de envio
+         * deve ter sido iniciada.
+         *
+         * O EmailService não deve
+         * realizar um novo envio sozinho.
+         */
+        expect(
+          createTransportMock,
+        ).toHaveBeenCalledTimes(1);
+
+        expect(
+          sendMailMock,
+        ).toHaveBeenCalledTimes(1);
+      },
+    );
   },
 );
