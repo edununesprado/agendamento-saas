@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -89,6 +90,15 @@ const menuItems: MenuItem[] = [
   {
     label: 'Usuários',
     href: '/usuarios',
+    roles: [
+      'OWNER',
+      'ADMIN',
+    ],
+  },
+
+  {
+    label: 'Notificações',
+    href: '/notificacoes',
     roles: [
       'OWNER',
       'ADMIN',
