@@ -1,3 +1,4 @@
+
 import {
   BadRequestException,
   ConflictException,
@@ -6,6 +7,9 @@ import {
 } from '@nestjs/common';
 import { DateTime } from 'luxon';
 
+import {
+  recordAppointmentAudit,
+} from '../appointments/appointment-audit.js';
 import { AvailabilityService } from '../availability/availability.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -40,12 +44,8 @@ export class PublicBookingService {
           phone: true,
           email: true,
           timezone: true,
-
-          bookingMinAdvanceMinutes:
-            true,
-
-          bookingMaxAdvanceDays:
-            true,
+          bookingMinAdvanceMinutes: true,
+          bookingMaxAdvanceDays: true,
         },
       });
 
@@ -58,55 +58,32 @@ export class PublicBookingService {
     return tenant;
   }
 
+  /*
+   * Normaliza o telefone brasileiro.
+   *
+   * Aceita o código internacional 55,
+   * mas armazena os novos telefones
+   * no formato nacional.
+   */
   private normalizePhone(
     value: string,
   ) {
-    const digits =
-      value.replace(
-        /\D/g,
-        '',
-      );
+    const digits = value.replace(
+      /\D/g,
+      '',
+    );
 
-    /*
-     * Telefones brasileiros podem chegar
-     * com o código internacional 55.
-     *
-     * Exemplos:
-     *
-     * 5534999993333 -> 34999993333
-     * 553432343434  -> 3432343434
-     */
     const phone =
-      digits.startsWith(
-        '55',
-      ) &&
+      digits.startsWith('55') &&
       (
-        digits.length ===
-          12 ||
-        digits.length ===
-          13
+        digits.length === 12 ||
+        digits.length === 13
       )
-        ? digits.slice(
-            2,
-          )
+        ? digits.slice(2)
         : digits;
 
-    /*
-     * Formato nacional brasileiro:
-     *
-     * 10 dígitos:
-     * DDD + telefone fixo
-     *
-     * 11 dígitos:
-     * DDD + celular
-     *
-     * Também rejeitamos números
-     * iniciados por zero.
-     */
     if (
-      !/^[1-9]\d{9,10}$/.test(
-        phone,
-      )
+      !/^[1-9]\d{9,10}$/.test(phone)
     ) {
       throw new BadRequestException(
         'Telefone inválido',
@@ -116,17 +93,14 @@ export class PublicBookingService {
     return phone;
   }
 
+  /*
+   * Considera os formatos nacional
+   * e internacional usados em
+   * cadastros anteriores.
+   */
   private getPhoneLookupValues(
     phone: string,
   ) {
-    /*
-     * Mantém compatibilidade com clientes
-     * antigos que possam ter sido gravados
-     * com o código internacional 55.
-     *
-     * Novos cadastros serão sempre
-     * armazenados no formato nacional.
-     */
     return [
       phone,
       `55${phone}`,
@@ -153,9 +127,7 @@ export class PublicBookingService {
         }),
 
       minimumDate:
-        now.startOf(
-          'day',
-        ),
+        now.startOf('day'),
 
       maximumDate:
         now
@@ -163,9 +135,7 @@ export class PublicBookingService {
             days:
               bookingMaxAdvanceDays,
           })
-          .startOf(
-            'day',
-          ),
+          .startOf('day'),
     };
   }
 
@@ -176,13 +146,9 @@ export class PublicBookingService {
     bookingMaxAdvanceDays: number,
   ) {
     const selectedDate =
-      DateTime.fromISO(
-        date,
-        {
-          zone:
-            timezone,
-        },
-      );
+      DateTime.fromISO(date, {
+        zone: timezone,
+      });
 
     if (
       !selectedDate.isValid
@@ -203,9 +169,7 @@ export class PublicBookingService {
       );
 
     const selectedDay =
-      selectedDate.startOf(
-        'day',
-      );
+      selectedDate.startOf('day');
 
     if (
       selectedDay.toMillis() <
@@ -228,6 +192,9 @@ export class PublicBookingService {
     return selectedDay;
   }
 
+  /*
+   * Informações públicas da empresa.
+   */
   async findTenant(
     slug: string,
   ) {
@@ -237,35 +204,23 @@ export class PublicBookingService {
       );
 
     return {
-      name:
-        tenant.name,
-
-      slug:
-        tenant.slug,
-
-      logoUrl:
-        tenant.logoUrl,
-
-      primaryColor:
-        tenant.primaryColor,
-
-      phone:
-        tenant.phone,
-
-      email:
-        tenant.email,
-
-      timezone:
-        tenant.timezone,
-
+      name: tenant.name,
+      slug: tenant.slug,
+      logoUrl: tenant.logoUrl,
+      primaryColor: tenant.primaryColor,
+      phone: tenant.phone,
+      email: tenant.email,
+      timezone: tenant.timezone,
       bookingMinAdvanceMinutes:
         tenant.bookingMinAdvanceMinutes,
-
       bookingMaxAdvanceDays:
         tenant.bookingMaxAdvanceDays,
     };
   }
 
+  /*
+   * Serviços disponíveis na empresa.
+   */
   async findServices(
     slug: string,
   ) {
@@ -276,11 +231,8 @@ export class PublicBookingService {
 
     return this.prisma.service.findMany({
       where: {
-        tenantId:
-          tenant.id,
-
-        active:
-          true,
+        tenantId: tenant.id,
+        active: true,
       },
 
       select: {
@@ -291,12 +243,15 @@ export class PublicBookingService {
       },
 
       orderBy: {
-        name:
-          'asc',
+        name: 'asc',
       },
     });
   }
 
+  /*
+   * Profissionais ativos vinculados
+   * ao serviço selecionado.
+   */
   async findEmployees(
     slug: string,
     query: PublicEmployeesQueryDto,
@@ -309,19 +264,13 @@ export class PublicBookingService {
     const service =
       await this.prisma.service.findFirst({
         where: {
-          id:
-            query.serviceId,
-
-          tenantId:
-            tenant.id,
-
-          active:
-            true,
+          id: query.serviceId,
+          tenantId: tenant.id,
+          active: true,
         },
 
         select: {
-          id:
-            true,
+          id: true,
         },
       });
 
@@ -333,16 +282,12 @@ export class PublicBookingService {
 
     return this.prisma.employee.findMany({
       where: {
-        tenantId:
-          tenant.id,
-
-        active:
-          true,
+        tenantId: tenant.id,
+        active: true,
 
         employeeServices: {
           some: {
-            serviceId:
-              service.id,
+            serviceId: service.id,
           },
         },
       },
@@ -353,12 +298,18 @@ export class PublicBookingService {
       },
 
       orderBy: {
-        name:
-          'asc',
+        name: 'asc',
       },
     });
   }
 
+  /*
+   * Disponibilidade pública.
+   *
+   * Mantém a antecedência mínima
+   * e os limites configurados
+   * para a empresa.
+   */
   async findAvailability(
     slug: string,
     query: PublicAvailabilityQueryDto,
@@ -423,6 +374,21 @@ export class PublicBookingService {
     };
   }
 
+  /*
+   * ETAPA 6.1 — CRIAÇÃO PÚBLICA
+   *
+   * Operações na mesma transação:
+   *
+   * 1. Identificar ou criar cliente.
+   * 2. Verificar conflitos do cliente.
+   * 3. Verificar conflitos do profissional.
+   * 4. Criar agendamento PENDING.
+   * 5. Criar notificação na Outbox.
+   * 6. Criar histórico de auditoria.
+   *
+   * Se alguma operação falhar,
+   * o PostgreSQL desfaz a transação.
+   */
   async createAppointment(
     slug: string,
     data: CreatePublicAppointmentDto,
@@ -436,8 +402,7 @@ export class PublicBookingService {
       DateTime.fromISO(
         data.startsAt,
         {
-          setZone:
-            true,
+          setZone: true,
         },
       );
 
@@ -449,8 +414,7 @@ export class PublicBookingService {
       );
     }
 
-    const nowUtc =
-      DateTime.utc();
+    const nowUtc = DateTime.utc();
 
     const requestedUtc =
       requestedDateTime.toUTC();
@@ -538,9 +502,7 @@ export class PublicBookingService {
         .toJSDate();
 
     /*
-     * A partir daqui trabalhamos sempre
-     * com o telefone brasileiro canônico,
-     * sem +55 e sem formatação.
+     * Normalização dos dados recebidos.
      */
     const phone =
       this.normalizePhone(
@@ -563,18 +525,21 @@ export class PublicBookingService {
     const notes =
       data.notes?.trim();
 
+    /*
+     * TRANSAÇÃO POSTGRESQL
+     *
+     * A partir deste ponto, todas as
+     * alterações são atômicas.
+     */
     const appointment =
       await this.prisma.$transaction(
         async (tx) => {
           /*
-           * A chave usa o telefone canônico.
+           * Bloqueio por empresa e telefone.
            *
-           * Portanto:
-           *
-           * 34999993333
-           * +55 34 99999-3333
-           *
-           * disputam o mesmo advisory lock.
+           * Impede que duas requisições
+           * simultâneas criem registros
+           * duplicados do mesmo cliente.
            */
           await tx.$queryRaw<
             Array<{
@@ -589,42 +554,28 @@ export class PublicBookingService {
           `;
 
           /*
-           * Procura tanto o formato novo
-           * quanto o formato antigo com 55.
-           *
-           * Isso impede a criação de um
-           * segundo cliente apenas porque o
-           * telefone foi informado com +55.
+           * Procura telefones nacionais e
+           * cadastros antigos com prefixo 55.
            */
           const clientsWithPhone =
             await tx.client.findMany({
               where: {
-                tenantId:
-                  tenant.id,
+                tenantId: tenant.id,
 
                 phone: {
-                  in:
-                    phoneLookupValues,
+                  in: phoneLookupValues,
                 },
               },
 
               select: {
-                id:
-                  true,
-
-                name:
-                  true,
-
-                email:
-                  true,
-
-                active:
-                  true,
+                id: true,
+                name: true,
+                email: true,
+                active: true,
               },
 
               orderBy: {
-                createdAt:
-                  'asc',
+                createdAt: 'asc',
               },
             });
 
@@ -635,47 +586,35 @@ export class PublicBookingService {
             );
 
           /*
-           * Novos clientes são sempre
-           * gravados no formato nacional.
+           * Se não houver cliente ativo,
+           * cria um novo cadastro.
            */
           if (!client) {
             client =
               await tx.client.create({
                 data: {
-                  tenantId:
-                    tenant.id,
-
-                  name:
-                    clientName,
-
+                  tenantId: tenant.id,
+                  name: clientName,
                   phone,
-
                   email,
                 },
 
                 select: {
-                  id:
-                    true,
-
-                  name:
-                    true,
-
-                  email:
-                    true,
-
-                  active:
-                    true,
+                  id: true,
+                  name: true,
+                  email: true,
+                  active: true,
                 },
               });
           }
 
           /*
-           * Inclui todos os possíveis registros
+           * Inclui possíveis cadastros
            * antigos do mesmo telefone.
            *
-           * Assim a proteção contra conflito
-           * continua funcionando caso já existam
-           * registros duplicados históricos.
+           * Garante que eles também sejam
+           * considerados na verificação
+           * de conflitos de horário.
            */
           const clientIds = [
             ...clientsWithPhone.map(
@@ -695,23 +634,19 @@ export class PublicBookingService {
           );
 
           /*
-           * O mesmo cliente não pode manter dois
-           * agendamentos ativos que se sobreponham,
-           * mesmo que sejam com profissionais
+           * O cliente não pode possuir
+           * dois agendamentos PENDING ou
+           * CONFIRMED no mesmo horário,
+           * mesmo com profissionais
            * diferentes.
-           *
-           * PENDING e CONFIRMED são considerados
-           * compromissos ativos.
            */
           const clientConflict =
             await tx.appointment.findFirst({
               where: {
-                tenantId:
-                  tenant.id,
+                tenantId: tenant.id,
 
                 clientId: {
-                  in:
-                    clientIds,
+                  in: clientIds,
                 },
 
                 status: {
@@ -722,19 +657,16 @@ export class PublicBookingService {
                 },
 
                 startsAt: {
-                  lt:
-                    endsAt,
+                  lt: endsAt,
                 },
 
                 endsAt: {
-                  gt:
-                    startsAt,
+                  gt: startsAt,
                 },
               },
 
               select: {
-                id:
-                  true,
+                id: true,
               },
             });
 
@@ -747,11 +679,12 @@ export class PublicBookingService {
           }
 
           /*
-           * Serializa as reservas do profissional.
+           * Bloqueio por empresa e
+           * profissional.
            *
-           * Mesmo que duas pessoas tenham escolhido
-           * o mesmo horário antes de confirmar,
-           * apenas uma poderá gravá-lo.
+           * Impede que duas pessoas
+           * reservem o mesmo horário
+           * simultaneamente.
            */
           await tx.$queryRaw<
             Array<{
@@ -768,31 +701,26 @@ export class PublicBookingService {
           const conflictingAppointment =
             await tx.appointment.findFirst({
               where: {
-                tenantId:
-                  tenant.id,
+                tenantId: tenant.id,
 
                 employeeId:
                   data.employeeId,
 
                 status: {
-                  not:
-                    'CANCELED',
+                  not: 'CANCELED',
                 },
 
                 startsAt: {
-                  lt:
-                    endsAt,
+                  lt: endsAt,
                 },
 
                 endsAt: {
-                  gt:
-                    startsAt,
+                  gt: startsAt,
                 },
               },
 
               select: {
-                id:
-                  true,
+                id: true,
               },
             });
 
@@ -804,11 +732,16 @@ export class PublicBookingService {
             );
           }
 
+          /*
+           * Cria o agendamento público.
+           *
+           * O status inicial permanece
+           * PENDING, como anteriormente.
+           */
           const createdAppointment =
             await tx.appointment.create({
               data: {
-                tenantId:
-                  tenant.id,
+                tenantId: tenant.id,
 
                 employeeId:
                   data.employeeId,
@@ -828,50 +761,32 @@ export class PublicBookingService {
                 priceCents:
                   availability.service.priceCents,
 
-                status:
-                  'PENDING',
+                status: 'PENDING',
 
                 notes:
-                  notes ||
-                  undefined,
+                  notes || undefined,
               },
 
               select: {
-                id:
-                  true,
+                id: true,
 
-                startsAt:
-                  true,
-
-                endsAt:
-                  true,
-
-                status:
-                  true,
+                startsAt: true,
+                endsAt: true,
+                status: true,
 
                 employee: {
                   select: {
-                    id:
-                      true,
-
-                    name:
-                      true,
+                    id: true,
+                    name: true,
                   },
                 },
 
                 service: {
                   select: {
-                    id:
-                      true,
-
-                    name:
-                      true,
-
-                    durationMin:
-                      true,
-
-                    priceCents:
-                      true,
+                    id: true,
+                    name: true,
+                    durationMin: true,
+                    priceCents: true,
                   },
                 },
               },
@@ -880,21 +795,13 @@ export class PublicBookingService {
           /*
            * TRANSACTIONAL OUTBOX
            *
-           * A NotificationDelivery é criada usando
-           * exatamente o mesmo `tx` que acabou de
-           * criar o Appointment.
-           *
-           * Se a fila falhar:
-           *
-           * - notifyAppointmentRequested relança;
-           * - prisma.$transaction executa rollback;
-           * - o Appointment não fica salvo sozinho;
-           * - um Client recém-criado também é desfeito.
+           * Registra a solicitação de
+           * agendamento na fila de
+           * notificações usando o mesmo tx.
            */
           await this.notificationsService.notifyAppointmentRequested(
             {
-              tenantId:
-                tenant.id,
+              tenantId: tenant.id,
 
               appointmentId:
                 createdAppointment.id,
@@ -920,15 +827,68 @@ export class PublicBookingService {
               timezone:
                 tenant.timezone,
             },
-            {
-              client:
-                tx,
 
-              throwOnError:
-                true,
+            {
+              client: tx,
+              throwOnError: true,
             },
           );
 
+          /*
+           * ETAPA 6.1 — AUDITORIA PÚBLICA
+           *
+           * Novo registro inserido na
+           * mesma transação do Appointment
+           * e da NotificationDelivery.
+           *
+           * Como não existe login de usuário
+           * nessa página, o responsável é
+           * identificado como PUBLIC.
+           *
+           * Não gravamos nome, telefone,
+           * e-mail ou anotações do cliente
+           * no snapshot de auditoria.
+           */
+          await recordAppointmentAudit(
+            tx,
+            {
+              tenantId:
+                tenant.id,
+
+              appointmentId:
+                createdAppointment.id,
+
+              action:
+                'CREATED',
+
+              actor: {
+                type: 'PUBLIC',
+              },
+
+              after: {
+                status:
+                  createdAppointment.status,
+
+                startsAt:
+                  createdAppointment.startsAt.toISOString(),
+
+                endsAt:
+                  createdAppointment.endsAt.toISOString(),
+
+                employeeId:
+                  createdAppointment.employee.id,
+
+                serviceId:
+                  createdAppointment.service.id,
+              },
+            },
+          );
+
+          /*
+           * Caso a gravação da auditoria
+           * falhe, toda a transação será
+           * revertida automaticamente.
+           */
           return createdAppointment;
         },
       );

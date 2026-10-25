@@ -61,7 +61,8 @@ export const ModelName = {
   AvailabilityRule: 'AvailabilityRule',
   BlockedTime: 'BlockedTime',
   Appointment: 'Appointment',
-  NotificationDelivery: 'NotificationDelivery'
+  NotificationDelivery: 'NotificationDelivery',
+  AppointmentAuditLog: 'AppointmentAuditLog'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -259,12 +260,37 @@ export const NotificationDeliveryScalarFieldEnum = {
 export type NotificationDeliveryScalarFieldEnum = (typeof NotificationDeliveryScalarFieldEnum)[keyof typeof NotificationDeliveryScalarFieldEnum]
 
 
+export const AppointmentAuditLogScalarFieldEnum = {
+  id: 'id',
+  tenantId: 'tenantId',
+  appointmentId: 'appointmentId',
+  action: 'action',
+  actorType: 'actorType',
+  actorUserId: 'actorUserId',
+  actorName: 'actorName',
+  actorRole: 'actorRole',
+  before: 'before',
+  after: 'after',
+  createdAt: 'createdAt'
+} as const
+
+export type AppointmentAuditLogScalarFieldEnum = (typeof AppointmentAuditLogScalarFieldEnum)[keyof typeof AppointmentAuditLogScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
 } as const
 
 export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
+
+
+export const NullableJsonNullValueInput = {
+  DbNull: DbNull,
+  JsonNull: JsonNull
+} as const
+
+export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
 
 
 export const QueryMode = {
@@ -281,4 +307,13 @@ export const NullsOrder = {
 } as const
 
 export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
+
+
+export const JsonNullValueFilter = {
+  DbNull: DbNull,
+  JsonNull: JsonNull,
+  AnyNull: AnyNull
+} as const
+
+export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
 

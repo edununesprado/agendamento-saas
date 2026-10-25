@@ -71,3 +71,25 @@ export const NotificationStatus = {
 } as const
 
 export type NotificationStatus = (typeof NotificationStatus)[keyof typeof NotificationStatus]
+
+
+export const AppointmentAuditAction = {
+  CREATED: 'CREATED',
+  CONFIRMED: 'CONFIRMED',
+  RESCHEDULED: 'RESCHEDULED',
+  CANCELED: 'CANCELED',
+  COMPLETED: 'COMPLETED',
+  NO_SHOW: 'NO_SHOW',
+  UPDATED: 'UPDATED'
+} as const
+
+export type AppointmentAuditAction = (typeof AppointmentAuditAction)[keyof typeof AppointmentAuditAction]
+
+
+export const AppointmentAuditActorType = {
+  USER: 'USER',
+  PUBLIC: 'PUBLIC',
+  SYSTEM: 'SYSTEM'
+} as const
+
+export type AppointmentAuditActorType = (typeof AppointmentAuditActorType)[keyof typeof AppointmentAuditActorType]

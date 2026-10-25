@@ -54,6 +54,22 @@ enum NotificationStatus {
   UNCERTAIN
 }
 
+enum AppointmentAuditAction {
+  CREATED
+  CONFIRMED
+  RESCHEDULED
+  CANCELED
+  COMPLETED
+  NO_SHOW
+  UPDATED
+}
+
+enum AppointmentAuditActorType {
+  USER
+  PUBLIC
+  SYSTEM
+}
+
 model Tenant {
   id String @id @default(cuid())
 
@@ -81,6 +97,7 @@ model Tenant {
   blockedTimes           BlockedTime[]
   appointments           Appointment[]
   notificationDeliveries NotificationDelivery[]
+  appointmentAuditLogs   AppointmentAuditLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -93,7 +110,8 @@ model User {
   email        String @unique
   passwordHash String
 
-  memberships Membership[]
+  memberships          Membership[]
+  appointmentAuditLogs AppointmentAuditLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -238,11 +256,11 @@ model AvailabilityRule {
 model BlockedTime {
   id String @id @default(cuid())
 
-  tenantId String
+  tenantId   String
   employeeId String
 
   startsAt DateTime
-  endsAt DateTime
+  endsAt   DateTime
 
   reason String?
 
@@ -265,7 +283,7 @@ model Appointment {
   clientId   String
 
   startsAt DateTime
-  endsAt DateTime
+  endsAt   DateTime
 
   durationMin Int
   priceCents  Int
@@ -284,6 +302,7 @@ model Appointment {
   client   Client   @relation(fields: [clientId], references: [id], onDelete: Restrict)
 
   notificationDeliveries NotificationDelivery[]
+  auditLogs              AppointmentAuditLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -334,4 +353,31 @@ model NotificationDelivery {
   @@index([status, nextAttemptAt])
   @@index([tenantId, createdAt])
   @@index([appointmentId, type])
+}
+
+model AppointmentAuditLog {
+  id String @id @default(cuid())
+
+  tenantId      String
+  appointmentId String
+
+  action    AppointmentAuditAction
+  actorType AppointmentAuditActorType
+
+  actorUserId String?
+  actorName   String?
+  actorRole   MembershipRole?
+
+  before Json?
+  after  Json?
+
+  createdAt DateTime @default(now())
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  actorUser    User?       @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, appointmentId, createdAt])
+  @@index([tenantId, createdAt])
+  @@index([actorUserId, createdAt])
 }

@@ -191,6 +191,7 @@ export type UserWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
   memberships?: Prisma.MembershipListRelationFilter
+  appointmentAuditLogs?: Prisma.AppointmentAuditLogListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -201,6 +202,7 @@ export type UserOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   memberships?: Prisma.MembershipOrderByRelationAggregateInput
+  appointmentAuditLogs?: Prisma.AppointmentAuditLogOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -214,6 +216,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
   memberships?: Prisma.MembershipListRelationFilter
+  appointmentAuditLogs?: Prisma.AppointmentAuditLogListRelationFilter
 }, "id" | "email">
 
 export type UserOrderByWithAggregationInput = {
@@ -248,6 +251,7 @@ export type UserCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipCreateNestedManyWithoutUserInput
+  appointmentAuditLogs?: Prisma.AppointmentAuditLogCreateNestedManyWithoutActorUserInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -258,6 +262,7 @@ export type UserUncheckedCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutUserInput
+  appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedCreateNestedManyWithoutActorUserInput
 }
 
 export type UserUpdateInput = {
@@ -268,6 +273,7 @@ export type UserUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUpdateManyWithoutUserNestedInput
+  appointmentAuditLogs?: Prisma.AppointmentAuditLogUpdateManyWithoutActorUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -278,6 +284,7 @@ export type UserUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   memberships?: Prisma.MembershipUncheckedUpdateManyWithoutUserNestedInput
+  appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedUpdateManyWithoutActorUserNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -339,6 +346,11 @@ export type UserScalarRelationFilter = {
   isNot?: Prisma.UserWhereInput
 }
 
+export type UserNullableScalarRelationFilter = {
+  is?: Prisma.UserWhereInput | null
+  isNot?: Prisma.UserWhereInput | null
+}
+
 export type UserCreateNestedOneWithoutMembershipsInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutMembershipsInput, Prisma.UserUncheckedCreateWithoutMembershipsInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutMembershipsInput
@@ -353,6 +365,22 @@ export type UserUpdateOneRequiredWithoutMembershipsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutMembershipsInput, Prisma.UserUpdateWithoutMembershipsInput>, Prisma.UserUncheckedUpdateWithoutMembershipsInput>
 }
 
+export type UserCreateNestedOneWithoutAppointmentAuditLogsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAppointmentAuditLogsInput, Prisma.UserUncheckedCreateWithoutAppointmentAuditLogsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAppointmentAuditLogsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneWithoutAppointmentAuditLogsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAppointmentAuditLogsInput, Prisma.UserUncheckedCreateWithoutAppointmentAuditLogsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAppointmentAuditLogsInput
+  upsert?: Prisma.UserUpsertWithoutAppointmentAuditLogsInput
+  disconnect?: Prisma.UserWhereInput | boolean
+  delete?: Prisma.UserWhereInput | boolean
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutAppointmentAuditLogsInput, Prisma.UserUpdateWithoutAppointmentAuditLogsInput>, Prisma.UserUncheckedUpdateWithoutAppointmentAuditLogsInput>
+}
+
 export type UserCreateWithoutMembershipsInput = {
   id?: string
   name: string
@@ -360,6 +388,7 @@ export type UserCreateWithoutMembershipsInput = {
   passwordHash: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  appointmentAuditLogs?: Prisma.AppointmentAuditLogCreateNestedManyWithoutActorUserInput
 }
 
 export type UserUncheckedCreateWithoutMembershipsInput = {
@@ -369,6 +398,7 @@ export type UserUncheckedCreateWithoutMembershipsInput = {
   passwordHash: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedCreateNestedManyWithoutActorUserInput
 }
 
 export type UserCreateOrConnectWithoutMembershipsInput = {
@@ -394,6 +424,7 @@ export type UserUpdateWithoutMembershipsInput = {
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  appointmentAuditLogs?: Prisma.AppointmentAuditLogUpdateManyWithoutActorUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutMembershipsInput = {
@@ -403,6 +434,63 @@ export type UserUncheckedUpdateWithoutMembershipsInput = {
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedUpdateManyWithoutActorUserNestedInput
+}
+
+export type UserCreateWithoutAppointmentAuditLogsInput = {
+  id?: string
+  name: string
+  email: string
+  passwordHash: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  memberships?: Prisma.MembershipCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutAppointmentAuditLogsInput = {
+  id?: string
+  name: string
+  email: string
+  passwordHash: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutAppointmentAuditLogsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutAppointmentAuditLogsInput, Prisma.UserUncheckedCreateWithoutAppointmentAuditLogsInput>
+}
+
+export type UserUpsertWithoutAppointmentAuditLogsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutAppointmentAuditLogsInput, Prisma.UserUncheckedUpdateWithoutAppointmentAuditLogsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutAppointmentAuditLogsInput, Prisma.UserUncheckedCreateWithoutAppointmentAuditLogsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutAppointmentAuditLogsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutAppointmentAuditLogsInput, Prisma.UserUncheckedUpdateWithoutAppointmentAuditLogsInput>
+}
+
+export type UserUpdateWithoutAppointmentAuditLogsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  memberships?: Prisma.MembershipUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutAppointmentAuditLogsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  memberships?: Prisma.MembershipUncheckedUpdateManyWithoutUserNestedInput
 }
 
 
@@ -412,10 +500,12 @@ export type UserUncheckedUpdateWithoutMembershipsInput = {
 
 export type UserCountOutputType = {
   memberships: number
+  appointmentAuditLogs: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   memberships?: boolean | UserCountOutputTypeCountMembershipsArgs
+  appointmentAuditLogs?: boolean | UserCountOutputTypeCountAppointmentAuditLogsArgs
 }
 
 /**
@@ -435,6 +525,13 @@ export type UserCountOutputTypeCountMembershipsArgs<ExtArgs extends runtime.Type
   where?: Prisma.MembershipWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountAppointmentAuditLogsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AppointmentAuditLogWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -444,6 +541,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   createdAt?: boolean
   updatedAt?: boolean
   memberships?: boolean | Prisma.User$membershipsArgs<ExtArgs>
+  appointmentAuditLogs?: boolean | Prisma.User$appointmentAuditLogsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -477,6 +575,7 @@ export type UserSelectScalar = {
 export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "passwordHash" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   memberships?: boolean | Prisma.User$membershipsArgs<ExtArgs>
+  appointmentAuditLogs?: boolean | Prisma.User$appointmentAuditLogsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -486,6 +585,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   name: "User"
   objects: {
     memberships: Prisma.$MembershipPayload<ExtArgs>[]
+    appointmentAuditLogs: Prisma.$AppointmentAuditLogPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -889,6 +989,7 @@ readonly fields: UserFieldRefs;
 export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   memberships<T extends Prisma.User$membershipsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$membershipsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MembershipPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  appointmentAuditLogs<T extends Prisma.User$appointmentAuditLogsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$appointmentAuditLogsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AppointmentAuditLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1338,6 +1439,30 @@ export type User$membershipsArgs<ExtArgs extends runtime.Types.Extensions.Intern
   take?: number
   skip?: number
   distinct?: Prisma.MembershipScalarFieldEnum | Prisma.MembershipScalarFieldEnum[]
+}
+
+/**
+ * User.appointmentAuditLogs
+ */
+export type User$appointmentAuditLogsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AppointmentAuditLog
+   */
+  select?: Prisma.AppointmentAuditLogSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AppointmentAuditLog
+   */
+  omit?: Prisma.AppointmentAuditLogOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AppointmentAuditLogInclude<ExtArgs> | null
+  where?: Prisma.AppointmentAuditLogWhereInput
+  orderBy?: Prisma.AppointmentAuditLogOrderByWithRelationInput | Prisma.AppointmentAuditLogOrderByWithRelationInput[]
+  cursor?: Prisma.AppointmentAuditLogWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AppointmentAuditLogScalarFieldEnum | Prisma.AppointmentAuditLogScalarFieldEnum[]
 }
 
 /**

@@ -1,3 +1,4 @@
+
 import {
   BadRequestException,
   ConflictException,
@@ -12,32 +13,48 @@ import { AvailabilityService } from '../availability/availability.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
+import {
+  recordAppointmentAudit,
+  type AppointmentAuditActor,
+} from './appointment-audit.js';
+
 import { CancelAppointmentDto } from './dto/cancel-appointment.dto.js';
 import { CreateAppointmentDto } from './dto/create-appointment.dto.js';
 import { ListAppointmentsQueryDto } from './dto/list-appointments-query.dto.js';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto.js';
 import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto.js';
 
-type AppointmentNotificationTransactionClient =
-  Pick<
-    PrismaService,
-    'tenant' | 'notificationDelivery'
-  >;
+type AppointmentNotificationTransactionClient = Pick<
+  PrismaService,
+  'tenant' | 'notificationDelivery'
+>;
 
 type AppointmentNotificationOptions = {
-  client?:
-    AppointmentNotificationTransactionClient;
-
-  throwOnError?:
-    boolean;
+  client?: AppointmentNotificationTransactionClient;
+  throwOnError?: boolean;
 };
+
+/*
+ * Etapa 6.1 — Auditoria dos agendamentos.
+ *
+ * O ator será informado pelo controller
+ * a partir do JWT autenticado.
+ *
+ * Por enquanto o parâmetro é opcional para
+ * manter compatibilidade com chamadas
+ * existentes durante a integração gradual.
+ *
+ * Não usamos SYSTEM como valor padrão:
+ * isso atribuiria incorretamente a um processo
+ * automático ações realizadas por usuários.
+ */
+type AppointmentActor = AppointmentAuditActor;
 
 @Injectable()
 export class AppointmentsService {
-  private readonly logger =
-    new Logger(
-      AppointmentsService.name,
-    );
+  private readonly logger = new Logger(
+    AppointmentsService.name,
+  );
 
   constructor(
     private readonly prisma: PrismaService,
@@ -47,23 +64,15 @@ export class AppointmentsService {
 
   private async getNotificationTenant(
     tenantId: string,
-    client: Pick<
-      PrismaService,
-      'tenant'
-    > = this.prisma,
+    client: Pick<PrismaService, 'tenant'> = this.prisma,
   ) {
     return client.tenant.findUnique({
       where: {
-        id:
-          tenantId,
+        id: tenantId,
       },
-
       select: {
-        name:
-          true,
-
-        timezone:
-          true,
+        name: true,
+        timezone: true,
       },
     });
   }
@@ -73,105 +82,68 @@ export class AppointmentsService {
     appointment: {
       id: string;
       startsAt: Date;
-
       employee: {
         name: string;
       };
-
       service: {
         name: string;
       };
-
       client: {
         name: string;
-        email:
-          | string
-          | null;
+        email: string | null;
       };
     },
     options?: AppointmentNotificationOptions,
   ) {
     try {
-      const client =
-        options?.client ??
-        this.prisma;
+      const client = options?.client ?? this.prisma;
 
-      const tenant =
-        await this.getNotificationTenant(
-          tenantId,
-          client,
-        );
+      const tenant = await this.getNotificationTenant(
+        tenantId,
+        client,
+      );
 
       if (!tenant) {
-        const error =
-          new Error(
-            `Empresa não encontrada ao preparar notificação do agendamento ${appointment.id}`,
-          );
+        const error = new Error(
+          `Empresa não encontrada ao preparar notificação do agendamento ${appointment.id}`,
+        );
 
-        if (
-          options?.throwOnError
-        ) {
+        if (options?.throwOnError) {
           throw error;
         }
 
-        this.logger.warn(
-          error.message,
-        );
-
+        this.logger.warn(error.message);
         return false;
       }
 
       return await this.notificationsService.notifyAppointmentConfirmed(
         {
           tenantId,
-
-          appointmentId:
-            appointment.id,
-
-          clientName:
-            appointment.client.name,
-
-          clientEmail:
-            appointment.client.email,
-
-          tenantName:
-            tenant.name,
-
-          serviceName:
-            appointment.service.name,
-
-          employeeName:
-            appointment.employee.name,
-
-          startsAt:
-            appointment.startsAt,
-
-          timezone:
-            tenant.timezone,
+          appointmentId: appointment.id,
+          clientName: appointment.client.name,
+          clientEmail: appointment.client.email,
+          tenantName: tenant.name,
+          serviceName: appointment.service.name,
+          employeeName: appointment.employee.name,
+          startsAt: appointment.startsAt,
+          timezone: tenant.timezone,
         },
         {
-          client:
-            options?.client,
-
-          throwOnError:
-            options?.throwOnError,
+          client: options?.client,
+          throwOnError: options?.throwOnError,
         },
       );
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : String(
-              error,
-            );
+          : String(error);
 
       this.logger.error(
         `Falha inesperada ao preparar notificação de confirmação do agendamento ${appointment.id}: ${message}`,
       );
 
-      if (
-        options?.throwOnError
-      ) {
+      if (options?.throwOnError) {
         throw error;
       }
 
@@ -184,108 +156,70 @@ export class AppointmentsService {
     appointment: {
       id: string;
       startsAt: Date;
-
       employee: {
         name: string;
       };
-
       service: {
         name: string;
       };
-
       client: {
         name: string;
-        email:
-          | string
-          | null;
+        email: string | null;
       };
     },
     previousStartsAt: Date,
     options?: AppointmentNotificationOptions,
   ) {
     try {
-      const client =
-        options?.client ??
-        this.prisma;
+      const client = options?.client ?? this.prisma;
 
-      const tenant =
-        await this.getNotificationTenant(
-          tenantId,
-          client,
-        );
+      const tenant = await this.getNotificationTenant(
+        tenantId,
+        client,
+      );
 
       if (!tenant) {
-        const error =
-          new Error(
-            `Empresa não encontrada ao preparar notificação de reagendamento do agendamento ${appointment.id}`,
-          );
+        const error = new Error(
+          `Empresa não encontrada ao preparar notificação de reagendamento do agendamento ${appointment.id}`,
+        );
 
-        if (
-          options?.throwOnError
-        ) {
+        if (options?.throwOnError) {
           throw error;
         }
 
-        this.logger.warn(
-          error.message,
-        );
-
+        this.logger.warn(error.message);
         return false;
       }
 
       return await this.notificationsService.notifyAppointmentRescheduled(
         {
           tenantId,
-
-          appointmentId:
-            appointment.id,
-
-          clientName:
-            appointment.client.name,
-
-          clientEmail:
-            appointment.client.email,
-
-          tenantName:
-            tenant.name,
-
-          serviceName:
-            appointment.service.name,
-
-          employeeName:
-            appointment.employee.name,
-
+          appointmentId: appointment.id,
+          clientName: appointment.client.name,
+          clientEmail: appointment.client.email,
+          tenantName: tenant.name,
+          serviceName: appointment.service.name,
+          employeeName: appointment.employee.name,
           previousStartsAt,
-
-          startsAt:
-            appointment.startsAt,
-
-          timezone:
-            tenant.timezone,
+          startsAt: appointment.startsAt,
+          timezone: tenant.timezone,
         },
         {
-          client:
-            options?.client,
-
-          throwOnError:
-            options?.throwOnError,
+          client: options?.client,
+          throwOnError: options?.throwOnError,
         },
       );
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : String(
-              error,
-            );
+          : String(error);
 
       this.logger.error(
         `Falha inesperada ao preparar notificação de reagendamento do agendamento ${appointment.id}: ${message}`,
       );
 
-      if (
-        options?.throwOnError
-      ) {
+      if (options?.throwOnError) {
         throw error;
       }
 
@@ -298,112 +232,70 @@ export class AppointmentsService {
     appointment: {
       id: string;
       startsAt: Date;
-
-      cancelReason:
-        | string
-        | null;
-
+      cancelReason: string | null;
       employee: {
         name: string;
       };
-
       service: {
         name: string;
       };
-
       client: {
         name: string;
-        email:
-          | string
-          | null;
+        email: string | null;
       };
     },
     options?: AppointmentNotificationOptions,
   ) {
     try {
-      const client =
-        options?.client ??
-        this.prisma;
+      const client = options?.client ?? this.prisma;
 
-      const tenant =
-        await this.getNotificationTenant(
-          tenantId,
-          client,
-        );
+      const tenant = await this.getNotificationTenant(
+        tenantId,
+        client,
+      );
 
       if (!tenant) {
-        const error =
-          new Error(
-            `Empresa não encontrada ao preparar notificação de cancelamento do agendamento ${appointment.id}`,
-          );
+        const error = new Error(
+          `Empresa não encontrada ao preparar notificação de cancelamento do agendamento ${appointment.id}`,
+        );
 
-        if (
-          options?.throwOnError
-        ) {
+        if (options?.throwOnError) {
           throw error;
         }
 
-        this.logger.warn(
-          error.message,
-        );
-
+        this.logger.warn(error.message);
         return false;
       }
 
       return await this.notificationsService.notifyAppointmentCanceled(
         {
           tenantId,
-
-          appointmentId:
-            appointment.id,
-
-          clientName:
-            appointment.client.name,
-
-          clientEmail:
-            appointment.client.email,
-
-          tenantName:
-            tenant.name,
-
-          serviceName:
-            appointment.service.name,
-
-          employeeName:
-            appointment.employee.name,
-
-          startsAt:
-            appointment.startsAt,
-
-          timezone:
-            tenant.timezone,
-
-          cancelReason:
-            appointment.cancelReason,
+          appointmentId: appointment.id,
+          clientName: appointment.client.name,
+          clientEmail: appointment.client.email,
+          tenantName: tenant.name,
+          serviceName: appointment.service.name,
+          employeeName: appointment.employee.name,
+          startsAt: appointment.startsAt,
+          timezone: tenant.timezone,
+          cancelReason: appointment.cancelReason,
         },
         {
-          client:
-            options?.client,
-
-          throwOnError:
-            options?.throwOnError,
+          client: options?.client,
+          throwOnError: options?.throwOnError,
         },
       );
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : String(
-              error,
-            );
+          : String(error);
 
       this.logger.error(
         `Falha inesperada ao preparar notificação de cancelamento do agendamento ${appointment.id}: ${message}`,
       );
 
-      if (
-        options?.throwOnError
-      ) {
+      if (options?.throwOnError) {
         throw error;
       }
 
@@ -415,17 +307,15 @@ export class AppointmentsService {
     tenantId: string,
     membershipId: string,
   ) {
-    const employee =
-      await this.prisma.employee.findFirst({
-        where: {
-          tenantId,
-          membershipId,
-        },
-
-        select: {
-          id: true,
-        },
-      });
+    const employee = await this.prisma.employee.findFirst({
+      where: {
+        tenantId,
+        membershipId,
+      },
+      select: {
+        id: true,
+      },
+    });
 
     if (!employee) {
       throw new ForbiddenException(
@@ -446,7 +336,6 @@ export class AppointmentsService {
           id,
           tenantId,
         },
-
         include: {
           employee: true,
           service: true,
@@ -463,22 +352,26 @@ export class AppointmentsService {
     return appointment;
   }
 
+  /*
+   * CRIAÇÃO INTERNA
+   *
+   * Appointment + NotificationDelivery +
+   * AppointmentAuditLog ficam na mesma
+   * transação PostgreSQL.
+   */
   async create(
     tenantId: string,
     data: CreateAppointmentDto,
+    actor?: AppointmentActor,
   ) {
-    const tenant =
-      await this.prisma.tenant.findUnique({
-        where: {
-          id:
-            tenantId,
-        },
-
-        select: {
-          timezone:
-            true,
-        },
-      });
+    const tenant = await this.prisma.tenant.findUnique({
+      where: {
+        id: tenantId,
+      },
+      select: {
+        timezone: true,
+      },
+    });
 
     if (!tenant) {
       throw new NotFoundException(
@@ -486,18 +379,13 @@ export class AppointmentsService {
       );
     }
 
-    const client =
-      await this.prisma.client.findFirst({
-        where: {
-          id:
-            data.clientId,
-
-          tenantId,
-
-          active:
-            true,
-        },
-      });
+    const client = await this.prisma.client.findFirst({
+      where: {
+        id: data.clientId,
+        tenantId,
+        active: true,
+      },
+    });
 
     if (!client) {
       throw new NotFoundException(
@@ -505,30 +393,24 @@ export class AppointmentsService {
       );
     }
 
-    const requestedDateTime =
-      DateTime.fromISO(
-        data.startsAt,
-        {
-          setZone:
-            true,
-        },
-      );
+    const requestedDateTime = DateTime.fromISO(
+      data.startsAt,
+      {
+        setZone: true,
+      },
+    );
 
-    if (
-      !requestedDateTime.isValid
-    ) {
+    if (!requestedDateTime.isValid) {
       throw new BadRequestException(
         'Data ou horário inválido',
       );
     }
 
-    const localDateTime =
-      requestedDateTime.setZone(
-        tenant.timezone,
-      );
+    const localDateTime = requestedDateTime.setZone(
+      tenant.timezone,
+    );
 
-    const date =
-      localDateTime.toISODate();
+    const date = localDateTime.toISODate();
 
     if (!date) {
       throw new BadRequestException(
@@ -536,10 +418,9 @@ export class AppointmentsService {
       );
     }
 
-    const requestedTime =
-      localDateTime.toFormat(
-        'HH:mm',
-      );
+    const requestedTime = localDateTime.toFormat(
+      'HH:mm',
+    );
 
     const availability =
       await this.availabilityService.getAvailableSlots(
@@ -549,172 +430,141 @@ export class AppointmentsService {
         date,
       );
 
-    if (
-      !availability.slots.includes(
-        requestedTime,
-      )
-    ) {
+    if (!availability.slots.includes(requestedTime)) {
       throw new BadRequestException(
         'O horário informado não está disponível',
       );
     }
 
-    const startsAt =
-      requestedDateTime
-        .toUTC()
-        .toJSDate();
+    const startsAt = requestedDateTime
+      .toUTC()
+      .toJSDate();
 
-    const endsAt =
-      requestedDateTime
-        .plus({
-          minutes:
-            availability.service.durationMin,
-        })
-        .toUTC()
-        .toJSDate();
+    const endsAt = requestedDateTime
+      .plus({
+        minutes: availability.service.durationMin,
+      })
+      .toUTC()
+      .toJSDate();
 
-    /*
-     * TRANSACTIONAL OUTBOX
-     *
-     * O agendamento criado pelo painel
-     * já nasce CONFIRMED.
-     *
-     * Appointment e NotificationDelivery
-     * serão criados na mesma transação.
-     */
-    return this.prisma.$transaction(
-      async (tx) => {
-        await tx.$queryRaw<
-          Array<{
-            lock_value: number;
-          }>
-        >`
-          SELECT 1::int AS lock_value
-          FROM pg_advisory_xact_lock(
-            hashtext(${tenantId}),
-            hashtext(${data.employeeId})
-          )
-        `;
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw<
+        Array<{
+          lock_value: number;
+        }>
+      >`
+        SELECT 1::int AS lock_value
+        FROM pg_advisory_xact_lock(
+          hashtext(${tenantId}),
+          hashtext(${data.employeeId})
+        )
+      `;
 
-        const conflictingAppointment =
-          await tx.appointment.findFirst({
-            where: {
-              tenantId,
-
-              employeeId:
-                data.employeeId,
-
-              status: {
-                not:
-                  'CANCELED',
-              },
-
-              startsAt: {
-                lt:
-                  endsAt,
-              },
-
-              endsAt: {
-                gt:
-                  startsAt,
-              },
+      const conflictingAppointment =
+        await tx.appointment.findFirst({
+          where: {
+            tenantId,
+            employeeId: data.employeeId,
+            status: {
+              not: 'CANCELED',
             },
-          });
-
-        if (
-          conflictingAppointment
-        ) {
-          throw new ConflictException(
-            'Este horário acabou de ser ocupado',
-          );
-        }
-
-        const createdAppointment =
-          await tx.appointment.create({
-            data: {
-              tenantId,
-
-              employeeId:
-                data.employeeId,
-
-              serviceId:
-                data.serviceId,
-
-              clientId:
-                data.clientId,
-
-              startsAt,
-              endsAt,
-
-              durationMin:
-                availability.service.durationMin,
-
-              priceCents:
-                availability.service.priceCents,
-
-              status:
-                'CONFIRMED',
-
-              notes:
-                data.notes?.trim(),
+            startsAt: {
+              lt: endsAt,
             },
-
-            include: {
-              employee:
-                true,
-
-              service:
-                true,
-
-              client:
-                true,
+            endsAt: {
+              gt: startsAt,
             },
-          });
-
-        /*
-         * Como o agendamento interno já
-         * nasce confirmado, registramos
-         * APPOINTMENT_CONFIRMED na mesma
-         * transação.
-         *
-         * Se a fila falhar, o Appointment
-         * também sofre rollback.
-         */
-        await this.notifyAppointmentConfirmed(
-          tenantId,
-          createdAppointment,
-          {
-            client:
-              tx,
-
-            throwOnError:
-              true,
           },
-        );
+        });
 
-        return createdAppointment;
-      },
-    );
+      if (conflictingAppointment) {
+        throw new ConflictException(
+          'Este horário acabou de ser ocupado',
+        );
+      }
+
+      const createdAppointment =
+        await tx.appointment.create({
+          data: {
+            tenantId,
+            employeeId: data.employeeId,
+            serviceId: data.serviceId,
+            clientId: data.clientId,
+            startsAt,
+            endsAt,
+            durationMin:
+              availability.service.durationMin,
+            priceCents:
+              availability.service.priceCents,
+            status: 'CONFIRMED',
+            notes: data.notes?.trim(),
+          },
+          include: {
+            employee: true,
+            service: true,
+            client: true,
+          },
+        });
+
+      await this.notifyAppointmentConfirmed(
+        tenantId,
+        createdAppointment,
+        {
+          client: tx,
+          throwOnError: true,
+        },
+      );
+
+      /*
+       * Auditoria na mesma transação.
+       *
+       * O controller passará o usuário do JWT
+       * na próxima alteração.
+       */
+      if (actor) {
+        await recordAppointmentAudit(tx, {
+          tenantId,
+          appointmentId: createdAppointment.id,
+          action: 'CREATED',
+          actor,
+          after: {
+            status: createdAppointment.status,
+            startsAt:
+              createdAppointment.startsAt.toISOString(),
+            endsAt:
+              createdAppointment.endsAt.toISOString(),
+            employeeId:
+              createdAppointment.employeeId,
+            serviceId:
+              createdAppointment.serviceId,
+          },
+        });
+      }
+
+      return createdAppointment;
+    });
   }
 
+  /*
+   * CONSULTA DE AGENDAMENTOS
+   *
+   * Mantém o comportamento anterior,
+   * incluindo filtros e restrição STAFF.
+   */
   async findAll(
     tenantId: string,
     query: ListAppointmentsQueryDto,
     membershipId: string,
     role: string,
   ) {
-    const tenant =
-      await this.prisma.tenant.findUnique({
-        where: {
-          id:
-            tenantId,
-        },
-
-        select: {
-          timezone:
-            true,
-        },
-      });
+    const tenant = await this.prisma.tenant.findUnique({
+      where: {
+        id: tenantId,
+      },
+      select: {
+        timezone: true,
+      },
+    });
 
     if (!tenant) {
       throw new NotFoundException(
@@ -724,83 +574,57 @@ export class AppointmentsService {
 
     if (
       query.date &&
-      (
-        query.startDate ||
-        query.endDate
-      )
+      (query.startDate || query.endDate)
     ) {
       throw new BadRequestException(
         'Informe date ou startDate/endDate, não os dois formatos juntos',
       );
     }
 
-    let startDate:
-      DateTime;
+    let startDate: DateTime;
+    let endDate: DateTime;
 
-    let endDate:
-      DateTime;
+    if (query.date) {
+      const selectedDate = DateTime.fromISO(
+        query.date,
+        {
+          zone: tenant.timezone,
+        },
+      );
 
-    if (
-      query.date
-    ) {
-      const selectedDate =
-        DateTime.fromISO(
-          query.date,
-          {
-            zone:
-              tenant.timezone,
-          },
-        );
-
-      if (
-        !selectedDate.isValid
-      ) {
+      if (!selectedDate.isValid) {
         throw new BadRequestException(
           'Data inválida',
         );
       }
 
-      startDate =
-        selectedDate.startOf(
-          'day',
-        );
+      startDate = selectedDate.startOf('day');
 
-      endDate =
-        selectedDate
-          .plus({
-            days:
-              1,
-          })
-          .startOf(
-            'day',
-          );
+      endDate = selectedDate
+        .plus({
+          days: 1,
+        })
+        .startOf('day');
     } else {
-      if (
-        !query.startDate ||
-        !query.endDate
-      ) {
+      if (!query.startDate || !query.endDate) {
         throw new BadRequestException(
           'Informe date ou startDate e endDate',
         );
       }
 
-      const selectedStart =
-        DateTime.fromISO(
-          query.startDate,
-          {
-            zone:
-              tenant.timezone,
-          },
-        );
+      const selectedStart = DateTime.fromISO(
+        query.startDate,
+        {
+          zone: tenant.timezone,
+        },
+      );
 
-      const selectedEnd =
-        DateTime.fromISO(
-          query.endDate,
-          {
-            zone:
-              tenant.timezone,
-          },
-        );
+      const selectedEnd = DateTime.fromISO(
+        query.endDate,
+        {
+          zone: tenant.timezone,
+        },
+      );
 
       if (
         !selectedStart.isValid ||
@@ -812,41 +636,26 @@ export class AppointmentsService {
       }
 
       if (
-        selectedEnd.startOf(
-          'day',
-        ) <
-        selectedStart.startOf(
-          'day',
-        )
+        selectedEnd.startOf('day').toMillis() <
+        selectedStart.startOf('day').toMillis()
       ) {
         throw new BadRequestException(
           'endDate não pode ser anterior a startDate',
         );
       }
 
-      startDate =
-        selectedStart.startOf(
-          'day',
-        );
+      startDate = selectedStart.startOf('day');
 
-      endDate =
-        selectedEnd
-          .plus({
-            days:
-              1,
-          })
-          .startOf(
-            'day',
-          );
+      endDate = selectedEnd
+        .plus({
+          days: 1,
+        })
+        .startOf('day');
     }
 
-    let effectiveEmployeeId =
-      query.employeeId;
+    let effectiveEmployeeId = query.employeeId;
 
-    if (
-      role ===
-      'STAFF'
-    ) {
+    if (role === 'STAFF') {
       effectiveEmployeeId =
         await this.getStaffEmployeeId(
           tenantId,
@@ -857,71 +666,48 @@ export class AppointmentsService {
     return this.prisma.appointment.findMany({
       where: {
         tenantId,
-
         startsAt: {
-          gte:
-            startDate
-              .toUTC()
-              .toJSDate(),
-
-          lt:
-            endDate
-              .toUTC()
-              .toJSDate(),
+          gte: startDate.toUTC().toJSDate(),
+          lt: endDate.toUTC().toJSDate(),
         },
-
         ...(effectiveEmployeeId
           ? {
-              employeeId:
-                effectiveEmployeeId,
+              employeeId: effectiveEmployeeId,
             }
           : {}),
-
         ...(query.status
           ? {
-              status:
-                query.status,
+              status: query.status,
             }
           : {}),
       },
-
       include: {
-        employee:
-          true,
-
-        service:
-          true,
-
-        client:
-          true,
+        employee: true,
+        service: true,
+        client: true,
       },
-
       orderBy: {
-        startsAt:
-          'asc',
+        startsAt: 'asc',
       },
     });
   }
 
+  /*
+   * CONSULTA DE UM AGENDAMENTO
+   */
   async findOne(
     tenantId: string,
     id: string,
     membershipId: string,
     role: string,
   ) {
-    let employeeId:
-      | string
-      | undefined;
+    let employeeId: string | undefined;
 
-    if (
-      role ===
-      'STAFF'
-    ) {
-      employeeId =
-        await this.getStaffEmployeeId(
-          tenantId,
-          membershipId,
-        );
+    if (role === 'STAFF') {
+      employeeId = await this.getStaffEmployeeId(
+        tenantId,
+        membershipId,
+      );
     }
 
     const appointment =
@@ -929,23 +715,16 @@ export class AppointmentsService {
         where: {
           id,
           tenantId,
-
           ...(employeeId
             ? {
                 employeeId,
               }
             : {}),
         },
-
         include: {
-          employee:
-            true,
-
-          service:
-            true,
-
-          client:
-            true,
+          employee: true,
+          service: true,
+          client: true,
         },
       });
 
@@ -958,123 +737,125 @@ export class AppointmentsService {
     return appointment;
   }
 
+  /*
+   * ALTERAÇÃO DE STATUS
+   *
+   * PENDING -> CONFIRMED
+   * CONFIRMED -> COMPLETED
+   * CONFIRMED -> NO_SHOW
+   *
+   * Grava o estado anterior e novo.
+   */
   async updateStatus(
     tenantId: string,
     id: string,
     data: UpdateAppointmentStatusDto,
+    actor?: AppointmentActor,
   ) {
-    const appointment =
-      await this.findOneForTenant(
-        tenantId,
-        id,
-      );
+    const appointment = await this.findOneForTenant(
+      tenantId,
+      id,
+    );
 
     const allowedTransitions: Record<
       string,
       string[]
     > = {
-      PENDING: [
-        'CONFIRMED',
-      ],
-
-      CONFIRMED: [
-        'COMPLETED',
-        'NO_SHOW',
-      ],
-
+      PENDING: ['CONFIRMED'],
+      CONFIRMED: ['COMPLETED', 'NO_SHOW'],
       COMPLETED: [],
       NO_SHOW: [],
       CANCELED: [],
     };
 
     const allowed =
-      allowedTransitions[
-        appointment.status
-      ] ?? [];
+      allowedTransitions[appointment.status] ?? [];
 
-    if (
-      !allowed.includes(
-        data.status,
-      )
-    ) {
+    if (!allowed.includes(data.status)) {
       throw new BadRequestException(
         `Não é possível alterar o status de ${appointment.status} para ${data.status}`,
       );
     }
 
     const updatedAppointment =
-      await this.prisma.$transaction(
-        async (tx) => {
-          const updated =
-            await tx.appointment.update({
-              where: {
-                id,
-              },
+      await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.appointment.update({
+          where: {
+            id,
+          },
+          data: {
+            status: data.status,
+          },
+          include: {
+            employee: true,
+            service: true,
+            client: true,
+          },
+        });
 
-              data: {
-                status:
-                  data.status,
-              },
+        if (data.status === 'CONFIRMED') {
+          await this.notifyAppointmentConfirmed(
+            tenantId,
+            updated,
+            {
+              client: tx,
+              throwOnError: true,
+            },
+          );
+        }
 
-              include: {
-                employee:
-                  true,
+        if (actor) {
+          const action =
+            data.status === 'CONFIRMED'
+              ? 'CONFIRMED'
+              : data.status === 'COMPLETED'
+                ? 'COMPLETED'
+                : 'NO_SHOW';
 
-                service:
-                  true,
+          await recordAppointmentAudit(tx, {
+            tenantId,
+            appointmentId: id,
+            action,
+            actor,
+            before: {
+              status: appointment.status,
+            },
+            after: {
+              status: updated.status,
+            },
+          });
+        }
 
-                client:
-                  true,
-              },
-            });
-
-          if (
-            data.status ===
-            'CONFIRMED'
-          ) {
-            await this.notifyAppointmentConfirmed(
-              tenantId,
-              updated,
-              {
-                client:
-                  tx,
-
-                throwOnError:
-                  true,
-              },
-            );
-          }
-
-          return updated;
-        },
-      );
+        return updated;
+      });
 
     return updatedAppointment;
   }
 
+  /*
+   * CANCELAMENTO
+   *
+   * Mantém o motivo e a data original.
+   * Registra a mudança de status.
+   */
   async cancel(
     tenantId: string,
     id: string,
     data: CancelAppointmentDto,
+    actor?: AppointmentActor,
   ) {
-    const appointment =
-      await this.findOneForTenant(
-        tenantId,
-        id,
-      );
+    const appointment = await this.findOneForTenant(
+      tenantId,
+      id,
+    );
 
-    if (
-      appointment.status ===
-      'CANCELED'
-    ) {
+    if (appointment.status === 'CANCELED') {
       return appointment;
     }
 
     if (
-      appointment.status ===
-        'COMPLETED' ||
-      appointment.status ===
-        'NO_SHOW'
+      appointment.status === 'COMPLETED' ||
+      appointment.status === 'NO_SHOW'
     ) {
       throw new BadRequestException(
         'Este agendamento não pode mais ser cancelado',
@@ -1082,92 +863,99 @@ export class AppointmentsService {
     }
 
     const updatedAppointment =
-      await this.prisma.$transaction(
-        async (tx) => {
-          const updated =
-            await tx.appointment.update({
-              where: {
-                id,
-              },
+      await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.appointment.update({
+          where: {
+            id,
+          },
+          data: {
+            status: 'CANCELED',
+            canceledAt: new Date(),
+            cancelReason: data.reason?.trim(),
+          },
+          include: {
+            employee: true,
+            service: true,
+            client: true,
+          },
+        });
 
-              data: {
-                status:
-                  'CANCELED',
+        await this.notifyAppointmentCanceled(
+          tenantId,
+          updated,
+          {
+            client: tx,
+            throwOnError: true,
+          },
+        );
 
-                canceledAt:
-                  new Date(),
-
-                cancelReason:
-                  data.reason?.trim(),
-              },
-
-              include: {
-                employee:
-                  true,
-
-                service:
-                  true,
-
-                client:
-                  true,
-              },
-            });
-
-          await this.notifyAppointmentCanceled(
+        if (actor) {
+          await recordAppointmentAudit(tx, {
             tenantId,
-            updated,
-            {
-              client:
-                tx,
-
-              throwOnError:
-                true,
+            appointmentId: id,
+            action: 'CANCELED',
+            actor,
+            before: {
+              status: appointment.status,
+              canceledAt:
+                appointment.canceledAt?.toISOString() ??
+                null,
+              cancelReason: appointment.cancelReason,
             },
-          );
+            after: {
+              status: updated.status,
+              canceledAt:
+                updated.canceledAt?.toISOString() ??
+                null,
+              cancelReason: updated.cancelReason,
+            },
+          });
+        }
 
-          return updated;
-        },
-      );
+        return updated;
+      });
 
     return updatedAppointment;
   }
 
+  /*
+   * REAGENDAMENTO
+   *
+   * Só registra auditoria quando o
+   * horário realmente é alterado.
+   *
+   * A notificação e o evento de auditoria
+   * fazem parte da mesma transação.
+   */
   async reschedule(
     tenantId: string,
     id: string,
     data: RescheduleAppointmentDto,
+    actor?: AppointmentActor,
   ) {
-    const appointment =
-      await this.findOneForTenant(
-        tenantId,
-        id,
-      );
+    const appointment = await this.findOneForTenant(
+      tenantId,
+      id,
+    );
 
     if (
-      appointment.status ===
-        'CANCELED' ||
-      appointment.status ===
-        'COMPLETED' ||
-      appointment.status ===
-        'NO_SHOW'
+      appointment.status === 'CANCELED' ||
+      appointment.status === 'COMPLETED' ||
+      appointment.status === 'NO_SHOW'
     ) {
       throw new BadRequestException(
         `Agendamento com status ${appointment.status} não pode ser reagendado`,
       );
     }
 
-    const tenant =
-      await this.prisma.tenant.findUnique({
-        where: {
-          id:
-            tenantId,
-        },
-
-        select: {
-          timezone:
-            true,
-        },
-      });
+    const tenant = await this.prisma.tenant.findUnique({
+      where: {
+        id: tenantId,
+      },
+      select: {
+        timezone: true,
+      },
+    });
 
     if (!tenant) {
       throw new NotFoundException(
@@ -1175,30 +963,24 @@ export class AppointmentsService {
       );
     }
 
-    const requestedDateTime =
-      DateTime.fromISO(
-        data.startsAt,
-        {
-          setZone:
-            true,
-        },
-      );
+    const requestedDateTime = DateTime.fromISO(
+      data.startsAt,
+      {
+        setZone: true,
+      },
+    );
 
-    if (
-      !requestedDateTime.isValid
-    ) {
+    if (!requestedDateTime.isValid) {
       throw new BadRequestException(
         'Data ou horário inválido',
       );
     }
 
-    const localDateTime =
-      requestedDateTime.setZone(
-        tenant.timezone,
-      );
+    const localDateTime = requestedDateTime.setZone(
+      tenant.timezone,
+    );
 
-    const date =
-      localDateTime.toISODate();
+    const date = localDateTime.toISODate();
 
     if (!date) {
       throw new BadRequestException(
@@ -1206,10 +988,9 @@ export class AppointmentsService {
       );
     }
 
-    const requestedTime =
-      localDateTime.toFormat(
-        'HH:mm',
-      );
+    const requestedTime = localDateTime.toFormat(
+      'HH:mm',
+    );
 
     const availability =
       await this.availabilityService.getAvailableSlots(
@@ -1220,138 +1001,120 @@ export class AppointmentsService {
         appointment.id,
       );
 
-    if (
-      !availability.slots.includes(
-        requestedTime,
-      )
-    ) {
+    if (!availability.slots.includes(requestedTime)) {
       throw new BadRequestException(
         'O novo horário informado não está disponível',
       );
     }
 
-    const startsAt =
-      requestedDateTime
-        .toUTC()
-        .toJSDate();
+    const startsAt = requestedDateTime
+      .toUTC()
+      .toJSDate();
 
-    const endsAt =
-      requestedDateTime
-        .plus({
-          minutes:
-            appointment.durationMin,
-        })
-        .toUTC()
-        .toJSDate();
+    const endsAt = requestedDateTime
+      .plus({
+        minutes: appointment.durationMin,
+      })
+      .toUTC()
+      .toJSDate();
 
     const startsAtChanged =
       startsAt.getTime() !==
       appointment.startsAt.getTime();
 
     const updatedAppointment =
-      await this.prisma.$transaction(
-        async (tx) => {
-          await tx.$queryRaw<
-            Array<{
-              lock_value: number;
-            }>
-          >`
-            SELECT 1::int AS lock_value
-            FROM pg_advisory_xact_lock(
-              hashtext(${tenantId}),
-              hashtext(${appointment.employeeId})
-            )
-          `;
+      await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw<
+          Array<{
+            lock_value: number;
+          }>
+        >`
+          SELECT 1::int AS lock_value
+          FROM pg_advisory_xact_lock(
+            hashtext(${tenantId}),
+            hashtext(${appointment.employeeId})
+          )
+        `;
 
-          const conflictingAppointment =
-            await tx.appointment.findFirst({
-              where: {
-                id: {
-                  not:
-                    appointment.id,
-                },
-
-                tenantId,
-
-                employeeId:
-                  appointment.employeeId,
-
-                status: {
-                  not:
-                    'CANCELED',
-                },
-
-                startsAt: {
-                  lt:
-                    endsAt,
-                },
-
-                endsAt: {
-                  gt:
-                    startsAt,
-                },
+        const conflictingAppointment =
+          await tx.appointment.findFirst({
+            where: {
+              id: {
+                not: appointment.id,
               },
-            });
-
-          if (
-            conflictingAppointment
-          ) {
-            throw new ConflictException(
-              'O novo horário acabou de ser ocupado',
-            );
-          }
-
-          const updated =
-            await tx.appointment.update({
-              where: {
-                id:
-                  appointment.id,
-              },
-
-              data: {
-                startsAt,
-                endsAt,
-
-                ...(startsAtChanged
-                  ? {
-                      reminderSentAt:
-                        null,
-                    }
-                  : {}),
-              },
-
-              include: {
-                employee:
-                  true,
-
-                service:
-                  true,
-
-                client:
-                  true,
-              },
-            });
-
-          if (
-            startsAtChanged
-          ) {
-            await this.notifyAppointmentRescheduled(
               tenantId,
-              updated,
-              appointment.startsAt,
-              {
-                client:
-                  tx,
-
-                throwOnError:
-                  true,
+              employeeId: appointment.employeeId,
+              status: {
+                not: 'CANCELED',
               },
-            );
-          }
+              startsAt: {
+                lt: endsAt,
+              },
+              endsAt: {
+                gt: startsAt,
+              },
+            },
+          });
 
-          return updated;
-        },
-      );
+        if (conflictingAppointment) {
+          throw new ConflictException(
+            'O novo horário acabou de ser ocupado',
+          );
+        }
+
+        const updated = await tx.appointment.update({
+          where: {
+            id: appointment.id,
+          },
+          data: {
+            startsAt,
+            endsAt,
+            ...(startsAtChanged
+              ? {
+                  reminderSentAt: null,
+                }
+              : {}),
+          },
+          include: {
+            employee: true,
+            service: true,
+            client: true,
+          },
+        });
+
+        if (startsAtChanged) {
+          await this.notifyAppointmentRescheduled(
+            tenantId,
+            updated,
+            appointment.startsAt,
+            {
+              client: tx,
+              throwOnError: true,
+            },
+          );
+
+          if (actor) {
+            await recordAppointmentAudit(tx, {
+              tenantId,
+              appointmentId: appointment.id,
+              action: 'RESCHEDULED',
+              actor,
+              before: {
+                startsAt:
+                  appointment.startsAt.toISOString(),
+                endsAt:
+                  appointment.endsAt.toISOString(),
+              },
+              after: {
+                startsAt: updated.startsAt.toISOString(),
+                endsAt: updated.endsAt.toISOString(),
+              },
+            });
+          }
+        }
+
+        return updated;
+      });
 
     return updatedAppointment;
   }
