@@ -506,14 +506,21 @@ describe('Histórico de agendamentos (E2E)', () => {
     expect(response.body.data).toHaveLength(4);
   });
 
-  it('permite consulta pelo RECEPTIONIST', async () => {
+  /*
+   * ETAPA 6.1 — REGRA DE SEGURANÇA
+   *
+   * RECEPTIONIST pode gerenciar agendamentos,
+   * mas não pode consultar a Auditoria.
+   *
+   * O backend deve retornar HTTP 403.
+   */
+  it('bloqueia consulta pelo RECEPTIONIST', async () => {
     const response = await getHistory(
       appointmentId,
       receptionistToken,
     );
 
-    expect(response.status).toBe(200);
-    expect(response.body.data).toHaveLength(4);
+    expect(response.status).toBe(403);
   });
 
   it('bloqueia consulta pelo STAFF', async () => {

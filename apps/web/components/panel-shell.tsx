@@ -105,6 +105,24 @@ const menuItems: MenuItem[] = [
     ],
   },
 
+  /*
+   * ETAPA 6.1 — AUDITORIA
+   *
+   * A opção aparece exclusivamente
+   * para OWNER e ADMIN.
+   *
+   * A mesma configuração controla
+   * os menus desktop e mobile.
+   */
+  {
+    label: 'Auditoria',
+    href: '/auditoria',
+    roles: [
+      'OWNER',
+      'ADMIN',
+    ],
+  },
+
   {
     label: 'Configurações',
     href: '/configuracoes',
@@ -177,7 +195,7 @@ export function PanelShell({
             storedUser,
           ) as StoredUser;
 
-        /**
+        /*
          * Salva a função do usuário
          * para controlar o menu.
          */
@@ -185,16 +203,16 @@ export function PanelShell({
           parsed.membership.role,
         );
 
-        /**
+        /*
          * Mostra imediatamente os dados
-         * da empresa que já temos
+         * da empresa armazenados
          * no navegador.
          */
         setTenant(
           parsed.tenant,
         );
 
-        /**
+        /*
          * Busca os dados mais recentes
          * da empresa no backend.
          */
@@ -219,7 +237,7 @@ export function PanelShell({
             tenantData,
           );
 
-          /**
+          /*
            * Atualiza também os dados
            * armazenados no navegador.
            */
@@ -281,9 +299,18 @@ export function PanelShell({
     );
   }
 
-  /**
+  /*
    * Filtra o menu conforme
    * a função do usuário.
+   *
+   * OWNER:
+   * vê Auditoria.
+   *
+   * ADMIN:
+   * vê Auditoria.
+   *
+   * RECEPTIONIST e STAFF:
+   * não veem Auditoria.
    *
    * STAFF recebe ainda uma
    * identificação especial

@@ -47,12 +47,12 @@ export class AppointmentsController {
    * O usuário, a empresa e a função não são
    * recebidos pelo body da requisição.
    *
-   * Apenas OWNER, ADMIN e RECEPTIONIST
-   * podem realizar operações administrativas
+   * OWNER, ADMIN e RECEPTIONIST podem
+   * realizar operações administrativas
    * de agendamento.
    *
-   * Não identificamos essas operações como
-   * SYSTEM, pois foram feitas por usuários.
+   * Essas operações são registradas na
+   * auditoria com o usuário responsável.
    */
   private getAuditActor(
     user: JwtPayload,
@@ -137,19 +137,23 @@ export class AppointmentsController {
    *
    * GET /appointments/:id/history
    *
-   * OWNER, ADMIN e RECEPTIONIST podem
-   * consultar os eventos.
+   * ACESSO EXCLUSIVO:
+   * OWNER e ADMIN.
    *
-   * STAFF não possui acesso.
+   * RECEPTIONIST e STAFF não possuem
+   * permissão para consultar a auditoria.
+   *
+   * O RolesGuard bloqueia usuários
+   * sem permissão antes de executar
+   * a consulta.
    *
    * O isolamento multiempresa é validado
-   * antes da consulta dos registros.
+   * antes da leitura dos registros.
    */
   @Get(':id/history')
   @Roles(
     'OWNER',
     'ADMIN',
-    'RECEPTIONIST',
   )
   async findHistory(
     @CurrentUser()
@@ -179,7 +183,7 @@ export class AppointmentsController {
      * Ordenação:
      * mais recente primeiro.
      *
-     * Limite inicial:
+     * Limite:
      * 100 eventos.
      */
     const history =

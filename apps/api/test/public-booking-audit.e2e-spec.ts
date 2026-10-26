@@ -677,36 +677,32 @@ describe('Auditoria de agendamento público (E2E)', () => {
         });
 
       /*
-       * Simula falha apenas na escrita
-       * da auditoria.
-       */
-      auditControl.shouldFail = true;
+ * Simula falha apenas na escrita
+ * da auditoria.
+ */
+auditControl.shouldFail = true;
 
-      let response: Awaited<
-        ReturnType<
-          ReturnType<
-            typeof createPublicBooking
-          >['then']
-        >
-      > | undefined;
+let response: Awaited<
+  ReturnType<typeof createPublicBooking>
+    > | undefined;
 
-      try {
-        response =
-          await createPublicBooking(
-            rollbackPhone,
-            startsAt,
-          );
-      } finally {
-        auditControl.shouldFail = false;
-      }
+    try {
+    response =
+        await createPublicBooking(
+        rollbackPhone,
+        startsAt,
+        );
+    } finally {
+    auditControl.shouldFail = false;
+    }
 
-      /*
-       * A API deve retornar erro porque
-       * a auditoria lançou uma exceção.
-       */
-      expect(
-        response?.status,
-      ).toBe(500);
+    /*
+    * A API deve retornar erro porque
+    * a auditoria lançou uma exceção.
+    */
+    expect(
+    response?.status,
+    ).toBe(500);
 
       const afterAppointments =
         await prisma.appointment.count({
