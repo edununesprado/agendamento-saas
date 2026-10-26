@@ -1,4 +1,6 @@
+
 import { Type } from 'class-transformer';
+
 import {
   IsEmail,
   IsISO8601,
@@ -11,6 +13,12 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+/*
+ * DADOS DO CLIENTE
+ *
+ * Mantém as validações já existentes
+ * para nome, telefone e e-mail.
+ */
 export class PublicClientDto {
   @IsString()
   @IsNotEmpty()
@@ -35,6 +43,17 @@ export class PublicClientDto {
   email?: string;
 }
 
+/*
+ * AGENDAMENTO PÚBLICO
+ *
+ * Valida:
+ * - Funcionário
+ * - Serviço
+ * - Data e horário
+ * - Cliente
+ * - Observações
+ * - Token de proteção anti-bot
+ */
 export class CreatePublicAppointmentDto {
   @IsString()
   @IsNotEmpty()
@@ -64,4 +83,27 @@ export class CreatePublicAppointmentDto {
   @IsString()
   @MaxLength(500)
   notes?: string;
+
+  /*
+   * ETAPA 6.2 — CLOUDFLARE TURNSTILE
+   *
+   * Token gerado pelo widget de
+   * segurança no frontend.
+   *
+   * É opcional no DTO para preservar
+   * compatibilidade durante a
+   * implementação e nos testes locais.
+   *
+   * Quando o Turnstile estiver ativo,
+   * o serviço de verificação exigirá
+   * um token válido antes de permitir
+   * a criação do agendamento.
+   *
+   * O token não deve ser armazenado
+   * no banco de dados.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  turnstileToken?: string;
 }

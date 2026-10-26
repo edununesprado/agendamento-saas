@@ -1,3 +1,4 @@
+
 import {
   beforeEach,
   describe,
@@ -102,6 +103,11 @@ describe(
           1,
         );
 
+        /*
+         * O segundo argumento é opcional
+         * e atualmente enviado como
+         * undefined pelo serviço.
+         */
         expect(
           enqueueEmail,
         ).toHaveBeenCalledWith(
@@ -121,6 +127,7 @@ describe(
             dedupeKey:
               'appointment:appointment-1:requested',
           }),
+          undefined,
         );
 
         const notification =
@@ -205,6 +212,7 @@ describe(
             dedupeKey:
               'appointment:appointment-1:confirmed',
           }),
+          undefined,
         );
       },
     );
@@ -253,6 +261,7 @@ describe(
             dedupeKey:
               'appointment:appointment-1:canceled',
           }),
+          undefined,
         );
 
         const notification =
@@ -322,6 +331,7 @@ describe(
             dedupeKey:
               'appointment:appointment-1:rescheduled:2026-10-27T13:00:00.000Z',
           }),
+          undefined,
         );
       },
     );
@@ -664,6 +674,7 @@ describe(
             dedupeKey:
               'appointment:appointment-1:reminder:2026-10-27T12:00:00.000Z',
           }),
+          undefined,
         );
 
         const notification =

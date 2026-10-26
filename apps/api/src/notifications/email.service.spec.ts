@@ -1,5 +1,7 @@
+
 import { ConfigService } from '@nestjs/config';
 import nodemailer from 'nodemailer';
+
 import {
   beforeEach,
   describe,
@@ -10,337 +12,222 @@ import {
 
 import { EmailService } from './email.service.js';
 
-vi.mock(
-  'nodemailer',
-  () => ({
-    default: {
-      createTransport:
-        vi.fn(),
-    },
-  }),
-);
+/*
+ * TESTES UNITÁRIOS DO EMAIL SERVICE
+ *
+ * O Nodemailer é simulado.
+ * Nenhum e-mail real será enviado.
+ */
+vi.mock('nodemailer', () => ({
+  default: {
+    createTransport: vi.fn(),
+  },
+}));
 
-describe(
-  'EmailService',
-  () => {
-    const sendMail =
-      vi.fn();
+describe('EmailService', () => {
+  const sendMail = vi.fn();
 
-    const createTransport =
-      vi.mocked(
-        nodemailer.createTransport,
-      );
+  const createTransport =
+    vi.mocked(nodemailer.createTransport);
 
-    beforeEach(() => {
-      vi.clearAllMocks();
+  /*
+   * Limites de timeout implementados
+   * no EmailService.
+   */
+  const smtpTimeouts = {
+    connectionTimeout: 30_000,
+    greetingTimeout: 30_000,
+    socketTimeout: 120_000,
+  };
 
-      sendMail.mockResolvedValue({
-        messageId:
-          'test-message-id',
-      });
+  beforeEach(() => {
+    vi.clearAllMocks();
 
-      createTransport.mockReturnValue({
-        sendMail,
-      } as never);
+    sendMail.mockResolvedValue({
+      messageId: 'test-message-id',
     });
 
-    function createService(
-      values: Record<
-        string,
-        string | undefined
-      >,
-    ) {
-      const configService = {
-        get: vi.fn(
-          (
-            key: string,
-          ) =>
-            values[key],
-        ),
-      } as unknown as ConfigService;
+    createTransport.mockReturnValue({
+      sendMail,
+    } as never);
+  });
 
-      return new EmailService(
-        configService,
-      );
-    }
+  function createService(
+    values: Record<string, string | undefined>,
+  ) {
+    const configService = {
+      get: vi.fn(
+        (key: string) => values[key],
+      ),
+    } as unknown as ConfigService;
 
-    it(
-      'não envia e-mail quando SMTP_ENABLED está false',
-      async () => {
-        const service =
-          createService({
-            SMTP_ENABLED:
-              'false',
+    return new EmailService(configService);
+  }
 
-            SMTP_HOST:
-              '127.0.0.1',
+  it(
+    'não envia e-mail quando SMTP_ENABLED está false',
+    async () => {
+      const service = createService({
+        SMTP_ENABLED: 'false',
+        SMTP_HOST: '127.0.0.1',
+        SMTP_PORT: '1025',
+        SMTP_SECURE: 'false',
+        SMTP_USER: 'mailpit',
+        SMTP_PASS: 'mailpit',
+        SMTP_FROM_EMAIL:
+          'nao-responda@agendamento.local',
+      });
 
-            SMTP_PORT:
-              '1025',
+      const result = await service.sendMail({
+        to: 'cliente@teste.com',
+        subject: 'Teste',
+        text: 'Mensagem de teste',
+      });
 
-            SMTP_SECURE:
-              'false',
+      expect(result).toBe(false);
 
-            SMTP_USER:
-              'mailpit',
+      expect(createTransport)
+        .not.toHaveBeenCalled();
 
-            SMTP_PASS:
-              'mailpit',
+      expect(sendMail)
+        .not.toHaveBeenCalled();
+    },
+  );
 
-            SMTP_FROM_EMAIL:
-              'nao-responda@agendamento.local',
-          });
+  it(
+    'não envia e-mail quando a configuração SMTP está incompleta',
+    async () => {
+      const service = createService({
+        SMTP_ENABLED: 'true',
+        SMTP_HOST: '127.0.0.1',
+        SMTP_PORT: '1025',
+        SMTP_SECURE: 'false',
+      });
 
-        const result =
-          await service.sendMail({
-            to:
-              'cliente@teste.com',
+      const result = await service.sendMail({
+        to: 'cliente@teste.com',
+        subject: 'Teste',
+        text: 'Mensagem de teste',
+      });
 
-            subject:
-              'Teste',
+      expect(result).toBe(false);
 
-            text:
-              'Mensagem de teste',
-          });
+      expect(createTransport)
+        .not.toHaveBeenCalled();
 
-        expect(
-          result,
-        ).toBe(false);
+      expect(sendMail)
+        .not.toHaveBeenCalled();
+    },
+  );
 
-        expect(
-          createTransport,
-        ).not.toHaveBeenCalled();
+  it(
+    'cria transporte SMTP e envia e-mail quando está habilitado e configurado',
+    async () => {
+      const service = createService({
+        SMTP_ENABLED: 'true',
+        SMTP_HOST: '127.0.0.1',
+        SMTP_PORT: '1025',
+        SMTP_SECURE: 'false',
+        SMTP_USER: 'mailpit',
+        SMTP_PASS: 'mailpit',
+        SMTP_FROM_NAME: 'Agendamento SaaS',
+        SMTP_FROM_EMAIL:
+          'nao-responda@agendamento.local',
+      });
 
-        expect(
-          sendMail,
-        ).not.toHaveBeenCalled();
-      },
-    );
+      const result = await service.sendMail({
+        to: 'cliente@teste.com',
+        subject: 'Agendamento confirmado',
+        text: 'Seu agendamento foi confirmado.',
+        html: '<p>Seu agendamento foi confirmado.</p>',
+      });
 
-    it(
-      'não envia e-mail quando a configuração SMTP está incompleta',
-      async () => {
-        const service =
-          createService({
-            SMTP_ENABLED:
-              'true',
+      expect(result).toBe(true);
 
-            SMTP_HOST:
-              '127.0.0.1',
+      expect(createTransport)
+        .toHaveBeenCalledTimes(1);
 
-            SMTP_PORT:
-              '1025',
+      /*
+       * ETAPA DE CORREÇÃO
+       *
+       * Verifica também os timeouts
+       * configurados no serviço real.
+       */
+      expect(createTransport).toHaveBeenCalledWith({
+        host: '127.0.0.1',
+        port: 1025,
+        secure: false,
 
-            SMTP_SECURE:
-              'false',
-          });
+        ...smtpTimeouts,
 
-        const result =
-          await service.sendMail({
-            to:
-              'cliente@teste.com',
+        auth: {
+          user: 'mailpit',
+          pass: 'mailpit',
+        },
+      });
 
-            subject:
-              'Teste',
+      expect(sendMail)
+        .toHaveBeenCalledTimes(1);
 
-            text:
-              'Mensagem de teste',
-          });
+      expect(sendMail).toHaveBeenCalledWith({
+        from: {
+          name: 'Agendamento SaaS',
+          address:
+            'nao-responda@agendamento.local',
+        },
 
-        expect(
-          result,
-        ).toBe(false);
+        to: 'cliente@teste.com',
+        subject: 'Agendamento confirmado',
+        text: 'Seu agendamento foi confirmado.',
+        html: '<p>Seu agendamento foi confirmado.</p>',
+      });
+    },
+  );
 
-        expect(
-          createTransport,
-        ).not.toHaveBeenCalled();
+  it(
+    'usa porta 587 e nome padrão quando não informados',
+    async () => {
+      const service = createService({
+        SMTP_ENABLED: 'true',
+        SMTP_HOST: 'smtp.teste.com',
+        SMTP_USER: 'usuario',
+        SMTP_PASS: 'senha',
+        SMTP_FROM_EMAIL: 'envio@teste.com',
+      });
 
-        expect(
-          sendMail,
-        ).not.toHaveBeenCalled();
-      },
-    );
+      const result = await service.sendMail({
+        to: 'cliente@teste.com',
+        subject: 'Teste',
+        text: 'Mensagem',
+      });
 
-    it(
-      'cria transporte SMTP e envia e-mail quando está habilitado e configurado',
-      async () => {
-        const service =
-          createService({
-            SMTP_ENABLED:
-              'true',
+      expect(result).toBe(true);
 
-            SMTP_HOST:
-              '127.0.0.1',
+      /*
+       * Também exige os timeouts
+       * no transporte SMTP padrão.
+       */
+      expect(createTransport).toHaveBeenCalledWith({
+        host: 'smtp.teste.com',
+        port: 587,
+        secure: false,
 
-            SMTP_PORT:
-              '1025',
+        ...smtpTimeouts,
 
-            SMTP_SECURE:
-              'false',
+        auth: {
+          user: 'usuario',
+          pass: 'senha',
+        },
+      });
 
-            SMTP_USER:
-              'mailpit',
-
-            SMTP_PASS:
-              'mailpit',
-
-            SMTP_FROM_NAME:
-              'Agendamento SaaS',
-
-            SMTP_FROM_EMAIL:
-              'nao-responda@agendamento.local',
-          });
-
-        const result =
-          await service.sendMail({
-            to:
-              'cliente@teste.com',
-
-            subject:
-              'Agendamento confirmado',
-
-            text:
-              'Seu agendamento foi confirmado.',
-
-            html:
-              '<p>Seu agendamento foi confirmado.</p>',
-          });
-
-        expect(
-          result,
-        ).toBe(true);
-
-        expect(
-          createTransport,
-        ).toHaveBeenCalledTimes(
-          1,
-        );
-
-        expect(
-          createTransport,
-        ).toHaveBeenCalledWith({
-          host:
-            '127.0.0.1',
-
-          port:
-            1025,
-
-          secure:
-            false,
-
-          auth: {
-            user:
-              'mailpit',
-
-            pass:
-              'mailpit',
-          },
-        });
-
-        expect(
-          sendMail,
-        ).toHaveBeenCalledTimes(
-          1,
-        );
-
-        expect(
-          sendMail,
-        ).toHaveBeenCalledWith({
+      expect(sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
           from: {
-            name:
-              'Agendamento SaaS',
-
-            address:
-              'nao-responda@agendamento.local',
+            name: 'Agendamento SaaS',
+            address: 'envio@teste.com',
           },
-
-          to:
-            'cliente@teste.com',
-
-          subject:
-            'Agendamento confirmado',
-
-          text:
-            'Seu agendamento foi confirmado.',
-
-          html:
-            '<p>Seu agendamento foi confirmado.</p>',
-        });
-      },
-    );
-
-    it(
-      'usa porta 587 e nome padrão quando não informados',
-      async () => {
-        const service =
-          createService({
-            SMTP_ENABLED:
-              'true',
-
-            SMTP_HOST:
-              'smtp.teste.com',
-
-            SMTP_USER:
-              'usuario',
-
-            SMTP_PASS:
-              'senha',
-
-            SMTP_FROM_EMAIL:
-              'envio@teste.com',
-          });
-
-        const result =
-          await service.sendMail({
-            to:
-              'cliente@teste.com',
-
-            subject:
-              'Teste',
-
-            text:
-              'Mensagem',
-          });
-
-        expect(
-          result,
-        ).toBe(true);
-
-        expect(
-          createTransport,
-        ).toHaveBeenCalledWith({
-          host:
-            'smtp.teste.com',
-
-          port:
-            587,
-
-          secure:
-            false,
-
-          auth: {
-            user:
-              'usuario',
-
-            pass:
-              'senha',
-          },
-        });
-
-        expect(
-          sendMail,
-        ).toHaveBeenCalledWith(
-          expect.objectContaining({
-            from: {
-              name:
-                'Agendamento SaaS',
-
-              address:
-                'envio@teste.com',
-            },
-          }),
-        );
-      },
-    );
-  },
-);
+        }),
+      );
+    },
+  );
+});

@@ -25,10 +25,12 @@ A auditoria registra ações de agendamento, usuário responsável, data e hora 
 | Auditoria transacional de agendamentos | Implementada e testada |
 | Histórico de auditoria no Next.js | Implementado e validado manualmente |
 | Permissões de Auditoria OWNER/ADMIN | Implementadas e testadas |
-| Testes E2E | **256 aprovados em 40 arquivos** (25/10/2026) |
+| Cloudflare Turnstile — Etapa 6.2 | Implementado e testado no agendamento público |
+| Testes unitários | **67 aprovados em 24 arquivos** (26/10/2026) |
+| Testes E2E | **271 aprovados em 41 arquivos** (26/10/2026) |
 | Preparação para produção e deploy | Etapas futuras |
 
-**Último marco implementado:** Etapa 6.1 — Auditoria de Agendamentos.
+**Último marco implementado:** Etapa 6.2 — Proteção Cloudflare Turnstile no agendamento público.
 
 **Commit de referência:** `3d3b694` — `feat: add appointment audit dashboard and restrict history access`.
 
@@ -580,6 +582,86 @@ Essas regras ajudam o frontend a apresentar as opções disponíveis e são **va
 Na solicitação pública, cliente, agendamento `PENDING`, notificação `APPOINTMENT_REQUESTED` e auditoria `CREATED` são persistidos na mesma transação PostgreSQL.
 
 Se uma gravação obrigatória falhar, ocorre rollback.
+
+## Proteção Cloudflare Turnstile — Etapa 6.2
+
+A página pública de agendamento possui proteção
+contra solicitações automatizadas utilizando
+Cloudflare Turnstile.
+
+### Funcionamento
+
+- O frontend apresenta o widget de verificação
+  quando a proteção está habilitada.
+- O cliente precisa concluir a verificação antes
+  de enviar a solicitação.
+- O frontend envia o token junto aos dados do
+  agendamento público.
+- O backend verifica o token com o serviço
+  Cloudflare Turnstile.
+- Tokens enviados não são reutilizados.
+- Erros de verificação não devem apagar os
+  dados preenchidos pelo cliente.
+- O rate limit existente continua ativo.
+
+A validação de segurança é realizada no backend.
+A verificação do frontend não substitui essa
+validação.
+
+### Configuração do backend
+
+Arquivo: `apps/api/.env`
+
+Variáveis:
+
+- `TURNSTILE_ENABLED`: habilita ou desabilita
+  a verificação.
+- `TURNSTILE_SECRET_KEY`: chave secreta utilizada
+  pelo backend para validar os tokens.
+
+A chave secreta nunca deve ser enviada ao
+frontend ou adicionada ao Git.
+
+### Configuração do frontend
+
+Arquivo: `apps/web/.env.local`
+
+Variáveis:
+
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY`: chave pública
+  utilizada pelo widget.
+- `NEXT_PUBLIC_TURNSTILE_ENABLED`: controla a
+  ativação do widget no frontend.
+
+A ativação do frontend deve corresponder à
+configuração do backend.
+
+### Testes automatizados
+
+A implementação foi validada com:
+
+- 23 testes unitários específicos do serviço
+  de verificação Turnstile.
+- 15 testes E2E específicos da integração
+  Turnstile.
+- Suíte completa do backend:
+  67 testes unitários aprovados em 24 arquivos.
+- Suíte E2E completa:
+  271 testes aprovados em 41 arquivos.
+
+Também foram aprovados:
+
+- Build do backend NestJS.
+- Verificação TypeScript do frontend.
+- Build do frontend Next.js.
+
+### Situação
+
+A Etapa 6.2 foi implementada e validada no
+ambiente de desenvolvimento.
+
+A configuração com chaves reais e a homologação
+para produção permanecem como atividades futuras.
 
 ---
 
@@ -1216,14 +1298,31 @@ pnpm exec vitest run --config ./vitest.config.e2e.ts test/appointment-audit-flow
 pnpm exec vitest run --config ./vitest.config.e2e.ts test/public-booking-audit.e2e-spec.ts
 ```
 
-### Último resultado validado — 25/10/2026
+### Último resultado validado — 26/10/2026
+
+**Testes E2E do backend:**
 
 ```text
-Test Files  40 passed (40)
-Tests       256 passed (256)
+Test Files  41 passed (41)
+Tests       271 passed (271)
+```
+**Testes unitários do backend:**
+
+```text
+Test Files  24 passed (24)
+Tests       67 passed (67)
 ```
 
-Duração aproximada: 179 segundos.
+**Total: 338 testes aprovados.**
+
+A suíte E2E inclui os 15 testes de integração
+do Cloudflare Turnstile.
+
+A suíte unitária inclui os 23 testes do serviço
+de verificação Turnstile.
+
+Os builds do backend NestJS e do frontend Next.js
+também foram aprovados.
 
 Inclui:
 
@@ -1293,6 +1392,10 @@ Também foram realizados testes manuais da tela administrativa, incluindo criaç
 | Etapa 6.1 — Controle de acesso | Concluída: consulta exclusiva OWNER/ADMIN no backend e frontend |
 | Etapa 6.1 — Tela de Auditoria | Concluída: menu, filtros, histórico, nomes de funcionários e serviços |
 | Validação final da Etapa 6.1 | 256 testes E2E aprovados em 40 arquivos |
+| Etapa 6.2 — Cloudflare Turnstile | Concluída: proteção do agendamento público com verificação de token no backend |
+| Etapa 6.2 — Integração Next.js | Concluída: widget Turnstile, controle de token e tratamento de falhas |
+| Etapa 6.2 — Testes de segurança | Concluída: 23 testes unitários e 15 testes E2E específicos do Turnstile |
+| Validação final da Etapa 6.2 | 67 testes unitários, 271 testes E2E e builds do backend e frontend aprovados |
 
 ### Commits de referência
 

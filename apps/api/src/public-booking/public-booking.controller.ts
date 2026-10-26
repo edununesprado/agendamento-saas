@@ -1,3 +1,4 @@
+
 import {
   Body,
   Controller,
@@ -16,7 +17,9 @@ import {
 import { CreatePublicAppointmentDto } from './dto/create-public-appointment.dto.js';
 import { PublicAvailabilityQueryDto } from './dto/public-availability-query.dto.js';
 import { PublicEmployeesQueryDto } from './dto/public-employees-query.dto.js';
+
 import { PublicBookingService } from './public-booking.service.js';
+import { TurnstileVerificationService } from './turnstile-verification.service.js';
 
 @Controller(
   'public/tenants/:slug',
@@ -27,8 +30,15 @@ import { PublicBookingService } from './public-booking.service.js';
 export class PublicBookingController {
   constructor(
     private readonly publicBookingService: PublicBookingService,
+    private readonly turnstileVerificationService: TurnstileVerificationService,
   ) {}
 
+  /*
+   * CONSULTA PÚBLICA DA EMPRESA
+   *
+   * Retorna as informações públicas
+   * da empresa pelo slug.
+   */
   @Get()
   findTenant(
     @Param('slug') slug: string,
@@ -38,6 +48,9 @@ export class PublicBookingController {
     );
   }
 
+  /*
+   * SERVIÇOS DISPONÍVEIS
+   */
   @Get('services')
   findServices(
     @Param('slug') slug: string,
@@ -47,6 +60,9 @@ export class PublicBookingController {
     );
   }
 
+  /*
+   * FUNCIONÁRIOS DISPONÍVEIS
+   */
   @Get('employees')
   findEmployees(
     @Param('slug') slug: string,
@@ -60,6 +76,13 @@ export class PublicBookingController {
     );
   }
 
+  /*
+   * CONSULTA DE DISPONIBILIDADE
+   *
+   * Preserva as regras existentes
+   * de horários, bloqueios, serviços
+   * e agendamentos.
+   */
   @Get('availability')
   findAvailability(
     @Param('slug') slug: string,
@@ -74,14 +97,33 @@ export class PublicBookingController {
   }
 
   /*
-   * A criação de agendamento recebe um limite
-   * mais restrito do que as consultas públicas.
+   * ETAPA 6.2 — AGENDAMENTO PÚBLICO
    *
-   * Máximo:
-   * 20 tentativas por minuto por IP.
+   * PROTEÇÕES:
    *
-   * Quando o limite for ultrapassado,
-   * o Nest responderá HTTP 429.
+   * 1. Rate limit de 20 tentativas/minuto/IP.
+   *
+   * 2. Validação do DTO pelo ValidationPipe.
+   *
+   * 3. Verificação do Cloudflare Turnstile
+   *    antes de criar o agendamento.
+   *
+   * 4. Validações de disponibilidade,
+   *    conflitos e regras de negócio
+   *    pelo PublicBookingService.
+   *
+   * 5. Persistência transacional de
+   *    agendamento, auditoria e notificação.
+   *
+   * IMPORTANTE:
+   *
+   * O token é verificado pelo backend.
+   * O frontend não decide se a
+   * verificação foi aprovada.
+   *
+   * Quando TURNSTILE_ENABLED=true,
+   * a ausência ou rejeição do token
+   * impede a criação do agendamento.
    */
   @Post('appointments')
   @Throttle({
@@ -90,12 +132,38 @@ export class PublicBookingController {
       limit: 20,
     },
   })
-  createAppointment(
-    @Param('slug') slug: string,
+  async createAppointment(
+    @Param('slug')
+    slug: string,
 
     @Body()
     data: CreatePublicAppointmentDto,
   ) {
+    /*
+     * PASSO 1 — VERIFICAÇÃO ANTI-BOT
+     *
+     * A operação só continua se a
+     * proteção estiver desativada no
+     * desenvolvimento ou se o token
+     * for validado com sucesso.
+     *
+     * Nenhuma gravação de agendamento
+     * é iniciada antes dessa validação.
+     */
+    await this.turnstileVerificationService.verify(
+      data.turnstileToken,
+    );
+
+    /*
+     * PASSO 2 — CRIAÇÃO DO AGENDAMENTO
+     *
+     * Somente após a verificação
+     * executamos as regras de negócio
+     * e a transação já implementadas.
+     *
+     * O token de segurança não precisa
+     * ser persistido no banco.
+     */
     return this.publicBookingService.createAppointment(
       slug,
       data,
