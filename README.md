@@ -1,10 +1,15 @@
+
 # Agendamento SaaS
 
 Sistema **SaaS multiempresa (multi-tenant)** para gerenciamento de agendamentos, desenvolvido como projeto de portfólio Full Stack com TypeScript.
 
-A plataforma permite que diferentes empresas gerenciem, de forma isolada, seus usuários, funcionários, serviços, clientes, horários, bloqueios, agendamentos e configurações. Inclui painel administrativo, página pública de agendamento, controle de acesso por função, proteção contra conflitos de horários, notificações por e-mail, lembretes automáticos e uma **Central de Notificações**.
+A plataforma permite que diferentes empresas gerenciem, de forma isolada, seus usuários, funcionários, serviços, clientes, horários, bloqueios, agendamentos e configurações.
+
+Inclui painel administrativo, página pública de agendamento, controle de acesso por função, proteção contra conflitos de horários, notificações por e-mail, lembretes automáticos, **Central de Notificações** e **Auditoria de Agendamentos**.
 
 As notificações usam **Transactional Outbox** e uma fila persistida no PostgreSQL. O processamento é assíncrono e considera falhas de SMTP, deduplicação, tentativas controladas e resultados de entrega incertos.
+
+A auditoria registra ações de agendamento, usuário responsável, data e hora e valores anteriores e posteriores. Os registros são persistidos transacionalmente com as alterações dos agendamentos e podem ser consultados no painel administrativo.
 
 ## Estado do projeto
 
@@ -17,10 +22,15 @@ As notificações usam **Transactional Outbox** e uma fila persistida no Postgre
 | Transactional Outbox | Implementado e testado |
 | Worker de notificações e tratamento de `UNCERTAIN` | Implementados e testados |
 | Painel de Notificações no Next.js | Implementado e validado manualmente |
-| Testes E2E | **227 aprovados em 37 arquivos** (25/10/2026) |
+| Auditoria transacional de agendamentos | Implementada e testada |
+| Histórico de auditoria no Next.js | Implementado e validado manualmente |
+| Permissões de Auditoria OWNER/ADMIN | Implementadas e testadas |
+| Testes E2E | **256 aprovados em 40 arquivos** (25/10/2026) |
 | Preparação para produção e deploy | Etapas futuras |
 
-**Último marco documentado:** `22f0eee` — `feat(notifications): add admin notification dashboard`.
+**Último marco implementado:** Etapa 6.1 — Auditoria de Agendamentos.
+
+**Commit de referência:** `3d3b694` — `feat: add appointment audit dashboard and restrict history access`.
 
 > O projeto está funcional em ambiente de desenvolvimento. Isso não equivale a uma homologação completa de produção.
 
@@ -49,6 +59,7 @@ As notificações usam **Transactional Outbox** e uma fila persistida no Postgre
 ### Dados, testes e infraestrutura
 
 - PostgreSQL, transações ACID e Advisory Locks
+- Prisma Migrations
 - Vitest e Supertest: testes E2E, de concorrência, falhas e rollback
 - Docker e Docker Compose
 - Mailpit para testes locais de e-mail
@@ -87,16 +98,28 @@ Agenda interna ou página pública
       |
 Agendamento (PENDING ou CONFIRMED)
       |
-Transação PostgreSQL (Transactional Outbox)
+Transação PostgreSQL
       |
-NotificationDelivery persistida
+      +-- Appointment
       |
-Worker de notificações
+      +-- NotificationDelivery
       |
-SMTP / Mailpit em desenvolvimento
+      +-- AppointmentAuditLog
       |
-Painel de Notificações (status e histórico)
+Commit da transação
+      |
+      +-- Worker de notificações
+      |        |
+      |        +-- SMTP / Mailpit
+      |        |
+      |        +-- Central de Notificações
+      |
+      +-- Histórico de Auditoria
+               |
+               +-- Painel administrativo
 ```
+
+O envio SMTP ocorre após o commit, por meio do worker. A auditoria é registrada dentro da transação do agendamento.
 
 ---
 
@@ -109,10 +132,10 @@ Painel de Notificações (status e histórico)
 
 | Função | Acesso principal |
 | --- | --- |
-| `OWNER` | Administração da empresa, usuários, permissões, funcionários, serviços, clientes, agenda, configurações e notificações |
-| `ADMIN` | Operação administrativa, configurações, consulta de usuários e notificações |
-| `RECEPTIONIST` | Atendimento, clientes, agenda e operações de agendamento permitidas |
-| `STAFF` | Acesso restrito à própria agenda e aos próprios atendimentos |
+| `OWNER` | Administração da empresa, usuários, funcionários, serviços, clientes, agenda, configurações, notificações e auditoria |
+| `ADMIN` | Operação administrativa, configurações, consulta de usuários, notificações e auditoria |
+| `RECEPTIONIST` | Atendimento, clientes, agenda e operações de agendamento permitidas, sem acesso à consulta da auditoria |
+| `STAFF` | Acesso restrito à própria agenda e aos próprios atendimentos, sem acesso à auditoria |
 
 O backend é a autoridade para verificar permissões. Esconder um item no menu do frontend **não substitui** a proteção da API.
 
@@ -126,8 +149,9 @@ Cada empresa possui seus próprios:
 - Agendamentos e configurações.
 - Regras do agendamento público.
 - Notificações e histórico de entregas.
+- Registros de auditoria dos agendamentos.
 
-O isolamento é verificado também nos testes E2E, incluindo consultas a notificações com tentativas de informar o `tenantId` de outra empresa.
+O isolamento é verificado também nos testes E2E, incluindo consultas com tentativas de acessar recursos pertencentes a outra empresa.
 
 ---
 
@@ -192,14 +216,337 @@ Operações disponíveis:
 - Listar por data ou período e filtrar por funcionário ou status.
 - Confirmar, reagendar, cancelar, concluir e registrar ausência.
 - Validar transições de status no backend.
+- Registrar o histórico das principais ações de agendamento.
 
-Agendamentos internos são criados como `CONFIRMED`; solicitações públicas iniciam como `PENDING`, aguardando confirmação da empresa. Agendamentos cancelados não voltam a estados ativos por meio do fluxo normal.
+Agendamentos internos são criados como `CONFIRMED`; solicitações públicas iniciam como `PENDING`, aguardando confirmação da empresa.
+
+Agendamentos cancelados não voltam a estados ativos por meio do fluxo normal.
 
 ### Proteção contra conflitos
 
-A API utiliza transações e **PostgreSQL Advisory Locks** para reduzir conflitos em operações simultâneas, incluindo criação e reagendamento. Também existe proteção para agendamentos públicos concorrentes do mesmo cliente em horários sobrepostos.
+A API utiliza transações e **PostgreSQL Advisory Locks** para reduzir conflitos em operações simultâneas, incluindo criação e reagendamento.
+
+Também existe proteção para agendamentos públicos concorrentes do mesmo cliente em horários sobrepostos.
 
 Agendamentos não cancelados ocupam o intervalo correspondente. Após um cancelamento validado, o horário pode voltar a aparecer entre os disponíveis.
+
+---
+
+## Auditoria de Agendamentos — Etapa 6.1
+
+**Implementada no backend e frontend.**
+
+A auditoria permite acompanhar o histórico das principais operações realizadas em agendamentos, com identificação do responsável e comparação dos dados anteriores e posteriores.
+
+O objetivo é oferecer rastreabilidade para a empresa, preservando o isolamento entre tenants e a integridade transacional.
+
+### Eventos de auditoria
+
+| Evento | Ação |
+| --- | --- |
+| `CREATED` | Criação de agendamento |
+| `CONFIRMED` | Confirmação de agendamento |
+| `RESCHEDULED` | Reagendamento efetivo |
+| `CANCELED` | Cancelamento |
+| `COMPLETED` | Conclusão de atendimento |
+| `NO_SHOW` | Registro de não comparecimento |
+| `UPDATED` | Ação prevista no enum para atualizações genéricas |
+
+O enum contempla `UPDATED`, mas isso não significa que toda edição de dados administrativos já gere esse evento.
+
+A auditoria registra as operações implementadas nos fluxos de agendamento.
+
+### Identificação do responsável
+
+Os eventos distinguem a origem da operação:
+
+```text
+USER
+PUBLIC
+SYSTEM
+```
+
+**USER:** ação realizada por um usuário autenticado da empresa.
+
+São armazenadas informações de identificação e função, como:
+
+- `actorUserId`
+- `actorName`
+- `actorRole`
+
+**PUBLIC:** agendamento realizado pela página pública, sem login administrativo.
+
+**SYSTEM:** tipo disponível para identificar operações automatizadas do sistema.
+
+A implementação não permite que o navegador escolha livremente o usuário responsável pela auditoria.
+
+Nas operações administrativas, a identidade é obtida do JWT validado pela API.
+
+### Modelo `AppointmentAuditLog`
+
+A implementação utiliza um modelo próprio no Prisma:
+
+```text
+AppointmentAuditLog
+├── id
+├── tenantId
+├── appointmentId
+├── action
+├── actorType
+├── actorUserId
+├── actorName
+├── actorRole
+├── before
+├── after
+└── createdAt
+```
+
+Os campos `before` e `after` utilizam JSON para representar os dados relevantes antes e depois de uma alteração.
+
+Exemplo conceitual de reagendamento:
+
+```json
+{
+  "action": "RESCHEDULED",
+  "actorType": "USER",
+  "actorName": "Administrador",
+  "actorRole": "ADMIN",
+  "before": {
+    "startsAt": "2026-10-26T11:30:00.000Z",
+    "endsAt": "2026-10-26T12:10:00.000Z"
+  },
+  "after": {
+    "startsAt": "2026-10-27T13:30:00.000Z",
+    "endsAt": "2026-10-27T14:10:00.000Z"
+  }
+}
+```
+
+Os horários são armazenados como instantes de tempo e apresentados no frontend conforme o fuso horário da empresa.
+
+### Auditoria transacional
+
+Os registros de auditoria são gravados na mesma transação PostgreSQL das alterações correspondentes.
+
+Exemplo:
+
+```text
+Requisição de agendamento
+       |
+Iniciar transação
+       |
+Criar ou atualizar Appointment
+       |
+Persistir NotificationDelivery
+       |
+Persistir AppointmentAuditLog
+       |
+Commit
+```
+
+Quando uma gravação obrigatória falha, a transação é revertida.
+
+Isso impede que uma alteração seja confirmada sem seu registro de auditoria obrigatório nos fluxos implementados.
+
+O mesmo princípio é utilizado nas solicitações públicas de agendamento.
+
+### Auditoria pública
+
+Na página pública, a criação registra um evento:
+
+```text
+action: CREATED
+actorType: PUBLIC
+status: PENDING
+```
+
+O snapshot registra informações operacionais necessárias à rastreabilidade, como:
+
+- Status do agendamento.
+- Data e horário.
+- Identificadores do funcionário e serviço.
+
+Dados pessoais do cliente não são incluídos nos snapshots desse fluxo.
+
+A suíte E2E verifica que informações como nome, telefone, e-mail e observações privadas não aparecem nesses snapshots.
+
+### Permissões de consulta
+
+A consulta de auditoria é exclusiva para:
+
+| Perfil | Consultar histórico |
+| --- | --- |
+| `OWNER` | Permitido |
+| `ADMIN` | Permitido |
+| `RECEPTIONIST` | Bloqueado — HTTP 403 |
+| `STAFF` | Bloqueado — HTTP 403 |
+| Sem autenticação | Bloqueado — HTTP 401 |
+
+A restrição é aplicada pelo `RolesGuard` no backend.
+
+O fato de `RECEPTIONIST` poder criar, cancelar ou reagendar atendimentos não autoriza esse perfil a consultar os registros de auditoria.
+
+### Endpoint do histórico
+
+```http
+GET /appointments/:id/history
+```
+
+Regras:
+
+- JWT obrigatório.
+- Somente `OWNER` e `ADMIN`.
+- O agendamento deve pertencer à empresa autenticada.
+- Tentativas de consultar agendamentos de outra empresa retornam HTTP `404`.
+- Resultados ordenados do evento mais recente para o mais antigo.
+- Limite atual de 100 eventos por consulta.
+- A consulta é somente leitura.
+
+Exemplo ilustrativo:
+
+```json
+{
+  "appointmentId": "appointment-id",
+  "data": [
+    {
+      "id": "audit-id",
+      "appointmentId": "appointment-id",
+      "action": "CREATED",
+      "actorType": "USER",
+      "actorUserId": "user-id",
+      "actorName": "Administrador",
+      "actorRole": "ADMIN",
+      "before": null,
+      "after": {
+        "status": "CONFIRMED"
+      },
+      "createdAt": "2026-10-25T23:00:00.000Z"
+    }
+  ]
+}
+```
+
+O JSON acima é apenas um exemplo resumido.
+
+### Interface de Auditoria no Next.js
+
+Rota:
+
+```text
+http://localhost:3000/auditoria
+```
+
+Arquivo principal:
+
+```text
+apps/web/app/auditoria/page.tsx
+```
+
+O acesso também está disponível no menu lateral e no menu mobile:
+
+```text
+Dashboard
+Agenda
+Clientes
+Funcionários
+Serviços
+Usuários
+Notificações
+Auditoria
+Configurações
+```
+
+A opção **Auditoria** é exibida somente para `OWNER` e `ADMIN`.
+
+A tela permite:
+
+- Selecionar data inicial e final.
+- Consultar agendamentos do período.
+- Selecionar um agendamento.
+- Visualizar seu histórico de alterações.
+- Identificar a ação realizada.
+- Visualizar o responsável e sua função.
+- Conferir data e hora da operação.
+- Comparar valores anteriores e posteriores.
+- Atualizar a consulta manualmente.
+
+A consulta do histórico não modifica registros.
+
+### Exibição dos nomes
+
+Os snapshots preservam identificadores técnicos, como:
+
+```text
+employeeId
+serviceId
+```
+
+O frontend consulta os cadastros da empresa para apresentar nomes legíveis.
+
+Exemplo:
+
+```text
+Serviço: Barba Premium
+Funcionário: Carlos Souza
+```
+
+São consultados também cadastros inativos:
+
+```http
+GET /employees?status=all
+GET /services?status=all
+```
+
+Quando um nome não está disponível, o ID original continua visível para preservar a rastreabilidade.
+
+**Importante:** os nomes são obtidos dos cadastros disponíveis no momento da consulta. Esta implementação não mantém versões históricas dos nomes de funcionários e serviços.
+
+### Limitações atuais
+
+A versão inicial possui algumas limitações intencionais:
+
+- O filtro de período utiliza a data do agendamento, não a data de criação do evento de auditoria.
+- Para consultar o histórico, é necessário selecionar um agendamento.
+- Não existe ainda uma pesquisa global de eventos por responsável.
+- O endpoint retorna até 100 eventos mais recentes por agendamento.
+- Não existe exportação de histórico em CSV ou PDF.
+- Não há interface para alterar ou remover eventos de auditoria.
+- Uma política específica de retenção ainda deverá ser definida antes de produção.
+
+### Arquivos principais
+
+```text
+apps/api/prisma/schema.prisma
+apps/api/prisma/migrations/20261025221216_add_appointment_audit_log/migration.sql
+
+apps/api/src/appointments/appointment-audit.ts
+apps/api/src/appointments/appointment-audit.spec.ts
+apps/api/src/appointments/appointments.controller.ts
+apps/api/src/appointments/appointments.service.ts
+apps/api/src/public-booking/public-booking.service.ts
+
+apps/api/test/appointment-history.e2e-spec.ts
+apps/api/test/appointment-audit-flow.e2e-spec.ts
+apps/api/test/public-booking-audit.e2e-spec.ts
+
+apps/web/app/auditoria/page.tsx
+apps/web/components/panel-shell.tsx
+```
+
+### Testes da Auditoria
+
+Foram implementados:
+
+- 15 testes E2E para histórico, permissões, isolamento entre empresas, ordenação e limite de eventos.
+- 8 testes E2E para os fluxos internos de auditoria e rollback.
+- 6 testes E2E para auditoria de agendamentos públicos.
+- 5 testes unitários para o componente de auditoria.
+
+Os testes E2E verificam também que a consulta não modifica os registros.
+
+A falha simulada de gravação da auditoria pública confirma o rollback de agendamento, notificação e dados relacionados.
+
+O conjunto está incluído na suíte completa de 256 testes E2E aprovados.
 
 ---
 
@@ -217,7 +564,9 @@ Exemplo local:
 http://localhost:3000/agendar/barbearia-alpha
 ```
 
-O cliente não precisa fazer login. O fluxo permite selecionar serviço, profissional, data e horário, informar os dados pessoais e enviar a solicitação.
+O cliente não precisa fazer login.
+
+O fluxo permite selecionar serviço, profissional, data e horário, informar os dados pessoais e enviar a solicitação.
 
 ### Regras por empresa
 
@@ -228,7 +577,9 @@ A empresa pode configurar:
 
 Essas regras ajudam o frontend a apresentar as opções disponíveis e são **validadas novamente no backend**.
 
-Na solicitação pública, cliente, agendamento `PENDING` e notificação `APPOINTMENT_REQUESTED` são persistidos na mesma transação PostgreSQL. Se uma gravação obrigatória falhar, ocorre rollback.
+Na solicitação pública, cliente, agendamento `PENDING`, notificação `APPOINTMENT_REQUESTED` e auditoria `CREATED` são persistidos na mesma transação PostgreSQL.
+
+Se uma gravação obrigatória falhar, ocorre rollback.
 
 ---
 
@@ -258,7 +609,9 @@ A aplicação usa Nodemailer, SMTP, PostgreSQL, uma fila persistente e um worker
 | Mudança efetiva de data ou horário | `APPOINTMENT_RESCHEDULED` |
 | Lembrete automático de agendamento | `APPOINTMENT_REMINDER` |
 
-O reagendamento inclui informações do horário anterior e do novo horário. Informar novamente o mesmo horário não deve criar notificação redundante.
+O reagendamento inclui informações do horário anterior e do novo horário.
+
+Informar novamente o mesmo horário não deve criar notificação redundante.
 
 ### Fila persistente: `NotificationDelivery`
 
@@ -311,17 +664,25 @@ A política de intervalos progressivos para tentativas recuperáveis utiliza:
 
 #### Status `UNCERTAIN` — proteção contra duplicidade
 
-Uma falha de comunicação durante a etapa SMTP `DATA` pode deixar desconhecido se o servidor recebeu a mensagem. Nessa situação, o serviço sinaliza `SmtpDeliveryUncertainError` e a entrega fica como `UNCERTAIN`.
+Uma falha de comunicação durante a etapa SMTP `DATA` pode deixar desconhecido se o servidor recebeu a mensagem.
+
+Nessa situação, o serviço sinaliza `SmtpDeliveryUncertainError` e a entrega fica como `UNCERTAIN`.
 
 O worker também marca como `UNCERTAIN` notificações que permaneceram em `PROCESSING` por tempo excessivo (limite de recuperação implementado: **10 minutos**), porque o resultado da operação anterior pode ser desconhecido.
 
-**Entregas `UNCERTAIN` não são reenviadas automaticamente.** O sistema também impede que respostas atrasadas do SMTP sobrescrevam esse status ou marquem indevidamente o lembrete como enviado.
+**Entregas `UNCERTAIN` não são reenviadas automaticamente.**
 
-Esse comportamento reduz o risco de envio duplicado. A arquitetura **não promete entrega exatamente uma vez** pelo SMTP. Casos incertos exigem investigação antes de qualquer decisão operacional.
+O sistema também impede que respostas atrasadas do SMTP sobrescrevam esse status ou marquem indevidamente o lembrete como enviado.
+
+Esse comportamento reduz o risco de envio duplicado.
+
+A arquitetura **não promete entrega exatamente uma vez** pelo SMTP. Casos incertos exigem investigação antes de qualquer decisão operacional.
 
 #### Deduplicação
 
-Cada evento pode possuir uma chave única `dedupeKey`, usada para evitar a persistência duplicada do mesmo evento. Exemplos conceituais:
+Cada evento pode possuir uma chave única `dedupeKey`, usada para evitar a persistência duplicada do mesmo evento.
+
+Exemplos conceituais:
 
 ```text
 appointment:{id}:requested
@@ -339,6 +700,8 @@ Deduplicar eventos no PostgreSQL não significa, por si só, garantir um único 
 
 O padrão **Transactional Outbox** torna atômica a gravação de dados do agendamento e das notificações relacionadas.
 
+Nos fluxos de agendamento auditados, a transação também inclui o registro correspondente em `AppointmentAuditLog`.
+
 ```text
 Requisição
    |
@@ -347,6 +710,8 @@ Transação PostgreSQL
 Criar ou alterar Appointment
    |
 Criar NotificationDelivery
+   |
+Criar AppointmentAuditLog
    |
 Commit
    |
@@ -357,15 +722,17 @@ SMTP
 Atualização do status da notificação
 ```
 
-Se uma etapa obrigatória da transação falhar, as demais gravações transacionais são revertidas. O envio SMTP ocorre **depois do commit**, não dentro da transação de agendamento.
+Se uma etapa obrigatória da transação falhar, as demais gravações transacionais são revertidas.
+
+O envio SMTP ocorre **depois do commit**, não dentro da transação de agendamento.
 
 ### Fluxos protegidos
 
-- Agendamento público: cliente, solicitação e notificação.
-- Criação interna: agendamento confirmado e notificação.
-- Confirmação: alteração de status e notificação.
-- Cancelamento: alteração, dados de cancelamento e notificação.
-- Reagendamento: novo horário e notificação; atualização de `reminderSentAt` quando aplicável.
+- Agendamento público: cliente, solicitação, notificação e auditoria.
+- Criação interna: agendamento confirmado, notificação e auditoria.
+- Confirmação: alteração de status, notificação e auditoria.
+- Cancelamento: alteração, dados de cancelamento, notificação e auditoria.
+- Reagendamento: novo horário, notificação, auditoria e atualização de `reminderSentAt` quando aplicável.
 - Preparação de lembretes: revalidação, lock e criação da entrega.
 
 A suíte E2E inclui cenários de rollback com falhas simuladas nesses fluxos.
@@ -376,7 +743,9 @@ A suíte E2E inclui cenários de rollback com falhas simuladas nesses fluxos.
 
 O scheduler do NestJS (`@nestjs/schedule`) identifica agendamentos elegíveis, respeitando a configuração individual de cada empresa.
 
-Antecedência padrão: **24 horas**. Existem cenários de teste para 1, 24 e 48 horas.
+Antecedência padrão: **24 horas**.
+
+Existem cenários de teste para 1, 24 e 48 horas.
 
 Condições importantes:
 
@@ -386,9 +755,13 @@ Condições importantes:
 - Lembretes habilitados para a empresa.
 - Ausência de registro de envio confirmado do lembrete correspondente.
 
-O campo `reminderSentAt` é preenchido **apenas quando o envio SMTP é confirmado**, não quando o lembrete é colocado na fila. Em um reagendamento efetivo, o marcador é reinicializado para permitir a preparação de um lembrete para o novo horário.
+O campo `reminderSentAt` é preenchido **apenas quando o envio SMTP é confirmado**, não quando o lembrete é colocado na fila.
 
-Lembretes desatualizados ou de agendamentos cancelados passam por revalidação antes do envio. Um e-mail já enviado antes do cancelamento não pode ser desfeito.
+Em um reagendamento efetivo, o marcador é reinicializado para permitir a preparação de um lembrete para o novo horário.
+
+Lembretes desatualizados ou de agendamentos cancelados passam por revalidação antes do envio.
+
+Um e-mail já enviado antes do cancelamento não pode ser desfeito.
 
 ---
 
@@ -421,9 +794,13 @@ apps/web/components/panel-shell.tsx
 - Destaque informativo para o estado `UNCERTAIN`.
 - Disponível no menu para `OWNER` e `ADMIN`.
 
-**A interface é somente de leitura.** Não existe botão de reenvio nesta versão; especialmente, notificações `UNCERTAIN` não devem ser reenviadas automaticamente.
+**A interface é somente de leitura.**
 
-Os indicadores representam **todo o histórico da empresa**. Os filtros aplicam-se à listagem, não aos indicadores.
+Não existe botão de reenvio nesta versão; especialmente, notificações `UNCERTAIN` não devem ser reenviadas automaticamente.
+
+Os indicadores representam **todo o histórico da empresa**.
+
+Os filtros aplicam-se à listagem, não aos indicadores.
 
 ### Endpoints
 
@@ -467,7 +844,9 @@ O fluxo foi validado manualmente com uma empresa de desenvolvimento: solicitaç�
 
 ## SMTP e Mailpit
 
-Configure o SMTP por variáveis de ambiente. Exemplo **somente para desenvolvimento local**:
+Configure o SMTP por variáveis de ambiente.
+
+Exemplo **somente para desenvolvimento local**:
 
 ```env
 SMTP_ENABLED=true
@@ -498,7 +877,9 @@ Inicialização a partir da raiz do repositório:
 docker compose up -d
 ```
 
-Quando a API roda diretamente no Windows e o SMTP do Docker está publicado no host, `127.0.0.1:1025` funciona como configuração local. **Se a API passar a rodar dentro de um contêiner, o hostname SMTP poderá precisar ser alterado** conforme a rede Docker.
+Quando a API roda diretamente no Windows e o SMTP do Docker está publicado no host, `127.0.0.1:1025` funciona como configuração local.
+
+**Se a API passar a rodar dentro de um contêiner, o hostname SMTP poderá precisar ser alterado** conforme a rede Docker.
 
 Não utilize credenciais, endereços ou servidores SMTP de desenvolvimento em produção.
 
@@ -506,7 +887,9 @@ Não utilize credenciais, endereços ou servidores SMTP de desenvolvimento em pr
 
 ## Rate limit e segurança
 
-Os endpoints públicos possuem proteção por IP com `@nestjs/throttler`. Configuração documentada:
+Os endpoints públicos possuem proteção por IP com `@nestjs/throttler`.
+
+Configuração documentada:
 
 - Rotas públicas: **120 requisições por minuto** por IP.
 - Criação de agendamento público: **20 requisições por minuto** por IP.
@@ -521,6 +904,8 @@ Proteções implementadas e validadas em diferentes fluxos:
 - Rate limit e proteção contra cadastros/agendamentos duplicados.
 - Transactional Outbox, fila persistente e deduplicação.
 - Tratamento do estado de entrega `UNCERTAIN`.
+- Auditoria transacional de agendamentos.
+- Restrição de consulta da auditoria para `OWNER` e `ADMIN`.
 - Banco separado e proteções para os testes E2E.
 
 O projeto ainda requer uma **revisão específica de segurança e operação antes de produção**, incluindo gerenciamento de segredos, políticas de acesso, observabilidade, retenção de dados e implantação segura.
@@ -594,6 +979,14 @@ PATCH /appointments/:id/reschedule
 
 O endpoint de alteração de status aceita transições permitidas pelas regras de negócio, como `CONFIRMED`, `COMPLETED` e `NO_SHOW`.
 
+### Auditoria
+
+```http
+GET /appointments/:id/history
+```
+
+Acesso exclusivo para `OWNER` e `ADMIN`.
+
 ### Agendamento público
 
 ```http
@@ -641,7 +1034,9 @@ docker compose ps
 
 ### 3. Configurar a API
 
-Crie `apps/api/.env` com valores adequados ao ambiente local. Exemplo **ilustrativo**, a adaptar conforme as variáveis exigidas pela implementação:
+Crie `apps/api/.env` com valores adequados ao ambiente local.
+
+Exemplo **ilustrativo**, a adaptar conforme as variáveis exigidas pela implementação:
 
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/agendamento"
@@ -671,7 +1066,13 @@ pnpm exec prisma migrate deploy
 pnpm exec prisma generate
 ```
 
-A migração que introduziu `NotificationStatus.UNCERTAIN` faz parte do histórico do Prisma e deve ser aplicada em novos ambientes antes de executar os módulos de notificações.
+As migrações do projeto incluem:
+
+- Atualizações de modelos e regras de agendamento.
+- Status `UNCERTAIN` para notificações.
+- Modelo `AppointmentAuditLog` para auditoria de agendamentos.
+
+Novos ambientes devem aplicar o histórico de migrações antes de executar a API.
 
 ### 5. Iniciar backend
 
@@ -712,8 +1113,11 @@ Rotas úteis:
 /dashboard
 /agenda
 /notificacoes
+/auditoria
 /agendar/{slug-da-empresa}
 ```
+
+A rota `/auditoria` exige autenticação com perfil `OWNER` ou `ADMIN`.
 
 ---
 
@@ -727,7 +1131,9 @@ Os testes E2E usam o banco PostgreSQL separado:
 agendamento_test
 ```
 
-Configuração em `apps/api/.env.test`. Exemplo ilustrativo:
+Configuração em `apps/api/.env.test`.
+
+Exemplo ilustrativo:
 
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/agendamento_test"
@@ -737,11 +1143,15 @@ NODE_ENV="test"
 APPOINTMENT_REMINDERS_ENABLED=false
 ```
 
-**Atenção: os testes E2E podem excluir registros e empresas. Nunca utilize `agendamento` ou um banco de produção para executá-los.** O projeto implementa verificações de segurança para impedir a execução de suítes destrutivas fora de `agendamento_test`.
+**Atenção: os testes E2E podem excluir registros e empresas. Nunca utilize `agendamento` ou um banco de produção para executá-los.**
+
+O projeto implementa verificações de segurança para impedir a execução de suítes destrutivas fora de `agendamento_test`.
 
 ### Migrações do banco de testes
 
-Antes de executar migrações, confira cuidadosamente a URL de conexão. Exemplo em PowerShell, dentro de `apps/api`:
+Antes de executar migrações, confira cuidadosamente a URL de conexão.
+
+Exemplo em PowerShell, dentro de `apps/api`:
 
 ```powershell
 $env:DATABASE_URL = ((Get-Content .env.test | Where-Object { $_ -match '^DATABASE_URL=' } | Select-Object -First 1) -replace '^DATABASE_URL=', '').Trim('"').Trim("'")
@@ -758,34 +1168,94 @@ Remove-Item Env:DATABASE_URL
 Dentro de `apps/api`:
 
 ```bash
-pnpm vitest run --config ./vitest.config.e2e.ts
+pnpm test:e2e
 ```
 
-Para executar somente os testes da Central de Notificações:
+### Procedimento padrão — salvar e copiar o resultado
+
+Para evitar perda de informações no terminal, utilizamos o seguinte procedimento no Git Bash:
 
 ```bash
-pnpm vitest run --config ./vitest.config.e2e.ts test/notifications-list.e2e-spec.ts
-pnpm vitest run --config ./vitest.config.e2e.ts test/notifications-summary.e2e-spec.ts
+set -o pipefail
+pnpm test:e2e 2>&1 | tee resultado-e2e.txt
+cat resultado-e2e.txt | clip.exe
+```
+
+O primeiro comando permite preservar o status de erro da suíte durante o uso do `tee`.
+
+O segundo executa os testes e salva o resultado no arquivo:
+
+```text
+apps/api/resultado-e2e.txt
+```
+
+O terceiro copia o relatório para a área de transferência do Windows.
+
+O TXT é temporário e não deve fazer parte do commit.
+
+Após a análise:
+
+```bash
+rm -f resultado-e2e.txt
+```
+
+### Executar testes específicos
+
+Testes da Central de Notificações:
+
+```bash
+pnpm exec vitest run --config ./vitest.config.e2e.ts test/notifications-list.e2e-spec.ts
+pnpm exec vitest run --config ./vitest.config.e2e.ts test/notifications-summary.e2e-spec.ts
+```
+
+Testes da Auditoria:
+
+```bash
+pnpm exec vitest run --config ./vitest.config.e2e.ts test/appointment-history.e2e-spec.ts
+pnpm exec vitest run --config ./vitest.config.e2e.ts test/appointment-audit-flow.e2e-spec.ts
+pnpm exec vitest run --config ./vitest.config.e2e.ts test/public-booking-audit.e2e-spec.ts
 ```
 
 ### Último resultado validado — 25/10/2026
 
 ```text
-Test Files  37 passed (37)
-Tests       227 passed (227)
+Test Files  40 passed (40)
+Tests       256 passed (256)
 ```
+
+Duração aproximada: 179 segundos.
 
 Inclui:
 
 - Autenticação, permissões e isolamento multi-tenant.
 - Clientes, serviços, funcionários, agenda e regras públicas.
 - Rate limit, concorrência e conflito de horários.
-- Transações, Transactional Outbox e rollback de todos os principais fluxos.
+- Transações, Transactional Outbox e rollback dos principais fluxos.
 - Fila persistente, worker SMTP, lembretes e tratamento de entregas incertas.
-- **26 testes E2E da listagem de notificações.**
-- **9 testes E2E dos indicadores de notificações.**
+- 26 testes E2E da listagem de notificações.
+- 9 testes E2E dos indicadores de notificações.
+- 15 testes E2E do histórico de auditoria.
+- 8 testes E2E dos fluxos internos de auditoria.
+- 6 testes E2E de auditoria pública.
 
-Na execução completa, algumas mensagens `ERROR` são provenientes de **falhas simuladas intencionalmente pelos testes**. Também foram observados avisos de depreciação do driver PostgreSQL, que merecem investigação futura, mas não impediram a aprovação da suíte.
+A implementação também conta com 5 testes unitários específicos do componente de auditoria, separados da contagem E2E acima.
+
+### Falhas simuladas nos testes
+
+Durante a suíte completa, algumas mensagens `ERROR` são produzidas intencionalmente por testes de falha e rollback.
+
+Exemplos:
+
+- Falha simulada ao gravar auditoria pública.
+- Falha simulada ao registrar notificação.
+- Falha simulada durante cancelamento.
+- Falha simulada durante confirmação.
+- Falha simulada durante reagendamento.
+- Falha simulada na preparação de lembretes.
+
+Esses cenários verificam a integridade das transações.
+
+Também foram observados avisos de depreciação do driver PostgreSQL, que merecem investigação futura, mas não impediram a aprovação da suíte.
 
 ---
 
@@ -803,7 +1273,9 @@ Frontend (`apps/web`):
 pnpm build
 ```
 
-Os builds da API e do frontend foram validados após a criação do Painel de Notificações.
+Os builds da API e do frontend foram validados após a implementação da Auditoria.
+
+Também foram realizados testes manuais da tela administrativa, incluindo criação e reagendamento, identificação do responsável, exibição dos estados anteriores e posteriores e apresentação dos nomes de serviços e funcionários.
 
 ---
 
@@ -815,9 +1287,23 @@ Os builds da API e do frontend foram validados após a criação do Painel de No
 | Hardening do worker | Concluída: recuperação de processamento, falhas SMTP e `UNCERTAIN` |
 | Migração PostgreSQL para `UNCERTAIN` | Aplicada e verificada no desenvolvimento |
 | Painel de Notificações | Concluído: API, testes E2E e interface Next.js |
-| Teste manual integrado | Concluído: agendamento público, confirmação, e-mails, cancelamento e liberação do horário |
+| Teste manual integrado de notificações | Concluído: agendamento público, confirmação, e-mails, cancelamento e liberação do horário |
+| Etapa 6.1 — Auditoria transacional | Concluída: modelo Prisma, migration, auditoria interna e pública |
+| Etapa 6.1 — Histórico administrativo | Concluída: API, testes e isolamento multiempresa |
+| Etapa 6.1 — Controle de acesso | Concluída: consulta exclusiva OWNER/ADMIN no backend e frontend |
+| Etapa 6.1 — Tela de Auditoria | Concluída: menu, filtros, histórico, nomes de funcionários e serviços |
+| Validação final da Etapa 6.1 | 256 testes E2E aprovados em 40 arquivos |
 
-O Painel de Notificações foi registrado no commit `22f0eee`. O sistema continua em desenvolvimento e evoluirá de forma incremental.
+### Commits de referência
+
+```text
+22f0eee  feat(notifications): add admin notification dashboard
+3d3b694  feat: add appointment audit dashboard and restrict history access
+```
+
+O sistema continua em desenvolvimento e evoluirá de forma incremental.
+
+---
 
 ## Melhorias futuras a avaliar
 
@@ -826,12 +1312,15 @@ Estas são **oportunidades de evolução**, não funcionalidades já entregues:
 1. **Segurança e preparação para produção:** revisão de secrets, autenticação, autorização, proteção de dados e requisitos operacionais.
 2. **Operação e observabilidade:** métricas, logs estruturados, alertas para falhas SMTP e entregas `UNCERTAIN`.
 3. **Experiência do painel:** acessibilidade, responsividade, estados de carregamento, mensagens e testes de interface.
-4. **Notificações:** políticas de retenção, auditoria e processo operacional seguro para investigação de entregas incertas. Qualquer reprocessamento manual deve respeitar o risco de duplicidade.
-5. **Confiabilidade:** investigar avisos de depreciação do PostgreSQL, revisar concorrência e ampliar testes conforme novas funcionalidades.
-6. **Produto SaaS:** avaliar planos, assinatura/cobrança, onboarding, personalização e relatórios conforme as necessidades do produto.
-7. **Infraestrutura:** pipeline de integração contínua, backups com restauração testada, deploy, HTTPS e configuração de SMTP de produção.
+4. **Auditoria:** pesquisa global de eventos, filtros por responsável e data da ação, paginação, exportação e política de retenção.
+5. **Notificações:** políticas de retenção, auditoria e processo operacional seguro para investigação de entregas incertas. Qualquer reprocessamento manual deve respeitar o risco de duplicidade.
+6. **Confiabilidade:** investigar avisos de depreciação do PostgreSQL, revisar concorrência e ampliar testes conforme novas funcionalidades.
+7. **Produto SaaS:** avaliar planos, assinatura/cobrança, onboarding, personalização e relatórios conforme as necessidades do produto.
+8. **Infraestrutura:** pipeline de integração contínua, backups com restauração testada, deploy, HTTPS e configuração de SMTP de produção.
 
-A ordem dessas melhorias será definida após uma revisão técnica específica. **Não é recomendável tratar o deploy como próximo passo automático sem essa avaliação.**
+A ordem dessas melhorias será definida após uma revisão técnica específica.
+
+**Não é recomendável tratar o deploy como próximo passo automático sem essa avaliação.**
 
 ---
 
@@ -844,6 +1333,7 @@ Demonstrar e aprimorar conhecimentos em:
 - Integridade, concorrência e transações PostgreSQL.
 - Processamento assíncrono, filas persistentes e idempotência.
 - Transactional Outbox e tratamento de falhas.
+- Auditoria transacional e rastreabilidade.
 - Testes automatizados e proteção contra regressões.
 - Desenvolvimento Full Stack com TypeScript, NestJS e Next.js.
 - Experiência de uso do painel administrativo e do agendamento público.
