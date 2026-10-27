@@ -47,6 +47,11 @@ export { Prisma }
  */
 export type Tenant = Prisma.TenantModel
 /**
+ * Model TenantLogo
+ * 
+ */
+export type TenantLogo = Prisma.TenantLogoModel
+/**
  * Model User
  * 
  */

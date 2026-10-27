@@ -305,6 +305,7 @@ export type TenantWhereInput = {
   appointments?: Prisma.AppointmentListRelationFilter
   notificationDeliveries?: Prisma.NotificationDeliveryListRelationFilter
   appointmentAuditLogs?: Prisma.AppointmentAuditLogListRelationFilter
+  logoImage?: Prisma.XOR<Prisma.TenantLogoNullableScalarRelationFilter, Prisma.TenantLogoWhereInput> | null
 }
 
 export type TenantOrderByWithRelationInput = {
@@ -331,6 +332,7 @@ export type TenantOrderByWithRelationInput = {
   appointments?: Prisma.AppointmentOrderByRelationAggregateInput
   notificationDeliveries?: Prisma.NotificationDeliveryOrderByRelationAggregateInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogOrderByRelationAggregateInput
+  logoImage?: Prisma.TenantLogoOrderByWithRelationInput
 }
 
 export type TenantWhereUniqueInput = Prisma.AtLeast<{
@@ -360,6 +362,7 @@ export type TenantWhereUniqueInput = Prisma.AtLeast<{
   appointments?: Prisma.AppointmentListRelationFilter
   notificationDeliveries?: Prisma.NotificationDeliveryListRelationFilter
   appointmentAuditLogs?: Prisma.AppointmentAuditLogListRelationFilter
+  logoImage?: Prisma.XOR<Prisma.TenantLogoNullableScalarRelationFilter, Prisma.TenantLogoWhereInput> | null
 }, "id" | "slug">
 
 export type TenantOrderByWithAggregationInput = {
@@ -428,6 +431,7 @@ export type TenantCreateInput = {
   appointments?: Prisma.AppointmentCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoCreateNestedOneWithoutTenantInput
 }
 
 export type TenantUncheckedCreateInput = {
@@ -454,6 +458,7 @@ export type TenantUncheckedCreateInput = {
   appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoUncheckedCreateNestedOneWithoutTenantInput
 }
 
 export type TenantUpdateInput = {
@@ -480,6 +485,7 @@ export type TenantUpdateInput = {
   appointments?: Prisma.AppointmentUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateInput = {
@@ -506,6 +512,7 @@ export type TenantUncheckedUpdateInput = {
   appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUncheckedUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantCreateManyInput = {
@@ -651,6 +658,20 @@ export type DateTimeFieldUpdateOperationsInput = {
   set?: Date | string
 }
 
+export type TenantCreateNestedOneWithoutLogoImageInput = {
+  create?: Prisma.XOR<Prisma.TenantCreateWithoutLogoImageInput, Prisma.TenantUncheckedCreateWithoutLogoImageInput>
+  connectOrCreate?: Prisma.TenantCreateOrConnectWithoutLogoImageInput
+  connect?: Prisma.TenantWhereUniqueInput
+}
+
+export type TenantUpdateOneRequiredWithoutLogoImageNestedInput = {
+  create?: Prisma.XOR<Prisma.TenantCreateWithoutLogoImageInput, Prisma.TenantUncheckedCreateWithoutLogoImageInput>
+  connectOrCreate?: Prisma.TenantCreateOrConnectWithoutLogoImageInput
+  upsert?: Prisma.TenantUpsertWithoutLogoImageInput
+  connect?: Prisma.TenantWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.TenantUpdateToOneWithWhereWithoutLogoImageInput, Prisma.TenantUpdateWithoutLogoImageInput>, Prisma.TenantUncheckedUpdateWithoutLogoImageInput>
+}
+
 export type TenantCreateNestedOneWithoutMembershipsInput = {
   create?: Prisma.XOR<Prisma.TenantCreateWithoutMembershipsInput, Prisma.TenantUncheckedCreateWithoutMembershipsInput>
   connectOrCreate?: Prisma.TenantCreateOrConnectWithoutMembershipsInput
@@ -777,6 +798,126 @@ export type TenantUpdateOneRequiredWithoutAppointmentAuditLogsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.TenantUpdateToOneWithWhereWithoutAppointmentAuditLogsInput, Prisma.TenantUpdateWithoutAppointmentAuditLogsInput>, Prisma.TenantUncheckedUpdateWithoutAppointmentAuditLogsInput>
 }
 
+export type TenantCreateWithoutLogoImageInput = {
+  id?: string
+  name: string
+  slug: string
+  logoUrl?: string | null
+  primaryColor?: string | null
+  phone?: string | null
+  email?: string | null
+  timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  memberships?: Prisma.MembershipCreateNestedManyWithoutTenantInput
+  services?: Prisma.ServiceCreateNestedManyWithoutTenantInput
+  employees?: Prisma.EmployeeCreateNestedManyWithoutTenantInput
+  clients?: Prisma.ClientCreateNestedManyWithoutTenantInput
+  availabilityRules?: Prisma.AvailabilityRuleCreateNestedManyWithoutTenantInput
+  blockedTimes?: Prisma.BlockedTimeCreateNestedManyWithoutTenantInput
+  appointments?: Prisma.AppointmentCreateNestedManyWithoutTenantInput
+  notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutTenantInput
+  appointmentAuditLogs?: Prisma.AppointmentAuditLogCreateNestedManyWithoutTenantInput
+}
+
+export type TenantUncheckedCreateWithoutLogoImageInput = {
+  id?: string
+  name: string
+  slug: string
+  logoUrl?: string | null
+  primaryColor?: string | null
+  phone?: string | null
+  email?: string | null
+  timezone?: string
+  bookingMinAdvanceMinutes?: number
+  bookingMaxAdvanceDays?: number
+  appointmentRemindersEnabled?: boolean
+  appointmentReminderHoursBefore?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  memberships?: Prisma.MembershipUncheckedCreateNestedManyWithoutTenantInput
+  services?: Prisma.ServiceUncheckedCreateNestedManyWithoutTenantInput
+  employees?: Prisma.EmployeeUncheckedCreateNestedManyWithoutTenantInput
+  clients?: Prisma.ClientUncheckedCreateNestedManyWithoutTenantInput
+  availabilityRules?: Prisma.AvailabilityRuleUncheckedCreateNestedManyWithoutTenantInput
+  blockedTimes?: Prisma.BlockedTimeUncheckedCreateNestedManyWithoutTenantInput
+  appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutTenantInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutTenantInput
+  appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type TenantCreateOrConnectWithoutLogoImageInput = {
+  where: Prisma.TenantWhereUniqueInput
+  create: Prisma.XOR<Prisma.TenantCreateWithoutLogoImageInput, Prisma.TenantUncheckedCreateWithoutLogoImageInput>
+}
+
+export type TenantUpsertWithoutLogoImageInput = {
+  update: Prisma.XOR<Prisma.TenantUpdateWithoutLogoImageInput, Prisma.TenantUncheckedUpdateWithoutLogoImageInput>
+  create: Prisma.XOR<Prisma.TenantCreateWithoutLogoImageInput, Prisma.TenantUncheckedCreateWithoutLogoImageInput>
+  where?: Prisma.TenantWhereInput
+}
+
+export type TenantUpdateToOneWithWhereWithoutLogoImageInput = {
+  where?: Prisma.TenantWhereInput
+  data: Prisma.XOR<Prisma.TenantUpdateWithoutLogoImageInput, Prisma.TenantUncheckedUpdateWithoutLogoImageInput>
+}
+
+export type TenantUpdateWithoutLogoImageInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  logoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  primaryColor?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  memberships?: Prisma.MembershipUpdateManyWithoutTenantNestedInput
+  services?: Prisma.ServiceUpdateManyWithoutTenantNestedInput
+  employees?: Prisma.EmployeeUpdateManyWithoutTenantNestedInput
+  clients?: Prisma.ClientUpdateManyWithoutTenantNestedInput
+  availabilityRules?: Prisma.AvailabilityRuleUpdateManyWithoutTenantNestedInput
+  blockedTimes?: Prisma.BlockedTimeUpdateManyWithoutTenantNestedInput
+  appointments?: Prisma.AppointmentUpdateManyWithoutTenantNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutTenantNestedInput
+  appointmentAuditLogs?: Prisma.AppointmentAuditLogUpdateManyWithoutTenantNestedInput
+}
+
+export type TenantUncheckedUpdateWithoutLogoImageInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  logoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  primaryColor?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  bookingMinAdvanceMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  bookingMaxAdvanceDays?: Prisma.IntFieldUpdateOperationsInput | number
+  appointmentRemindersEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  appointmentReminderHoursBefore?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  memberships?: Prisma.MembershipUncheckedUpdateManyWithoutTenantNestedInput
+  services?: Prisma.ServiceUncheckedUpdateManyWithoutTenantNestedInput
+  employees?: Prisma.EmployeeUncheckedUpdateManyWithoutTenantNestedInput
+  clients?: Prisma.ClientUncheckedUpdateManyWithoutTenantNestedInput
+  availabilityRules?: Prisma.AvailabilityRuleUncheckedUpdateManyWithoutTenantNestedInput
+  blockedTimes?: Prisma.BlockedTimeUncheckedUpdateManyWithoutTenantNestedInput
+  appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutTenantNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutTenantNestedInput
+  appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedUpdateManyWithoutTenantNestedInput
+}
+
 export type TenantCreateWithoutMembershipsInput = {
   id?: string
   name: string
@@ -800,6 +941,7 @@ export type TenantCreateWithoutMembershipsInput = {
   appointments?: Prisma.AppointmentCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoCreateNestedOneWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutMembershipsInput = {
@@ -825,6 +967,7 @@ export type TenantUncheckedCreateWithoutMembershipsInput = {
   appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoUncheckedCreateNestedOneWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutMembershipsInput = {
@@ -866,6 +1009,7 @@ export type TenantUpdateWithoutMembershipsInput = {
   appointments?: Prisma.AppointmentUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutMembershipsInput = {
@@ -891,6 +1035,7 @@ export type TenantUncheckedUpdateWithoutMembershipsInput = {
   appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUncheckedUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantCreateWithoutServicesInput = {
@@ -916,6 +1061,7 @@ export type TenantCreateWithoutServicesInput = {
   appointments?: Prisma.AppointmentCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoCreateNestedOneWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutServicesInput = {
@@ -941,6 +1087,7 @@ export type TenantUncheckedCreateWithoutServicesInput = {
   appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoUncheckedCreateNestedOneWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutServicesInput = {
@@ -982,6 +1129,7 @@ export type TenantUpdateWithoutServicesInput = {
   appointments?: Prisma.AppointmentUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutServicesInput = {
@@ -1007,6 +1155,7 @@ export type TenantUncheckedUpdateWithoutServicesInput = {
   appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUncheckedUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantCreateWithoutEmployeesInput = {
@@ -1032,6 +1181,7 @@ export type TenantCreateWithoutEmployeesInput = {
   appointments?: Prisma.AppointmentCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoCreateNestedOneWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutEmployeesInput = {
@@ -1057,6 +1207,7 @@ export type TenantUncheckedCreateWithoutEmployeesInput = {
   appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoUncheckedCreateNestedOneWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutEmployeesInput = {
@@ -1098,6 +1249,7 @@ export type TenantUpdateWithoutEmployeesInput = {
   appointments?: Prisma.AppointmentUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutEmployeesInput = {
@@ -1123,6 +1275,7 @@ export type TenantUncheckedUpdateWithoutEmployeesInput = {
   appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUncheckedUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantCreateWithoutClientsInput = {
@@ -1148,6 +1301,7 @@ export type TenantCreateWithoutClientsInput = {
   appointments?: Prisma.AppointmentCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoCreateNestedOneWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutClientsInput = {
@@ -1173,6 +1327,7 @@ export type TenantUncheckedCreateWithoutClientsInput = {
   appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoUncheckedCreateNestedOneWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutClientsInput = {
@@ -1214,6 +1369,7 @@ export type TenantUpdateWithoutClientsInput = {
   appointments?: Prisma.AppointmentUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutClientsInput = {
@@ -1239,6 +1395,7 @@ export type TenantUncheckedUpdateWithoutClientsInput = {
   appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUncheckedUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantCreateWithoutAvailabilityRulesInput = {
@@ -1264,6 +1421,7 @@ export type TenantCreateWithoutAvailabilityRulesInput = {
   appointments?: Prisma.AppointmentCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoCreateNestedOneWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutAvailabilityRulesInput = {
@@ -1289,6 +1447,7 @@ export type TenantUncheckedCreateWithoutAvailabilityRulesInput = {
   appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoUncheckedCreateNestedOneWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutAvailabilityRulesInput = {
@@ -1330,6 +1489,7 @@ export type TenantUpdateWithoutAvailabilityRulesInput = {
   appointments?: Prisma.AppointmentUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutAvailabilityRulesInput = {
@@ -1355,6 +1515,7 @@ export type TenantUncheckedUpdateWithoutAvailabilityRulesInput = {
   appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUncheckedUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantCreateWithoutBlockedTimesInput = {
@@ -1380,6 +1541,7 @@ export type TenantCreateWithoutBlockedTimesInput = {
   appointments?: Prisma.AppointmentCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoCreateNestedOneWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutBlockedTimesInput = {
@@ -1405,6 +1567,7 @@ export type TenantUncheckedCreateWithoutBlockedTimesInput = {
   appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoUncheckedCreateNestedOneWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutBlockedTimesInput = {
@@ -1446,6 +1609,7 @@ export type TenantUpdateWithoutBlockedTimesInput = {
   appointments?: Prisma.AppointmentUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutBlockedTimesInput = {
@@ -1471,6 +1635,7 @@ export type TenantUncheckedUpdateWithoutBlockedTimesInput = {
   appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUncheckedUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantCreateWithoutAppointmentsInput = {
@@ -1496,6 +1661,7 @@ export type TenantCreateWithoutAppointmentsInput = {
   blockedTimes?: Prisma.BlockedTimeCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoCreateNestedOneWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutAppointmentsInput = {
@@ -1521,6 +1687,7 @@ export type TenantUncheckedCreateWithoutAppointmentsInput = {
   blockedTimes?: Prisma.BlockedTimeUncheckedCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoUncheckedCreateNestedOneWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutAppointmentsInput = {
@@ -1562,6 +1729,7 @@ export type TenantUpdateWithoutAppointmentsInput = {
   blockedTimes?: Prisma.BlockedTimeUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutAppointmentsInput = {
@@ -1587,6 +1755,7 @@ export type TenantUncheckedUpdateWithoutAppointmentsInput = {
   blockedTimes?: Prisma.BlockedTimeUncheckedUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUncheckedUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantCreateWithoutNotificationDeliveriesInput = {
@@ -1612,6 +1781,7 @@ export type TenantCreateWithoutNotificationDeliveriesInput = {
   blockedTimes?: Prisma.BlockedTimeCreateNestedManyWithoutTenantInput
   appointments?: Prisma.AppointmentCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoCreateNestedOneWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutNotificationDeliveriesInput = {
@@ -1637,6 +1807,7 @@ export type TenantUncheckedCreateWithoutNotificationDeliveriesInput = {
   blockedTimes?: Prisma.BlockedTimeUncheckedCreateNestedManyWithoutTenantInput
   appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutTenantInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoUncheckedCreateNestedOneWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutNotificationDeliveriesInput = {
@@ -1678,6 +1849,7 @@ export type TenantUpdateWithoutNotificationDeliveriesInput = {
   blockedTimes?: Prisma.BlockedTimeUpdateManyWithoutTenantNestedInput
   appointments?: Prisma.AppointmentUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutNotificationDeliveriesInput = {
@@ -1703,6 +1875,7 @@ export type TenantUncheckedUpdateWithoutNotificationDeliveriesInput = {
   blockedTimes?: Prisma.BlockedTimeUncheckedUpdateManyWithoutTenantNestedInput
   appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutTenantNestedInput
   appointmentAuditLogs?: Prisma.AppointmentAuditLogUncheckedUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUncheckedUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantCreateWithoutAppointmentAuditLogsInput = {
@@ -1728,6 +1901,7 @@ export type TenantCreateWithoutAppointmentAuditLogsInput = {
   blockedTimes?: Prisma.BlockedTimeCreateNestedManyWithoutTenantInput
   appointments?: Prisma.AppointmentCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoCreateNestedOneWithoutTenantInput
 }
 
 export type TenantUncheckedCreateWithoutAppointmentAuditLogsInput = {
@@ -1753,6 +1927,7 @@ export type TenantUncheckedCreateWithoutAppointmentAuditLogsInput = {
   blockedTimes?: Prisma.BlockedTimeUncheckedCreateNestedManyWithoutTenantInput
   appointments?: Prisma.AppointmentUncheckedCreateNestedManyWithoutTenantInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutTenantInput
+  logoImage?: Prisma.TenantLogoUncheckedCreateNestedOneWithoutTenantInput
 }
 
 export type TenantCreateOrConnectWithoutAppointmentAuditLogsInput = {
@@ -1794,6 +1969,7 @@ export type TenantUpdateWithoutAppointmentAuditLogsInput = {
   blockedTimes?: Prisma.BlockedTimeUpdateManyWithoutTenantNestedInput
   appointments?: Prisma.AppointmentUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUpdateOneWithoutTenantNestedInput
 }
 
 export type TenantUncheckedUpdateWithoutAppointmentAuditLogsInput = {
@@ -1819,6 +1995,7 @@ export type TenantUncheckedUpdateWithoutAppointmentAuditLogsInput = {
   blockedTimes?: Prisma.BlockedTimeUncheckedUpdateManyWithoutTenantNestedInput
   appointments?: Prisma.AppointmentUncheckedUpdateManyWithoutTenantNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutTenantNestedInput
+  logoImage?: Prisma.TenantLogoUncheckedUpdateOneWithoutTenantNestedInput
 }
 
 
@@ -1948,6 +2125,7 @@ export type TenantSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   appointments?: boolean | Prisma.Tenant$appointmentsArgs<ExtArgs>
   notificationDeliveries?: boolean | Prisma.Tenant$notificationDeliveriesArgs<ExtArgs>
   appointmentAuditLogs?: boolean | Prisma.Tenant$appointmentAuditLogsArgs<ExtArgs>
+  logoImage?: boolean | Prisma.Tenant$logoImageArgs<ExtArgs>
   _count?: boolean | Prisma.TenantCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["tenant"]>
 
@@ -2013,6 +2191,7 @@ export type TenantInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   appointments?: boolean | Prisma.Tenant$appointmentsArgs<ExtArgs>
   notificationDeliveries?: boolean | Prisma.Tenant$notificationDeliveriesArgs<ExtArgs>
   appointmentAuditLogs?: boolean | Prisma.Tenant$appointmentAuditLogsArgs<ExtArgs>
+  logoImage?: boolean | Prisma.Tenant$logoImageArgs<ExtArgs>
   _count?: boolean | Prisma.TenantCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type TenantIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -2030,6 +2209,7 @@ export type $TenantPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     appointments: Prisma.$AppointmentPayload<ExtArgs>[]
     notificationDeliveries: Prisma.$NotificationDeliveryPayload<ExtArgs>[]
     appointmentAuditLogs: Prisma.$AppointmentAuditLogPayload<ExtArgs>[]
+    logoImage: Prisma.$TenantLogoPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -2449,6 +2629,7 @@ export interface Prisma__TenantClient<T, Null = never, ExtArgs extends runtime.T
   appointments<T extends Prisma.Tenant$appointmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Tenant$appointmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AppointmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   notificationDeliveries<T extends Prisma.Tenant$notificationDeliveriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Tenant$notificationDeliveriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NotificationDeliveryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   appointmentAuditLogs<T extends Prisma.Tenant$appointmentAuditLogsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Tenant$appointmentAuditLogsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AppointmentAuditLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  logoImage<T extends Prisma.Tenant$logoImageArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Tenant$logoImageArgs<ExtArgs>>): Prisma.Prisma__TenantLogoClient<runtime.Types.Result.GetResult<Prisma.$TenantLogoPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -3098,6 +3279,25 @@ export type Tenant$appointmentAuditLogsArgs<ExtArgs extends runtime.Types.Extens
   take?: number
   skip?: number
   distinct?: Prisma.AppointmentAuditLogScalarFieldEnum | Prisma.AppointmentAuditLogScalarFieldEnum[]
+}
+
+/**
+ * Tenant.logoImage
+ */
+export type Tenant$logoImageArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the TenantLogo
+   */
+  select?: Prisma.TenantLogoSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the TenantLogo
+   */
+  omit?: Prisma.TenantLogoOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TenantLogoInclude<ExtArgs> | null
+  where?: Prisma.TenantLogoWhereInput
 }
 
 /**

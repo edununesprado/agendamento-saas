@@ -1,14 +1,15 @@
-
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { TurnstileWidget } from '@/components/turnstile-widget';
+import { getTenantLogoUrl } from '@/lib/tenant-logo';
 
 type Tenant = {
   name: string;
   slug: string;
   logoUrl?: string | null;
+  hasStoredLogo?: boolean;
   primaryColor?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -255,6 +256,7 @@ export default function PublicBookingPage() {
     [employees, employeeId],
   );
 
+  const tenantLogoUrl = getTenantLogoUrl(tenant);
   const primaryColor = tenant?.primaryColor ?? '#18181b';
   const buttonTextColor = getContrastColor(primaryColor);
   const minDate = tenant
@@ -353,8 +355,7 @@ export default function PublicBookingPage() {
     async function loadSlots() {
       try {
         setLoadingSlots(true);
-
-        // Não apaga mensagens de erro durante atualizações de horários.
+        // Nao apaga mensagens de erro durante atualizacoes de horarios.
         setSelectedSlot('');
 
         const query = new URLSearchParams({ employeeId, serviceId, date });
@@ -479,8 +480,8 @@ export default function PublicBookingPage() {
         ? err.message
         : 'Não foi possível realizar o agendamento.');
 
-      // Apenas um conflito de disponibilidade exige escolher outro horário.
-      // Erros de CAPTCHA, rede, validação e rate limit preservam os dados.
+      // Somente conflito de disponibilidade exige selecionar novo horario.
+      // Erros de CAPTCHA/rede/rate limit preservam os dados preenchidos.
       if (err instanceof ApiError && err.status === 409) {
         setSelectedSlot('');
         setSlotsVersion((current) => current + 1);
@@ -607,9 +608,9 @@ export default function PublicBookingPage() {
     <main className="min-h-screen bg-zinc-50">
       <header style={{ backgroundColor: primaryColor, color: buttonTextColor }}>
         <div className="mx-auto max-w-4xl flex items-center gap-4 px-4 py-7 sm:px-6">
-          {tenant.logoUrl ? (
+          {tenantLogoUrl ? (
             <img
-              src={tenant.logoUrl}
+              src={tenantLogoUrl}
               alt={tenant.name}
               className="h-14 w-14 rounded-2xl bg-white object-contain p-1 shadow-sm"
             />
@@ -910,7 +911,7 @@ export default function PublicBookingPage() {
                 />
               </div>
 
-              {/* Mensagem junto ao formulário, sem perder os dados preenchidos. */}
+              {/* Mensagem proxima ao formulario, preservando os dados. */}
               {error && (
                 <p
                   role="alert"

@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -13,6 +12,7 @@ import {
 } from 'next/navigation';
 
 import { apiFetch } from '@/lib/api';
+import { getTenantLogoUrl } from '@/lib/tenant-logo';
 
 type Role =
   | 'OWNER'
@@ -25,6 +25,7 @@ type Tenant = {
   name: string;
   slug: string;
   logoUrl?: string | null;
+  hasStoredLogo?: boolean;
   primaryColor?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -99,30 +100,13 @@ const menuItems: MenuItem[] = [
   {
     label: 'Notificações',
     href: '/notificacoes',
-    roles: [
-      'OWNER',
-      'ADMIN',
-    ],
+    roles: ['OWNER', 'ADMIN'],
   },
-
-  /*
-   * ETAPA 6.1 — AUDITORIA
-   *
-   * A opção aparece exclusivamente
-   * para OWNER e ADMIN.
-   *
-   * A mesma configuração controla
-   * os menus desktop e mobile.
-   */
   {
     label: 'Auditoria',
     href: '/auditoria',
-    roles: [
-      'OWNER',
-      'ADMIN',
-    ],
+    roles: ['OWNER', 'ADMIN'],
   },
-
   {
     label: 'Configurações',
     href: '/configuracoes',
@@ -166,6 +150,8 @@ export function PanelShell({
   ] =
     useState(false);
 
+  const [logoRevision, setLogoRevision] = useState(0);
+
   useEffect(() => {
     async function initialize() {
       const token =
@@ -195,7 +181,7 @@ export function PanelShell({
             storedUser,
           ) as StoredUser;
 
-        /*
+        /**
          * Salva a função do usuário
          * para controlar o menu.
          */
@@ -203,16 +189,16 @@ export function PanelShell({
           parsed.membership.role,
         );
 
-        /*
+        /**
          * Mostra imediatamente os dados
-         * da empresa armazenados
+         * da empresa que já temos
          * no navegador.
          */
         setTenant(
           parsed.tenant,
         );
 
-        /*
+        /**
          * Busca os dados mais recentes
          * da empresa no backend.
          */
@@ -237,7 +223,7 @@ export function PanelShell({
             tenantData,
           );
 
-          /*
+          /**
            * Atualiza também os dados
            * armazenados no navegador.
            */
@@ -266,6 +252,30 @@ export function PanelShell({
     initialize();
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // A configuracao comunica mudancas de identidade visual ao menu.
+  useEffect(() => {
+    let active = true;
+
+    async function refreshTenant() {
+      try {
+        const response = await apiFetch('/tenants/current');
+        if (!response.ok || !active) return;
+        const current = (await response.json()) as Tenant;
+        if (!active) return;
+        setTenant(current);
+        setLogoRevision(Date.now());
+      } catch {
+        // A proxima navegacao tambem consulta os dados atualizados.
+      }
+    }
+
+    window.addEventListener('tenant-updated', refreshTenant);
+    return () => {
+      active = false;
+      window.removeEventListener('tenant-updated', refreshTenant);
+    };
   }, []);
 
   function handleLogout() {
@@ -299,18 +309,9 @@ export function PanelShell({
     );
   }
 
-  /*
+  /**
    * Filtra o menu conforme
    * a função do usuário.
-   *
-   * OWNER:
-   * vê Auditoria.
-   *
-   * ADMIN:
-   * vê Auditoria.
-   *
-   * RECEPTIONIST e STAFF:
-   * não veem Auditoria.
    *
    * STAFF recebe ainda uma
    * identificação especial
@@ -351,6 +352,8 @@ export function PanelShell({
     tenant?.primaryColor ||
     '#18181b';
 
+  const tenantLogoUrl = getTenantLogoUrl(tenant, logoRevision);
+
   if (!ready) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-100">
@@ -373,16 +376,12 @@ export function PanelShell({
           {/* EMPRESA */}
           <div className="border-b border-zinc-800 p-5">
 
-            {tenant?.logoUrl ? (
+            {tenantLogoUrl ? (
               <div className="mb-4 flex h-16 items-center justify-center overflow-hidden rounded-xl bg-white p-2">
 
                 <img
-                  src={
-                    tenant.logoUrl
-                  }
-                  alt={
-                    tenant.name
-                  }
+                  src={tenantLogoUrl}
+                  alt={tenant?.name ?? 'Logo da empresa'}
                   className="max-h-full max-w-full object-contain"
                 />
               </div>

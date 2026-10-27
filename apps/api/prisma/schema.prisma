@@ -99,6 +99,40 @@ model Tenant {
   notificationDeliveries NotificationDelivery[]
   appointmentAuditLogs   AppointmentAuditLog[]
 
+  // Etapa 6.3: logo armazenada no PostgreSQL.
+  // Relacionamento opcional, uma logo por empresa.
+  logoImage TenantLogo?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ETAPA 6.3 — LOGO DA EMPRESA
+//
+// Armazenamento binário no PostgreSQL.
+//
+// O relacionamento 1:1 garante
+// apenas uma logo por empresa.
+//
+// O conteúdo binário fica separado
+// dos dados normalmente consultados
+// na tabela Tenant.
+//
+// O campo Tenant.logoUrl permanece
+// para compatibilidade com imagens
+// previamente configuradas.
+
+model TenantLogo {
+  id String @id @default(cuid())
+
+  tenantId String @unique
+
+  data      Bytes @db.ByteA
+  mimeType  String
+  sizeBytes Int
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

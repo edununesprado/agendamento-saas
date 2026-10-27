@@ -9,6 +9,7 @@
  * 🟢 You can import this file directly.
  */
 export type * from './models/Tenant.js'
+export type * from './models/TenantLogo.js'
 export type * from './models/User.js'
 export type * from './models/Membership.js'
 export type * from './models/Service.js'

@@ -40,6 +40,13 @@ export class PublicBookingService {
           name: true,
           slug: true,
           logoUrl: true,
+
+          logoImage: {
+            select: {
+              id: true,
+            },
+          },
+
           primaryColor: true,
           phone: true,
           email: true,
@@ -207,6 +214,7 @@ export class PublicBookingService {
       name: tenant.name,
       slug: tenant.slug,
       logoUrl: tenant.logoUrl,
+      hasStoredLogo: tenant.logoImage !== null,
       primaryColor: tenant.primaryColor,
       phone: tenant.phone,
       email: tenant.email,

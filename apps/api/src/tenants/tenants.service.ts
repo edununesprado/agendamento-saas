@@ -1,3 +1,4 @@
+
 import {
   ConflictException,
   Injectable,
@@ -13,10 +14,26 @@ export class TenantsService {
     private readonly prisma: PrismaService,
   ) {}
 
+  /*
+   * Retorna as informações da empresa
+   * e indica se existe logo no PostgreSQL.
+   *
+   * Apenas o ID da imagem é consultado
+   * para verificar sua existência.
+   * O conteúdo binário não é carregado.
+   */
   async findCurrent(tenantId: string) {
     const tenant = await this.prisma.tenant.findUnique({
       where: {
         id: tenantId,
+      },
+
+      include: {
+        logoImage: {
+          select: {
+            id: true,
+          },
+        },
       },
     });
 
@@ -26,9 +43,25 @@ export class TenantsService {
       );
     }
 
-    return tenant;
+    const {
+      logoImage,
+      ...tenantData
+    } = tenant;
+
+    return {
+      ...tenantData,
+      hasStoredLogo: logoImage !== null,
+    };
   }
 
+  /*
+   * Atualiza as configurações existentes.
+   *
+   * Mantém a validação de slug único.
+   * Também retorna hasStoredLogo para
+   * manter a resposta consistente com
+   * GET /tenants/current.
+   */
   async updateCurrent(
     tenantId: string,
     data: UpdateTenantDto,
@@ -53,11 +86,30 @@ export class TenantsService {
       }
     }
 
-    return this.prisma.tenant.update({
+    const tenant = await this.prisma.tenant.update({
       where: {
         id: tenantId,
       },
+
       data,
+
+      include: {
+        logoImage: {
+          select: {
+            id: true,
+          },
+        },
+      },
     });
+
+    const {
+      logoImage,
+      ...tenantData
+    } = tenant;
+
+    return {
+      ...tenantData,
+      hasStoredLogo: logoImage !== null,
+    };
   }
 }
